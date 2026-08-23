@@ -2,7 +2,7 @@ namespace TrustSimBackend.Domain.Base
 {
     public abstract class BaseEntity : ISoftDelete, IAuditlog
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         // Implement ISoftDelete
         public DateTime? DeletedDate { get; set; }
