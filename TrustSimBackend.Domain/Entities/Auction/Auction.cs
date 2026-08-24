@@ -3,7 +3,7 @@ using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Enums;
 
-namespace TrustSimBackend.Domain.Entities.Auction
+namespace TrustSimBackend.Domain.Entities.Auctions
 {
     /// <summary>
     /// Đại diện cho một phiên đấu giá SIM trên hệ thống TrustSim.
@@ -24,13 +24,13 @@ namespace TrustSimBackend.Domain.Entities.Auction
         public AuctionStatus AuctionStatus { get; set; } = AuctionStatus.DRAFT;
 
         /// <summary>Giá khởi điểm của phiên đấu giá (VNĐ).</summary>
-        public double StartingPrice { get; set; }
+        public decimal StartingPrice { get; set; }
 
         /// <summary>Giá hiện tại (giá cao nhất đang được chấp nhận). Được cập nhật sau mỗi lượt đặt giá hợp lệ.</summary>
-        public double CurrentPrice { get; set; }
+        public decimal CurrentPrice { get; set; }
 
         /// <summary>Giá sàn bí mật (reserve price). Phiên đấu giá chỉ thành công nếu giá thắng vượt qua mức này.</summary>
-        public double ReservePrice { get; set; }
+        public decimal ReservePrice { get; set; }
 
         /// <summary>Thời điểm phiên đấu giá bắt đầu nhận lượt đặt giá.</summary>
         public DateTime StartAt { get; set; }
@@ -66,5 +66,15 @@ namespace TrustSimBackend.Domain.Entities.Auction
 
         /// <summary>Bộ quy tắc chi tiết của phiên đấu giá (quan hệ 1-1).</summary>
         public virtual AuctionRule? AuctionRule { get; set; }
+
+        /// <summary>
+        /// Danh sách những người tham gia đấu giá (quan hệ 1-n).
+        /// </summary>
+        public virtual ICollection<AuctionParticipant> Participants { get; set; } = new HashSet<AuctionParticipant>();
+
+        /// <summary>
+        /// Danh sách các giá đã đặt trong phiên đấu giá này (quan hệ 1-n).
+        /// </summary>
+        public virtual ICollection<Bid> Bids { get; set; } = new HashSet<Bid>();
     }
 }

@@ -1,0 +1,95 @@
+using TrustSimBackend.Domain.Base;
+using TrustSimBackend.Domain.Entities.Auction;
+using TrustSimBackend.Domain.Entities.Identity;
+using TrustSimBackend.Domain.Enums;
+
+namespace TrustSimBackend.Domain.Entities.Auctions
+{
+    /// <summary>
+    /// Đại diện cho một người tham gia đấu giá (bidder) trong một phiên đấu giá cụ thể.
+    /// Lưu trữ thông tin về số tiền đặt cược (bid amount), trạng thái xác thực và lịch sử tham gia.
+    /// </summary>
+    public class AuctionParticipant : FullAuditableEntity
+    {
+        /// <summary>Khóa chính của phiên đấu giá (alias cho <see cref="BaseEntity.Id"/>).</summary>
+        public Guid AuctionParticipantId { get => Id; private set => Id = value; }
+
+        /// <summary>
+        /// ID của phiên đấu giá mà người tham gia này thuộc về (FK đến <see cref="Auction.AuctionId"/>).
+        /// </summary>
+        public Guid AuctionId { get; set; }
+
+        /// <summary>
+        /// ID của người tham gia đấu giá (tài khoản người dùng) (FK đến <see cref="UserAccount.Id"/>).
+        /// </summary>
+        public Guid UserAccountId { get; set; }
+
+
+        /// <summary>
+        /// Trạng thái tham gia của người dùng trong phiên đấu giá.
+        /// Mặc định là <see cref="AuctionParticipantStatus.Pending"/>.
+        /// </summary>
+        public ParticipantStatus Status { get; set; }
+
+        /// <summary>
+        /// Số lượng giá thầu được chấp nhận của người dùng.
+        /// </summary>
+        public int AcceptedBidCount { get; set; }
+
+        /// <summary>
+        /// Số lượng giá thầu bị từ chối của người dùng.
+        /// </summary>
+        public int RejectedBidCount { get; set; }
+
+        /// <summary>
+        /// Ngày tham gia đấu giá.
+        /// </summary>
+        public DateTime JoinedAt {get; set;}
+
+        /// <summary>
+        /// Ngày từ chối đấu giá.
+        /// </summary>
+        public DateTime? RejectedAt {get;set;}
+
+        /// <summary>
+        /// Lý do từ chối đấu giá.
+        /// </summary>
+        public string? RejectReason {get;set;}
+
+        /// <summary>
+        /// Thời gian bị khóa 
+        /// </summary>
+        public DateTime? BlockedAt {get;set;}
+
+        /// <summary>
+        /// Lý do bị khóa
+        /// </summary>
+        public string? BlockedReason {get;set;}
+
+        /// <summary>
+        /// Phiên đấu giá mà người tham gia này thuộc về (quan hệ 1-1).
+        /// </summary>
+        public virtual Auction Auction {get;set;}= new();
+        /// <summary>
+        /// Tài khoản người dùng tham gia đấu giá (quan hệ 1-1).
+        /// </summary>
+        public virtual UserAccount UserAccount {get;set;}= new();
+
+        /// <summary>
+        /// Danh sách các giá đã đặt trong phiên đấu giá này (quan hệ 1-n).
+        /// </summary>
+        public virtual ICollection<Bid> Bids { get; set; } = new HashSet<Bid>();
+
+        /// <summary>
+        /// Lịch sử đánh giá rủi ro (quan hệ 1-n)
+        /// </summary>
+        public virtual ICollection<FraudAssessment> FraudAssessments { get; set; } = new HashSet<FraudAssessment>();
+
+        /// <summary>
+        /// Danh sách các khoản ký quỹ đã đặt trong phiên đấu giá này (quan hệ 1-n).
+        /// </summary>
+        public virtual ICollection<AuctionDeposit> Deposits { get; set; } = new HashSet<AuctionDeposit>();
+
+
+    }
+}

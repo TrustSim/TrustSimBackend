@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Base;
 using TrustSimBackend.Domain.Entities.Sim;
+using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Domain.Entities.Identity
@@ -32,5 +33,15 @@ namespace TrustSimBackend.Domain.Entities.Identity
 
         /// <summary>Danh sách lịch sử quyền sở hữu SIM của tài khoản này (1-N).</summary>
         public virtual ICollection<SimOwnership> SimOwnerships { get; set; } = new List<SimOwnership>();
+
+        /// <summary>
+        /// Danh sách phiên đấu giá mà tài khoản này tạo ra (người bán) (1-N).
+        /// </summary>
+        public virtual ICollection<Auction> Auctions { get; set; } = new List<Auction>();
+
+        /// <summary>
+        /// Danh sách các phiên đấu giá mà tài khoản này tham gia (người mua) (1-N).
+        /// </summary>
+        public virtual ICollection<AuctionParticipant> AuctionParticipants { get; set; } = new HashSet<AuctionParticipant>();
     }
 }

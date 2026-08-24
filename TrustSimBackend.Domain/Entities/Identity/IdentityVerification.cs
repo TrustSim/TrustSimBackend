@@ -28,7 +28,7 @@ public class IdentityVerification : AuditableEntity
     public DateTime? VerifiedAt { get; set; }
 
     /// <summary>Lý do từ chối do Admin điền vào khi trạng thái là REJECTED. Rỗng nếu được duyệt.</summary>
-    public string RejectionReason { get; set; } = string.Empty;
+    public string? RejectionReason { get; set; } = string.Empty;
 
     // --- Navigation Property ---
     /// <summary>Hồ sơ cá nhân đã gửi yêu cầu xác minh này.</summary>

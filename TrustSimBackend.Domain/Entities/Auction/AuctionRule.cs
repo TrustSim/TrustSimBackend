@@ -1,6 +1,6 @@
 using TrustSimBackend.Domain.Base;
 
-namespace TrustSimBackend.Domain.Entities.Auction
+namespace TrustSimBackend.Domain.Entities.Auctions
 {
     /// <summary>
     /// Lưu trữ toàn bộ cấu hình quy tắc chi tiết của một phiên đấu giá (quan hệ 1-1 với <see cref="Auction"/>).
@@ -14,10 +14,10 @@ namespace TrustSimBackend.Domain.Entities.Auction
 
         // --- Quy tắc đặt giá ---
         /// <summary>Mức tăng giá tối thiểu cho mỗi lượt đặt giá (VNĐ). VD: 100,000đ.</summary>
-        public double MinimumBidIncrement { get; set; }
+        public decimal MinimumBidIncrement { get; set; }
 
         /// <summary>Số tiền đặt cọc bắt buộc để đăng ký tham gia đấu giá (VNĐ).</summary>
-        public double DepositAmount { get; set; }
+        public decimal DepositAmount { get; set; }
 
         /// <summary>Số lượt đặt giá tối đa mà một người tham gia được phép thực hiện trong toàn bộ phiên.</summary>
         public int MaximumBidCountPerParticipant { get; set; }
@@ -47,7 +47,7 @@ namespace TrustSimBackend.Domain.Entities.Auction
         /// Mức giảm giá tự động sau mỗi chu kỳ (VNĐ) — chỉ áp dụng với Dutch Auction.
         /// Giá sẽ giảm dần từ <c>StartingPrice</c> đến <c>ReservePrice</c>.
         /// </summary>
-        public double DutchDecreaseAmount { get; set; }
+        public decimal DutchDecreaseAmount { get; set; }
 
         /// <summary>Khoảng thời gian (giây) giữa các lần giảm giá tự động trong Dutch Auction.</summary>
         public float DutchDecreaseIntervalSeconds { get; set; }
