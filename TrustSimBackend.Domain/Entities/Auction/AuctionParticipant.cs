@@ -1,5 +1,4 @@
 using TrustSimBackend.Domain.Base;
-using TrustSimBackend.Domain.Entities.Auction;
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Enums;
 

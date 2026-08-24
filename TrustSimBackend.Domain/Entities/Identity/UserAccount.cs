@@ -2,6 +2,7 @@ using TrustSimBackend.Domain.Base;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Entities.Financial;
 
 namespace TrustSimBackend.Domain.Entities.Identity
 {
@@ -43,5 +44,10 @@ namespace TrustSimBackend.Domain.Entities.Identity
         /// Danh sách các phiên đấu giá mà tài khoản này tham gia (người mua) (1-N).
         /// </summary>
         public virtual ICollection<AuctionParticipant> AuctionParticipants { get; set; } = new HashSet<AuctionParticipant>();
+
+        /// <summary>
+        /// Ví tiền của người dùng
+        /// </summary>
+        public virtual Wallet Wallet {get;set;}= new(); 
     }
 }
