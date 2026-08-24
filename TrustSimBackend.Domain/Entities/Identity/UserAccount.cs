@@ -1,27 +1,36 @@
 using TrustSimBackend.Domain.Base;
+using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Domain.Entities.Identity
 {
     /// <summary>
-    /// Thông tin tài khoản đăng nhập của người dùng
+    /// Đại diện cho tài khoản đăng nhập của người dùng trong hệ thống TrustSim.
+    /// Chứa thông tin xác thực (username, password hash) và vai trò người dùng.
+    /// Liên kết 1-1 với <see cref="UserProfile"/> (thông tin cá nhân) và <see cref="UserSecurityProfile"/> (khóa ký số).
     /// </summary>
-    public class UserAccount : BaseEntity
+    public class UserAccount : FullAuditableEntity
     {
+        /// <summary>Khóa chính của tài khoản (alias cho <see cref="BaseEntity.Id"/>).</summary>
         public Guid UserAccountId { get => Id; set => Id = value; }
-        public string UserName { get; set; } = string.Empty;
-        public string PassWordHash { get; set; } = string.Empty;
-        public UserRole Role { get; set; } = UserRole.USER;
-        public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; }
 
-        // Navigation Property (1-1 với UserProfile)
-        /// <summary>
-        /// Thông tin cá nhân liên kết với tài khoản này
-        /// </summary>
+        /// <summary>Tên đăng nhập duy nhất của người dùng (không phân biệt hoa thường).</summary>
+        public string UserName { get; set; } = string.Empty;
+
+        /// <summary>Mật khẩu đã được băm (BCrypt/Argon2). Không bao giờ lưu mật khẩu thuần văn bản.</summary>
+        public string PassWordHash { get; set; } = string.Empty;
+
+        /// <summary>Vai trò của người dùng trong hệ thống: USER, ADMIN, hoặc CONSULTANT.</summary>
+        public UserRole Role { get; set; } = UserRole.USER;
+
+        // --- Navigation Properties ---
+        /// <summary>Thông tin cá nhân (họ tên, CCCD, địa chỉ...) liên kết 1-1 với tài khoản này.</summary>
         public virtual UserProfile? UserProfile { get; set; }
 
-        public virtual UserSecurityProfile? UserSecurityProfile { get; set; }   
+        /// <summary>Hồ sơ bảo mật chứa cặp khóa ký số (Public Key / Encrypted Private Key) liên kết 1-1.</summary>
+        public virtual UserSecurityProfile? UserSecurityProfile { get; set; }
+
+        /// <summary>Danh sách lịch sử quyền sở hữu SIM của tài khoản này (1-N).</summary>
+        public virtual ICollection<SimOwnership> SimOwnerships { get; set; } = new List<SimOwnership>();
     }
 }
