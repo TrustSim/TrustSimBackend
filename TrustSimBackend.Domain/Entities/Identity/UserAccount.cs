@@ -4,6 +4,7 @@ using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Trade;
+using TrustSimBackend.Domain.Entities.System;
 
 namespace TrustSimBackend.Domain.Entities.Identity
 {
@@ -63,5 +64,10 @@ namespace TrustSimBackend.Domain.Entities.Identity
         /// </summary>
         public virtual ICollection<DigitalSignature> DigitalSignatures { get; set; } = new HashSet<DigitalSignature>();
 
+        /// <summary>
+        /// Danh sách các thông báo mà tài khoản này nhận được (1-N).
+        /// </summary>
+        private readonly List<Notification> _notifications = new();
+        public IReadOnlyCollection<Notification> Notifications => _notifications.AsReadOnly();
     }
 }
