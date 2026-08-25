@@ -3,6 +3,7 @@ using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Entities.Trade;
 
 namespace TrustSimBackend.Domain.Entities.Identity
 {
@@ -49,5 +50,18 @@ namespace TrustSimBackend.Domain.Entities.Identity
         /// Ví tiền của người dùng
         /// </summary>
         public virtual Wallet Wallet {get;set;}= new(); 
+
+
+        /// <summary>Danh sách các giao dịch chuyển nhượng mà tài khoản này đóng vai trò là NGƯỜI MUA (1-N).</summary>
+        public virtual ICollection<TradeTransaction> BuyerTradeTransactions { get; set; } = new HashSet<TradeTransaction>();
+
+        /// <summary>Danh sách các giao dịch chuyển nhượng mà tài khoản này đóng vai trò là NGƯỜI BÁN (1-N).</summary>
+        public virtual ICollection<TradeTransaction> SellerTradeTransactions { get; set; } = new HashSet<TradeTransaction>();
+
+        /// <summary>
+        /// Danh sách các chữ ký số mà tài khoản này đã ký (1-N).
+        /// </summary>
+        public virtual ICollection<DigitalSignature> DigitalSignatures { get; set; } = new HashSet<DigitalSignature>();
+
     }
 }

@@ -1,0 +1,123 @@
+using TrustSimBackend.Domain.Base;
+using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Domain.Entities.Dispute;
+using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Entities.Identity;
+using TrustSimBackend.Domain.Entities.Sim;
+using TrustSimBackend.Domain.Enums;
+
+namespace TrustSimBackend.Domain.Entities.Trade
+{
+    /// <summary>
+    /// Đại diện cho một giao dịch chuyển nhượng SIM giữa người mua và người bán.
+    /// Lưu trữ thông tin về trạng thái giao dịch, các mốc thời gian quan trọng,
+    /// số tiền giao dịch, và liên kết đến phiên đấu giá gốc.
+    /// </summary>
+    public class TradeTransaction: AuditableEntity
+    {
+        /// <summary>
+        /// Khóa chính của giao dịch (alias cho <see cref="BaseEntity.Id"/>).
+        /// </summary>
+        public Guid TradeTransactionId {get=>Id;private set =>Id =value;}
+        
+        /// <summary>
+        /// Mã giao dịch duy nhất, dùng để hiển thị và tham chiếu.
+        /// </summary>
+        public string TradeTransactionCode {get;set;}= string.Empty;
+
+        /// <summary>
+        /// Trạng thái hiện tại của giao dịch.
+        /// </summary>
+        public TradeTransactionStatus TradeTransactionStatus {get;set;}
+
+        /// <summary>
+        /// Thời điểm hết hạn đóng tiền ký quỹ.
+        /// </summary>
+        public DateTime EscrowDeadline {get;set;}= DateTime.UtcNow;
+
+        /// <summary>
+        /// Thời điểm hết hạn ký hợp đồng số.
+        /// </summary>
+        public DateTime SigningDeadline {get;set;}= DateTime.UtcNow;
+
+        /// <summary>
+        /// Thời điểm hết hạn chuyển nhượng SIM.
+        /// </summary>
+        public DateTime TransferDeadline {get;set;}= DateTime.UtcNow;
+        /// <summary>
+        /// Thời điểm hoàn tất giao dịch.
+        /// </summary>
+        public DateTime CompletedAt {get;set;}= DateTime.UtcNow;
+        
+        /// <summary>
+        /// Thời điểm hủy giao dịch.
+        /// </summary>
+        public DateTime? CancelledAt {get;set;}= DateTime.UtcNow;
+        
+        /// <summary>
+        /// Lý do hủy giao dịch.
+        /// </summary>
+        public string? CancelledReason {get;set;}
+
+        /// <summary>
+        /// Khóa ngoại liên kết đến phiên đấu giá gốc.
+        /// </summary>
+        public Guid AuctionId {get;set;}
+
+        /// <summary>
+        /// Phiên đấu giá liên quan.
+        /// </summary>
+        public virtual Auction Auction {get;set;}= new();
+
+        /// <summary>
+        /// Khóa ngoại liên kết đến người mua.
+        /// </summary>
+        public Guid BuyerId {get;set;}
+
+        /// <summary>
+        /// Người mua liên quan.
+        /// </summary>
+        public virtual UserAccount Buyer {get;set;}= new();
+
+        /// <summary>
+        /// Khóa ngoại liên kết đến người bán.
+        /// </summary>
+        public Guid SellerId {get;set;}
+
+        /// <summary>
+        /// Người bán liên quan.
+        /// </summary>
+        public virtual UserAccount Seller {get;set;}= new();
+
+        /// <summary>
+        /// Khóa ngoại liên kết đến SIM.
+        /// </summary>
+        public Guid SimNumberId {get;set;}
+
+        /// <summary>
+        /// SIM liên quan.
+        /// </summary>
+        public virtual SimNumber SimNumber {get;set;}= new();
+
+        /// <summary>
+        /// Quỹ ký quỹ liên quan.
+        /// </summary>
+        public virtual Escrow Escrow {get;set;}= new();
+
+        /// <summary>
+        /// Hợp đồng chuyển nhượng liên quan.
+        /// </summary>
+        public virtual TransferContract TransferContract {get;set;}= new();
+
+        /// <summary>
+        /// Danh sách phiếu kiện liên quan.
+        /// </summary>
+        private readonly List<DisputeTicket> _disputeTickets = new();
+        public IReadOnlyCollection<DisputeTicket> DisputeTickets => _disputeTickets.AsReadOnly();
+
+        /// <summary>
+        /// Chuyển nhượng SIM liên quan.
+        /// </summary>
+        public virtual SimTransfer? SimTransfer {get;set;}= new();
+    }
+}

@@ -1,4 +1,5 @@
 using TrustSimBackend.Domain.Base;
+using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Domain.Entities.Sim;
@@ -38,4 +39,6 @@ public class SimNumber : FullAuditableEntity
 
     /// <summary>Danh sách ánh xạ phân loại danh mục của SIM này (N-N với <see cref="SimCategory"/>).</summary>
     public virtual ICollection<SimCategoryMapping> SimCategoryMappings { get; set; } = new List<SimCategoryMapping>();
+
+    public virtual ICollection<TradeTransaction> TradeTransactions {get;set;}= new List<TradeTransaction>();
 }

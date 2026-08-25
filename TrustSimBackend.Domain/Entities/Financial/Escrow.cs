@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Base;
 using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Domain.Entities.Financial
@@ -47,5 +48,15 @@ namespace TrustSimBackend.Domain.Entities.Financial
         /// Cho phép người dùng nạp tiền vào Escrow thành nhiều đợt.
         /// </summary>
         public virtual ICollection<AuctionTransaction> AuctionTransactions { get; set; } = new HashSet<AuctionTransaction>();
+
+        /// <summary>
+        /// Giao dịch liên quan đến quỹ Escrow này.
+        /// </summary>
+        public Guid TradeTransactionId { get; set; }
+
+        /// <summary>
+        /// Giao dịch liên quan đến quỹ Escrow này.
+        /// </summary>
+        public virtual TradeTransaction TradeTransaction { get; set; } = new();
     }
 }

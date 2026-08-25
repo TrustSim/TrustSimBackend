@@ -1,6 +1,7 @@
 using TrustSimBackend.Domain.Base;
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Entities.Sim;
+using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Domain.Entities.Auctions
@@ -76,5 +77,10 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// Danh sách các giá đã đặt trong phiên đấu giá này (quan hệ 1-n).
         /// </summary>
         public virtual ICollection<Bid> Bids { get; set; } = new HashSet<Bid>();
+
+        /// <summary>
+        /// Giao dịch liên quan đến phiên đấu giá này.
+        /// </summary>
+        public virtual TradeTransaction? TradeTransaction { get; set; }
     }
 }
