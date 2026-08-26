@@ -21,6 +21,11 @@ namespace TrustSimBackend.Domain.Entities.Identity
         /// <summary>Tên đăng nhập duy nhất của người dùng (không phân biệt hoa thường).</summary>
         public string UserName { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Địa chỉ email của người dùng
+        /// </summary>
+        public string UserEmail {get;set;}= string.Empty;
+
         /// <summary>Mật khẩu đã được băm (BCrypt/Argon2). Không bao giờ lưu mật khẩu thuần văn bản.</summary>
         public string PassWordHash { get; set; } = string.Empty;
 
