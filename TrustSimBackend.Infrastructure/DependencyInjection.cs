@@ -25,7 +25,8 @@ public static class DependencyInjection
         });
 
         // ─── 2. UnitOfWork ───────────────────────────────────────────
-        services.AddScoped<IUnitOfWork, TrustSimDbContext>();
+        // Chuyển tiếp IUnitOfWork về cùng 1 instance TrustSimDbContext trong request (tránh tạo 2 DbContext riêng)
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<TrustSimDbContext>());
 
         // ─── 3. Repositories ─────────────────────────────────────────
         services.AddScoped<ITradeTransactionRepository, TradeTransactionRepository>();

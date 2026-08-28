@@ -29,7 +29,7 @@ public class UserAccountRepository : IUserAccountRepository
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
-            .FirstOrDefaultAsync(u => u.UserName.ToLower() == userName.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
     }
 
     public async Task<UserAccount?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
@@ -37,28 +37,27 @@ public class UserAccountRepository : IUserAccountRepository
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
-            .FirstOrDefaultAsync(u => u.UserEmail.ToLower() == email.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
     }
 
     public async Task<UserAccount?> GetByUserNameOrEmailAsync(string identifier, CancellationToken cancellationToken = default)
     {
-        var lower = identifier.ToLower();
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
-            .FirstOrDefaultAsync(u => u.UserName.ToLower() == lower || u.UserEmail.ToLower() == lower, cancellationToken);
+            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, identifier) || EF.Functions.ILike(u.UserEmail, identifier), cancellationToken);
     }
 
     public async Task<bool> ExistsByUserNameAsync(string userName, CancellationToken cancellationToken = default)
     {
         return await _context.UserAccounts
-            .AnyAsync(u => u.UserName.ToLower() == userName.ToLower(), cancellationToken);
+            .AnyAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
     }
 
     public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         return await _context.UserAccounts
-            .AnyAsync(u => u.UserEmail.ToLower() == email.ToLower(), cancellationToken);
+            .AnyAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
     }
 
     public async Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default)
