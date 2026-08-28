@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
+using TrustSimBackend.Application;
 using TrustSimBackend.Infrastructure;
 using TrustSimBackend.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ─── 1. Đăng ký toàn bộ tầng Infrastructure (DbContext + UoW + Repositories) ───
+// ─── 1. Đăng ký tầng Application & Infrastructure vào DI Container ─────────────
+builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
 // ─── 2. Controllers và Swagger ───────────────────────────────────────────────────
