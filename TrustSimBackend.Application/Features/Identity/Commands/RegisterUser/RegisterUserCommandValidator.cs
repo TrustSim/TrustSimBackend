@@ -4,7 +4,6 @@ namespace TrustSimBackend.Application.Features.Identity.Commands.RegisterUser;
 
 /// <summary>
 /// Validator kiểm tra tính hợp lệ của dữ liệu đầu vào khi Đăng ký tài khoản.
-/// Tự động được kích hoạt bởi ValidationBehavior trước khi gọi Handler.
 /// </summary>
 public class RegisterUserCommandValidator : AbstractValidator<RegisterUserCommand>
 {
@@ -32,5 +31,9 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
         RuleFor(x => x.PhoneNumber)
             .NotEmpty().WithMessage("Số điện thoại không được để trống.")
             .Matches(@"^(0[3|5|7|8|9])[0-9]{8}$").WithMessage("Số điện thoại không đúng định dạng di động Việt Nam (10 số).");
+
+        RuleFor(x => x.IdentityNumber)
+            .NotEmpty().WithMessage("Số CCCD/CMND không được để trống.")
+            .Matches(@"^[0-9]{12}$").WithMessage("Số CCCD phải bao gồm chính xác 12 chữ số.");
     }
 }

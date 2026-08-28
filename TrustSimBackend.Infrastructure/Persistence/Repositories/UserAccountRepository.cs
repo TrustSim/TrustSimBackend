@@ -60,6 +60,26 @@ public class UserAccountRepository : IUserAccountRepository
             .AnyAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
     }
 
+    public async Task<bool> ExistsByIdentityNumberAsync(string identityNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.UserProfiles.AsQueryable();
+        if (excludeUserId.HasValue)
+        {
+            query = query.Where(p => p.UserAccountId != excludeUserId.Value);
+        }
+        return await query.AnyAsync(p => p.IdentityNumber == identityNumber, cancellationToken);
+    }
+
+    public async Task<bool> ExistsByPhoneNumberAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.UserProfiles.AsQueryable();
+        if (excludeUserId.HasValue)
+        {
+            query = query.Where(p => p.UserAccountId != excludeUserId.Value);
+        }
+        return await query.AnyAsync(p => p.PhoneNumber == phoneNumber, cancellationToken);
+    }
+
     public async Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default)
     {
         await _context.UserAccounts.AddAsync(userAccount, cancellationToken);

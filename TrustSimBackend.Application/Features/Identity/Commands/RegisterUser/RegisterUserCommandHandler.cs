@@ -11,12 +11,7 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Identity.Commands.RegisterUser;
 
 /// <summary>
-/// Xử lý nghiệp vụ đăng ký tài khoản người dùng mới:
-/// 1. Kiểm tra tính duy nhất của Username và Email.
-/// 2. Băm mật khẩu (BCrypt).
-/// 3. Tạo đồng thời UserAccount + UserProfile + Wallet mặc định.
-/// 4. Lưu vào Database qua IUnitOfWork.
-/// 5. Tạo và trả về JWT Token.
+/// Xử lý nghiệp vụ đăng ký tài khoản người dùng mới.
 /// </summary>
 public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, ApiResponse<AuthResponseDto>>
 {
@@ -41,6 +36,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
     {
         var normalizedUserName = request.UserName.Trim();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var normalizedPhone = request.PhoneNumber.Trim();
+        var normalizedIdentity = request.IdentityNumber.Trim();
 
         // 1. Kiểm tra Username đã tồn tại chưa
         if (await _userAccountRepository.ExistsByUserNameAsync(normalizedUserName, cancellationToken))
@@ -54,10 +51,22 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             throw new BadRequestException($"Email '{normalizedEmail}' đã được sử dụng.");
         }
 
-        // 3. Băm mật khẩu
+        // 3. Kiểm tra Số điện thoại đã tồn tại chưa
+        if (await _userAccountRepository.ExistsByPhoneNumberAsync(normalizedPhone, cancellationToken: cancellationToken))
+        {
+            throw new BadRequestException($"Số điện thoại '{normalizedPhone}' đã được đăng ký bởi tài khoản khác.");
+        }
+
+        // 4. Kiểm tra CCCD đã tồn tại chưa
+        if (await _userAccountRepository.ExistsByIdentityNumberAsync(normalizedIdentity, cancellationToken: cancellationToken))
+        {
+            throw new BadRequestException($"Số CCCD/CMND '{normalizedIdentity}' đã được đăng ký bởi tài khoản khác.");
+        }
+
+        // 5. Băm mật khẩu
         var passwordHash = _passwordHasher.HashPassword(request.Password);
 
-        // 4. Tạo UserAccount
+        // 6. Tạo UserAccount
         var userAccountId = Guid.NewGuid();
         var userAccount = new UserAccount
         {
@@ -69,19 +78,23 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             IsActive = true
         };
 
-        // 5. Tạo UserProfile liên kết
+        // 7. Tạo UserProfile liên kết
         var userProfile = new UserProfile
         {
             Id = Guid.NewGuid(),
             UserAccountId = userAccountId,
             FullName = request.FullName.Trim(),
             Email = normalizedEmail,
-            PhoneNumber = request.PhoneNumber.Trim(),
+            PhoneNumber = normalizedPhone,
+            IdentityNumber = normalizedIdentity,
+            DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            Address = string.Empty,
+            AvatarImg = string.Empty,
             VerificationStatus = VerificationStatus.PENDING_VERIFICATION
         };
         userAccount.UserProfile = userProfile;
 
-        // 6. Tạo Wallet mặc định liên kết
+        // 8. Tạo Wallet mặc định liên kết
         var wallet = new Wallet
         {
             Id = Guid.NewGuid(),
@@ -93,14 +106,14 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         };
         userAccount.Wallet = wallet;
 
-        // 7. Lưu xuống DB
+        // 9. Lưu xuống DB
         await _userAccountRepository.AddAsync(userAccount, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // 8. Tạo JWT Token
+        // 10. Tạo JWT Token
         var (token, expiresAt) = _jwtTokenGenerator.GenerateToken(userAccount, userProfile);
 
-        // 9. Đóng gói kết quả
+        // 11. Đóng gói kết quả
         var authResponse = new AuthResponseDto
         {
             UserId = userAccount.Id,

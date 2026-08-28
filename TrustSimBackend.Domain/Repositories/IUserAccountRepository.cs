@@ -13,6 +13,8 @@ public interface IUserAccountRepository
     Task<UserAccount?> GetByUserNameOrEmailAsync(string identifier, CancellationToken cancellationToken = default);
     Task<bool> ExistsByUserNameAsync(string userName, CancellationToken cancellationToken = default);
     Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByIdentityNumberAsync(string identityNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByPhoneNumberAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default);
     void Update(UserAccount userAccount);
 }
