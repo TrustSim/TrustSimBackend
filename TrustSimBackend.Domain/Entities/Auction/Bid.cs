@@ -53,12 +53,12 @@ namespace TrustSimBackend.Domain.Entities.Auctions
 
 
         /// <summary>
-        /// ID của phiên đấu giá mà người tham gia này thuộc về (quan hệ 1-1).
+        /// ID của phiên đấu giá mà người tham gia này thuộc về.
         /// </summary>
-        public virtual Auction Auction { get; set; }= new();
+        public virtual Auction? Auction { get; set; }
         /// <summary>
-        /// Tài khoản người dùng tham gia đấu giá (quan hệ 1-1).
+        /// Tài khoản người dùng tham gia đấu giá.
         /// </summary>
-        public virtual AuctionParticipant Participant { get; set; }= new();
+        public virtual AuctionParticipant? Participant { get; set; }
     }
 }

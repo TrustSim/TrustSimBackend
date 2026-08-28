@@ -45,7 +45,7 @@ namespace TrustSimBackend.Domain.Entities.System
         /// <summary>
         /// Người thực hiện hành động
         /// </summary>
-        public virtual UserAccount UserAccount { get; set; }=new UserAccount();
+        public virtual UserAccount? UserAccount { get; set; }
 
         /// <summary>
         /// ID của thực thể bị tác động

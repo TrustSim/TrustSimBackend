@@ -57,6 +57,6 @@ namespace TrustSimBackend.Domain.Entities.Financial
         /// <summary>
         /// Giao dịch liên quan đến quỹ Escrow này.
         /// </summary>
-        public virtual TradeTransaction TradeTransaction { get; set; } = new();
+        public virtual TradeTransaction? TradeTransaction { get; set; }
     }
 }

@@ -1,0 +1,92 @@
+using Microsoft.EntityFrameworkCore;
+using TrustSimBackend.Domain.Entities.Identity;
+using TrustSimBackend.Domain.Repositories;
+
+namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
+
+/// <summary>
+/// Triển khai IUserAccountRepository sử dụng Entity Framework Core.
+/// </summary>
+public class UserAccountRepository : IUserAccountRepository
+{
+    private readonly TrustSimDbContext _context;
+
+    public UserAccountRepository(TrustSimDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<UserAccount?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.UserAccounts
+            .Include(u => u.UserProfile)
+            .Include(u => u.Wallet)
+            .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+    }
+
+    public async Task<UserAccount?> GetByUserNameAsync(string userName, CancellationToken cancellationToken = default)
+    {
+        return await _context.UserAccounts
+            .Include(u => u.UserProfile)
+            .Include(u => u.Wallet)
+            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
+    }
+
+    public async Task<UserAccount?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        return await _context.UserAccounts
+            .Include(u => u.UserProfile)
+            .Include(u => u.Wallet)
+            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
+    }
+
+    public async Task<UserAccount?> GetByUserNameOrEmailAsync(string identifier, CancellationToken cancellationToken = default)
+    {
+        return await _context.UserAccounts
+            .Include(u => u.UserProfile)
+            .Include(u => u.Wallet)
+            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, identifier) || EF.Functions.ILike(u.UserEmail, identifier), cancellationToken);
+    }
+
+    public async Task<bool> ExistsByUserNameAsync(string userName, CancellationToken cancellationToken = default)
+    {
+        return await _context.UserAccounts
+            .AnyAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
+    }
+
+    public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        return await _context.UserAccounts
+            .AnyAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
+    }
+
+    public async Task<bool> ExistsByIdentityNumberAsync(string identityNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.UserProfiles.AsQueryable();
+        if (excludeUserId.HasValue)
+        {
+            query = query.Where(p => p.UserAccountId != excludeUserId.Value);
+        }
+        return await query.AnyAsync(p => p.IdentityNumber == identityNumber, cancellationToken);
+    }
+
+    public async Task<bool> ExistsByPhoneNumberAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.UserProfiles.AsQueryable();
+        if (excludeUserId.HasValue)
+        {
+            query = query.Where(p => p.UserAccountId != excludeUserId.Value);
+        }
+        return await query.AnyAsync(p => p.PhoneNumber == phoneNumber, cancellationToken);
+    }
+
+    public async Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default)
+    {
+        await _context.UserAccounts.AddAsync(userAccount, cancellationToken);
+    }
+
+    public void Update(UserAccount userAccount)
+    {
+        _context.UserAccounts.Update(userAccount);
+    }
+}

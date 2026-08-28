@@ -44,17 +44,17 @@ namespace TrustSimBackend.Domain.Entities.Trade
         /// <summary>
         /// Hợp đồng liên quan.
         /// </summary>
-        public virtual TransferContract Contract {get;set;}=new();
+        public virtual TransferContract? Contract { get; set; }
 
         /// <summary>
         /// Khóa ngoại tới <see cref="UserAccount"/>.
         /// </summary>
-        public Guid UserId {get;set;}
+        public Guid UserId { get; set; }
 
         /// <summary>
         /// Người dùng đã ký.
         /// </summary>
-        public virtual UserAccount User {get;set;}=new();
+        public virtual UserAccount? User { get; set; }
 
     }
 }
