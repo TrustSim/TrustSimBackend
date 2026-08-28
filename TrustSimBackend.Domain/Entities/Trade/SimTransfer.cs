@@ -41,7 +41,7 @@ namespace TrustSimBackend.Domain.Entities.Trade
         /// <summary>
         /// Giao dịch chuyển nhượng liên quan.
         /// </summary>
-        public virtual TradeTransaction TradeTransaction {get;set;}= new();
+        public virtual TradeTransaction? TradeTransaction { get; set; }
 
         private readonly List<TransferProof> _transferProofs = new();
         public IReadOnlyCollection<TransferProof> TransferProofs => _transferProofs.AsReadOnly();

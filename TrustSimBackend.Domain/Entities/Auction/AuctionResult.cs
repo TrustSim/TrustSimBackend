@@ -54,15 +54,8 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// </summary>
         public string? CancelledReason {get;set;}
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public virtual Auction Auction {get;set;} = new();
+        public virtual Auction? Auction { get; set; }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public virtual AuctionParticipant Winner {get;set;} = new();
-        
+        public virtual AuctionParticipant? Winner { get; set; }
     }
 }

@@ -66,13 +66,13 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         public string? BlockedReason {get;set;}
 
         /// <summary>
-        /// Phiên đấu giá mà người tham gia này thuộc về (quan hệ 1-1).
+        /// Phiên đấu giá mà người tham gia này thuộc về.
         /// </summary>
-        public virtual Auction Auction {get;set;}= new();
+        public virtual Auction? Auction { get; set; }
         /// <summary>
-        /// Tài khoản người dùng tham gia đấu giá (quan hệ 1-1).
+        /// Tài khoản người dùng tham gia đấu giá.
         /// </summary>
-        public virtual UserAccount UserAccount {get;set;}= new();
+        public virtual UserAccount? UserAccount { get; set; }
 
         /// <summary>
         /// Danh sách các giá đã đặt trong phiên đấu giá này (quan hệ 1-n).

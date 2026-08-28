@@ -21,7 +21,7 @@ namespace TrustSimBackend.Domain.Entities.System
         public bool IsRead {get;set;} = false;
 
         public Guid UserId {get;set;}
-        public virtual UserAccount User{get;set;}= new();
+        public virtual UserAccount? User { get; set; }
 
     }
 }

@@ -16,7 +16,7 @@ namespace TrustSimBackend.Domain.Entities.Trade
 
         public Guid SimTransferId {get;set;}
 
-        public virtual SimTransfer SimTransfer {get;set;}= new();
+        public virtual SimTransfer? SimTransfer { get; set; }
 
     }
 }

@@ -25,8 +25,8 @@ public class EscrowConfiguration : IEntityTypeConfiguration<Escrow>
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.AuctionDeposit)
-               .WithMany()
-               .HasForeignKey(x => x.AuctionDepositId)
+               .WithOne(d => d.Escrow)
+               .HasForeignKey<Escrow>(x => x.AuctionDepositId)
                .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(x => x.TradeTransactionId).IsUnique();

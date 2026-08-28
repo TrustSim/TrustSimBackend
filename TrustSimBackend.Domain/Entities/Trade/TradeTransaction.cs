@@ -67,47 +67,47 @@ namespace TrustSimBackend.Domain.Entities.Trade
         /// <summary>
         /// Phiên đấu giá liên quan.
         /// </summary>
-        public virtual Auction Auction {get;set;}= new();
+        public virtual Auction? Auction { get; set; }
 
         /// <summary>
         /// Khóa ngoại liên kết đến người mua.
         /// </summary>
-        public Guid BuyerId {get;set;}
+        public Guid BuyerId { get; set; }
 
         /// <summary>
         /// Người mua liên quan.
         /// </summary>
-        public virtual UserAccount Buyer {get;set;}= new();
+        public virtual UserAccount? Buyer { get; set; }
 
         /// <summary>
         /// Khóa ngoại liên kết đến người bán.
         /// </summary>
-        public Guid SellerId {get;set;}
+        public Guid SellerId { get; set; }
 
         /// <summary>
         /// Người bán liên quan.
         /// </summary>
-        public virtual UserAccount Seller {get;set;}= new();
+        public virtual UserAccount? Seller { get; set; }
 
         /// <summary>
         /// Khóa ngoại liên kết đến SIM.
         /// </summary>
-        public Guid SimNumberId {get;set;}
+        public Guid SimNumberId { get; set; }
 
         /// <summary>
         /// SIM liên quan.
         /// </summary>
-        public virtual SimNumber SimNumber {get;set;}= new();
+        public virtual SimNumber? SimNumber { get; set; }
 
         /// <summary>
         /// Quỹ ký quỹ liên quan.
         /// </summary>
-        public virtual Escrow Escrow {get;set;}= new();
+        public virtual Escrow? Escrow { get; set; }
 
         /// <summary>
         /// Hợp đồng chuyển nhượng liên quan.
         /// </summary>
-        public virtual TransferContract TransferContract {get;set;}= new();
+        public virtual TransferContract? TransferContract { get; set; }
 
         /// <summary>
         /// Danh sách phiếu kiện liên quan.
@@ -118,6 +118,6 @@ namespace TrustSimBackend.Domain.Entities.Trade
         /// <summary>
         /// Chuyển nhượng SIM liên quan.
         /// </summary>
-        public virtual SimTransfer? SimTransfer {get;set;}= new();
+        public virtual SimTransfer? SimTransfer { get; set; }
     }
 }

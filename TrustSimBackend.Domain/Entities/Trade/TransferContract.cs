@@ -41,7 +41,7 @@ namespace TrustSimBackend.Domain.Entities.Trade
         /// <summary>
         /// Giao dịch liên quan.
         /// </summary>
-        public virtual TradeTransaction TradeTransaction {get;set;}= new(); 
+        public virtual TradeTransaction? TradeTransaction { get; set; } 
 
         
 

@@ -211,9 +211,10 @@ public static class DbSeeder
             LockVersion      = 0,
         };
 
+        admin.UserProfile = adminProfile;
+        admin.Wallet = adminWallet;
+
         await context.UserAccounts.AddAsync(admin);
-        await context.UserProfiles.AddAsync(adminProfile);
-        await context.Wallets.AddAsync(adminWallet);
 
         Console.WriteLine("[DbSeeder] Đã thêm tài khoản Admin mặc định.");
     }
