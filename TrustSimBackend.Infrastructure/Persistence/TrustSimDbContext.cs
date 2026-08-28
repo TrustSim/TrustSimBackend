@@ -77,6 +77,17 @@ public class TrustSimDbContext : DbContext, IUnitOfWork
         // Tự động quét và áp dụng tất cả các file cấu hình Fluent API (IEntityTypeConfiguration) nằm trong Assembly này.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TrustSimDbContext).Assembly);
     }
+    /// <summary>
+    /// Kích hoạt tự động chuyển đổi tên Entity và Property sang snake_case
+    /// </summary>
+    /// <param name="optionsBuilder"></param>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        
+        // Kích hoạt tự động chuyển đổi tên Entity và Property sang snake_case
+        optionsBuilder.UseSnakeCaseNamingConvention();
+    }
 
     // Thực thi Interface IUnitOfWork
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

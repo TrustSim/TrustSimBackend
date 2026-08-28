@@ -1,9 +1,16 @@
+using Microsoft.EntityFrameworkCore;
+using TrustSimBackend.Infrastructure.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// 1. Cấu hình DbContext kết nối PostgreSQL
+builder.Services.AddDbContext<TrustSimDbContext>(options =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
+// 2. Thêm Controllers và Swagger
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
