@@ -8,7 +8,36 @@ using TrustSimBackend.Application;
 using TrustSimBackend.Infrastructure;
 using TrustSimBackend.Infrastructure.Persistence;
 
+// ─── 0. Nạp biến môi trường từ file .env (nếu có) ──────────────────────────────
+var currentDir = Directory.GetCurrentDirectory();
+var candidatePaths = new[]
+{
+    Path.Combine(currentDir, ".env"),
+    Path.Combine(currentDir, "..", ".env"),
+    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".env"),
+    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", ".env")
+};
+
+foreach (var path in candidatePaths)
+{
+    if (File.Exists(path))
+    {
+        foreach (var line in File.ReadAllLines(path))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#")) continue;
+            var parts = trimmed.Split('=', 2);
+            if (parts.Length == 2)
+            {
+                Environment.SetEnvironmentVariable(parts[0].Trim(), parts[1].Trim());
+            }
+        }
+        break;
+    }
+}
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables();
 
 // ─── 1. Đăng ký tầng Application & Infrastructure vào DI Container ─────────────
 builder.Services.AddApplicationServices();

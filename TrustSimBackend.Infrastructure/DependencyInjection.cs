@@ -18,10 +18,21 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // ─── 1. DbContext ────────────────────────────────────────────
+        // ─── 1. DbContext ─────────────────────────────────────────────────────────
+        // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
+        // MigrationsConnection → Direct (unpooled)  — dùng cho dotnet ef migrations
         services.AddDbContext<TrustSimDbContext>(options =>
         {
-            options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+            options.UseNpgsql(
+                configuration.GetConnectionString("DefaultConnection"),
+                npgsql =>
+                {
+                    // Cho phép EF Core retry tự động khi Neon compute cold-start (~300ms)
+                    npgsql.EnableRetryOnFailure(
+                        maxRetryCount: 3,
+                        maxRetryDelay: TimeSpan.FromSeconds(5),
+                        errorCodesToAdd: null);
+                });
         });
 
         // ─── 2. UnitOfWork ───────────────────────────────────────────
