@@ -42,6 +42,7 @@ public static class DependencyInjection
         // ─── 3. Repositories ─────────────────────────────────────────
         services.AddScoped<ITradeTransactionRepository, TradeTransactionRepository>();
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
+        services.AddScoped<ISimMasterDataRepository, SimMasterDataRepository>();
 
         // ─── 4. Infrastructure Services ──────────────────────────────
         services.AddScoped<IPasswordHasher, PasswordHasher>();
