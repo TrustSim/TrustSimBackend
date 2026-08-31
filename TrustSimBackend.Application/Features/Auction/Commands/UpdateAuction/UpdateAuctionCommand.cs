@@ -3,6 +3,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs;
+using TrustSimBackend.Application.Features.Auction.States;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -10,8 +11,7 @@ namespace TrustSimBackend.Application.Features.Auction.Commands.UpdateAuction;
 
 /// <summary>
 /// Command cập nhật phiên đấu giá.
-/// Chỉ cho phép khi phiên đang ở trạng thái DRAFT (hiện tại tạo thẳng SCHEDULE nên command này
-/// có thể dùng để Admin chuyển từ SCHEDULE về DRAFT để sửa, hoặc mở rộng sau).
+/// ★ State Pattern: AuctionStateContext xác định trạng thái cho phép sửa hay không.
 /// </summary>
 public record UpdateAuctionCommand(
     Guid AuctionId,
@@ -21,8 +21,6 @@ public record UpdateAuctionCommand(
     DateTime EndAt,
     DateTime RegistrationStartAt,
     DateTime RegistrationEndAt,
-
-    // Rule fields
     decimal MinimumBidIncrement,
     decimal DepositAmount,
     int MaximumBidCountPerParticipant,
@@ -35,7 +33,6 @@ public record UpdateAuctionCommand(
     float DutchDecreaseIntervalSeconds
 ) : IRequest<ApiResponse<AuctionDetailDto>>
 {
-    // Gán từ Controller (có thể là Author hoặc Admin)
     public Guid RequesterId { get; set; }
     public bool IsAdmin { get; set; }
 }
@@ -45,21 +42,14 @@ public class UpdateAuctionCommandValidator : AbstractValidator<UpdateAuctionComm
     public UpdateAuctionCommandValidator()
     {
         RuleFor(x => x.AuctionId).NotEmpty().WithMessage("ID phiên đấu giá không hợp lệ.");
-
         RuleFor(x => x.StartingPrice).GreaterThan(0).WithMessage("Giá khởi điểm phải lớn hơn 0.");
-
         RuleFor(x => x.ReservePrice)
             .GreaterThan(0).WithMessage("Giá sàn phải lớn hơn 0.")
             .LessThanOrEqualTo(x => x.StartingPrice).WithMessage("Giá sàn phải nhỏ hơn hoặc bằng giá khởi điểm.");
-
         RuleFor(x => x.StartAt)
             .GreaterThan(DateTime.UtcNow.AddMinutes(30))
             .WithMessage("Thời gian bắt đầu phải ít nhất 30 phút kể từ bây giờ.");
-
-        RuleFor(x => x.EndAt)
-            .GreaterThan(x => x.StartAt)
-            .WithMessage("Thời gian kết thúc phải sau thời gian bắt đầu.");
-
+        RuleFor(x => x.EndAt).GreaterThan(x => x.StartAt).WithMessage("Thời gian kết thúc phải sau thời gian bắt đầu.");
         RuleFor(x => x.RegistrationEndAt)
             .LessThanOrEqualTo(x => x.StartAt)
             .WithMessage("Thời gian đóng đăng ký phải trước hoặc bằng thời gian bắt đầu.");
@@ -83,17 +73,19 @@ public class UpdateAuctionCommandHandler : IRequestHandler<UpdateAuctionCommand,
         if (auction == null)
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.AuctionId}'.");
 
-        // Kiểm tra quyền: chỉ Author hoặc Admin được sửa
+        // Kiểm tra quyền
         if (!request.IsAdmin && auction.AuthorId != request.RequesterId)
             throw new ForbiddenAccessException("Bạn không có quyền chỉnh sửa phiên đấu giá này.");
 
-        // Chỉ sửa được khi SCHEDULE (chưa bắt đầu)
-        if (auction.AuctionStatus != AuctionStatus.SCHEDULE)
-            throw new BadRequestException($"Chỉ có thể chỉnh sửa phiên đấu giá ở trạng thái SCHEDULE. Trạng thái hiện tại: {auction.AuctionStatus}.");
+        // ★ State Pattern: Kiểm tra trạng thái có cho phép sửa không
+        var state = AuctionStateContext.GetState(auction.AuctionStatus);
+        if (!state.CanEdit(auction))
+            throw new BadRequestException(
+                $"Không thể chỉnh sửa phiên đấu giá đang ở trạng thái '{auction.AuctionStatus}'. Chỉ có thể sửa khi phiên đang SCHEDULE.");
 
         // Cập nhật các trường
         auction.StartingPrice = request.StartingPrice;
-        auction.CurrentPrice = request.StartingPrice; // Reset CurrentPrice về giá khởi điểm mới
+        auction.CurrentPrice = request.StartingPrice;
         auction.ReservePrice = request.ReservePrice;
         auction.StartAt = request.StartAt;
         auction.EndAt = request.EndAt;
@@ -124,7 +116,6 @@ public class UpdateAuctionCommandHandler : IRequestHandler<UpdateAuctionCommand,
         _auctionRepository.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Reload chi tiết
         var updated = await _auctionRepository.GetDetailByIdAsync(request.AuctionId, cancellationToken);
 
         return ApiResponse<AuctionDetailDto>.SuccessResult(

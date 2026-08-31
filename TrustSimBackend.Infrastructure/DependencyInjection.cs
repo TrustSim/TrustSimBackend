@@ -50,6 +50,9 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
+        // ─── 5. Background Hosted Services ───────────────────────────
+        services.AddHostedService<BackgroundServices.AuctionActivationService>();
+
         return services;
     }
 }

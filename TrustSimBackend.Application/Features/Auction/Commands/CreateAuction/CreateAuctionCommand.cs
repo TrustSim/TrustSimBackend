@@ -3,7 +3,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs;
-using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Application.Features.Auction.Factory;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -11,7 +11,7 @@ namespace TrustSimBackend.Application.Features.Auction.Commands.CreateAuction;
 
 /// <summary>
 /// Command tạo mới một phiên đấu giá (User - Seller).
-/// Hệ thống sẽ tự động tạo AuctionCode và đặt trạng thái SCHEDULE khi submit.
+/// Factory + Strategy Pattern được áp dụng trong Handler để khởi tạo đúng loại phiên.
 /// </summary>
 public record CreateAuctionCommand(
     Guid SimNumberId,
@@ -23,7 +23,7 @@ public record CreateAuctionCommand(
     DateTime RegistrationStartAt,
     DateTime RegistrationEndAt,
 
-    // Rule
+    // Rule — dùng cho cả 2 loại (Strategy tự lọc theo loại hình)
     decimal MinimumBidIncrement,
     decimal DepositAmount,
     int MaximumBidCountPerParticipant,
@@ -77,28 +77,8 @@ public class CreateAuctionCommandValidator : AbstractValidator<CreateAuctionComm
         RuleFor(x => x.MaximumBidCountPerParticipant)
             .GreaterThanOrEqualTo(1).WithMessage("Số lượt đặt giá tối đa ít nhất là 1.");
 
-        RuleFor(x => x.MaximumBidCountPerMinute)
-            .GreaterThanOrEqualTo(1).WithMessage("Tần suất đặt giá tối thiểu là 1 lần/phút.");
-
-        // Validation cho English Auction
-        When(x => x.AuctionType == AuctionType.ENGLISH, () =>
-        {
-            RuleFor(x => x.MinimumBidIncrement)
-                .GreaterThan(0)
-                .WithMessage("Đấu giá kiểu English yêu cầu mức tăng giá tối thiểu lớn hơn 0.");
-        });
-
-        // Validation cho Dutch Auction
-        When(x => x.AuctionType == AuctionType.DUTCH, () =>
-        {
-            RuleFor(x => x.DutchDecreaseAmount)
-                .GreaterThan(0)
-                .WithMessage("Đấu giá kiểu Dutch yêu cầu mức giảm giá mỗi chu kỳ lớn hơn 0.");
-
-            RuleFor(x => x.DutchDecreaseIntervalSeconds)
-                .GreaterThan(0)
-                .WithMessage("Đấu giá kiểu Dutch yêu cầu khoảng thời gian giảm giá lớn hơn 0 giây.");
-        });
+        // NOTE: Validation chi tiết theo loại hình (English/Dutch) được xử lý bởi IAuctionStrategy.ValidateRule()
+        // trong AuctionFactory — Strategy Pattern xử lý, không cần lặp lại ở đây.
     }
 }
 
@@ -108,17 +88,20 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
     private readonly ISimRepository _simRepository;
     private readonly IUserAccountRepository _userAccountRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AuctionFactory _auctionFactory;
 
     public CreateAuctionCommandHandler(
         IAuctionRepository auctionRepository,
         ISimRepository simRepository,
         IUserAccountRepository userAccountRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        AuctionFactory auctionFactory)
     {
         _auctionRepository = auctionRepository;
         _simRepository = simRepository;
         _userAccountRepository = userAccountRepository;
         _unitOfWork = unitOfWork;
+        _auctionFactory = auctionFactory;
     }
 
     public async Task<ApiResponse<AuctionDetailDto>> Handle(CreateAuctionCommand request, CancellationToken cancellationToken)
@@ -135,6 +118,7 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
 
         if (simOwnership.UserAccountId != request.AuthorId)
             throw new ForbiddenAccessException("Bạn không có quyền đấu giá số SIM này.");
+
         // 3. Kiểm tra SIM có đang trong phiên đấu giá nào khác không
         var hasActiveAuction = await _auctionRepository.ExistsActiveAuctionForSimAsync(request.SimNumberId, cancellationToken);
         if (hasActiveAuction)
@@ -143,52 +127,16 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         // 4. Tạo AuctionCode duy nhất
         var auctionCode = await _auctionRepository.GenerateUniqueAuctionCodeAsync(cancellationToken);
 
-        // 5. Tạo thực thể Auction (Factory logic: khởi tạo theo loại hình)
-        var auctionId = Guid.NewGuid();
-        var auction = new Domain.Entities.Auctions.Auction
-        {
-            Id = auctionId,
-            AuctionCode = auctionCode,
-            AuctionType = request.AuctionType,
-            AuctionStatus = AuctionStatus.SCHEDULE, // Tạo trực tiếp ở SCHEDULE
-            AuthorId = request.AuthorId,
-            SimNumberId = request.SimNumberId,
-            StartingPrice = request.StartingPrice,
-            CurrentPrice = request.StartingPrice,
-            ReservePrice = request.ReservePrice,
-            StartAt = request.StartAt,
-            EndAt = request.EndAt,
-            RegistrationStartAt = request.RegistrationStartAt,
-            RegistrationEndAt = request.RegistrationEndAt,
-            LockVersion = 1,
-            IsActive = true
-        };
+        // 5. ★ Factory Pattern: Giao toàn bộ logic khởi tạo Auction + AuctionRule cho Factory.
+        //    Factory nội bộ sẽ dùng Strategy Pattern để validate rule và build entity đúng loại.
+        var auction = _auctionFactory.Create(request, auctionCode, request.AuthorId);
 
-        // 6. Tạo AuctionRule gắn với phiên đấu giá (Strategy: Dutch vs English params)
-        var rule = new AuctionRule
-        {
-            Id = Guid.NewGuid(),
-            AuctionId = auctionId,
-            MinimumBidIncrement = request.AuctionType == AuctionType.ENGLISH ? request.MinimumBidIncrement : 0,
-            DepositAmount = request.DepositAmount,
-            MaximumBidCountPerParticipant = request.MaximumBidCountPerParticipant,
-            MaximumBidCountPerMinute = request.MaximumBidCountPerMinute,
-            MinimumBidIntervalSeconds = request.MinimumBidIntervalSeconds,
-            ExtensionThresholdSeconds = request.ExtensionThresholdSeconds,
-            ExtensionDurationSeconds = request.ExtensionDurationSeconds,
-            MaximumExtensionCount = request.MaximumExtensionCount,
-            DutchDecreaseAmount = request.AuctionType == AuctionType.DUTCH ? request.DutchDecreaseAmount : 0,
-            DutchDecreaseIntervalSeconds = request.AuctionType == AuctionType.DUTCH ? request.DutchDecreaseIntervalSeconds : 0,
-            IsActive = true
-        };
-        auction.AuctionRule = rule;
-
-        // 7. Lưu vào DB
+        // 6. Lưu vào DB
         await _auctionRepository.AddAsync(auction, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // 8. Load lại chi tiết để trả về DTO
-        var created = await _auctionRepository.GetDetailByIdAsync(auctionId, cancellationToken);
+        // 7. Load lại chi tiết để trả về DTO
+        var created = await _auctionRepository.GetDetailByIdAsync(auction.Id, cancellationToken);
 
         return ApiResponse<AuctionDetailDto>.SuccessResult(
             MapToDetailDto(created!),

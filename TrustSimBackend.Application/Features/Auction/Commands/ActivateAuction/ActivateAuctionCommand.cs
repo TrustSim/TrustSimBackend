@@ -1,15 +1,15 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Application.Features.Auction.States;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Auction.Commands.ActivateAuction;
 
 /// <summary>
-/// Command kích hoạt phiên đấu giá từ SCHEDULE → ACTIVE (chỉ Admin).
-/// Thường được trigger bởi Background Job (Hangfire/Quartz) đúng giờ StartAt,
-/// nhưng Admin cũng có thể trigger thủ công.
+/// Command kích hoạt phiên đấu giá SCHEDULE → ACTIVE.
+/// Thường được gọi từ Background Service tự động, hoặc Admin kích hoạt thủ công.
+/// ★ State Pattern: Giao toàn bộ kiểm tra hợp lệ + chuyển trạng thái cho IAuctionState.Activate().
 /// </summary>
 public record ActivateAuctionCommand(Guid AuctionId) : IRequest<ApiResponse<object>>;
 
@@ -30,10 +30,11 @@ public class ActivateAuctionCommandHandler : IRequestHandler<ActivateAuctionComm
         if (auction == null)
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.AuctionId}'.");
 
-        if (auction.AuctionStatus != AuctionStatus.SCHEDULE)
-            throw new BadRequestException($"Chỉ có thể kích hoạt phiên đấu giá ở trạng thái SCHEDULE. Trạng thái hiện tại: {auction.AuctionStatus}.");
-
-        auction.AuctionStatus = AuctionStatus.ACTIVE;
+        // ★ State Pattern: ScheduledAuctionState.Activate() → chuyển sang ACTIVE
+        //                  ActiveAuctionState.Activate() → throw "đang ACTIVE rồi"
+        //                  EndedAuctionState.Activate() → throw "đã kết thúc"
+        var state = AuctionStateContext.GetState(auction.AuctionStatus);
+        state.Activate(auction);
 
         _auctionRepository.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

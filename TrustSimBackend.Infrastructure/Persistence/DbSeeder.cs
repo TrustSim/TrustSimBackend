@@ -170,8 +170,22 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedAdminUserAsync(TrustSimDbContext context)
     {
-        // Kiểm tra theo Role ADMIN
-        if (await context.UserAccounts.AnyAsync(u => u.Role == UserRole.ADMIN)) return;
+        const string defaultPassword = "123456";
+
+        var existingAdmin = await context.UserAccounts
+            .FirstOrDefaultAsync(u => u.Role == UserRole.ADMIN || u.UserName == "admin");
+
+        if (existingAdmin != null)
+        {
+            // Tự động sửa lại nếu mật khẩu đang là chuỗi placeholder hoặc hash cũ không hợp lệ
+            if (existingAdmin.PassWordHash == "$2a$12$SampleHashAdminTrustSimPleaseChangeThis" 
+                || !BCrypt.Net.BCrypt.Verify(defaultPassword, existingAdmin.PassWordHash))
+            {
+                existingAdmin.PassWordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword, workFactor: 11);
+                Console.WriteLine($"[DbSeeder] 🔑 Đã cập nhật mật khẩu hợp lệ cho tài khoản Admin ({defaultPassword}).");
+            }
+            return;
+        }
 
         var adminId = Guid.NewGuid();
 
@@ -180,9 +194,7 @@ public static class DbSeeder
             Id          = adminId,
             UserName    = "admin",
             UserEmail   = "admin@trustsim.vn",
-            // NOTE: Đây là hash BCrypt của password "Admin@123456"
-            // Trong production, hãy thay bằng hash thực từ BCrypt.HashPassword(...)
-            PassWordHash = "$2a$12$SampleHashAdminTrustSimPleaseChangeThis",
+            PassWordHash = BCrypt.Net.BCrypt.HashPassword(defaultPassword, workFactor: 11),
             Role        = UserRole.ADMIN,
             IsActive    = true,
         };
@@ -216,6 +228,6 @@ public static class DbSeeder
 
         await context.UserAccounts.AddAsync(admin);
 
-        Console.WriteLine("[DbSeeder] Đã thêm tài khoản Admin mặc định.");
+        Console.WriteLine($"[DbSeeder] Đã thêm tài khoản Admin mặc định (Username: admin | Password: {defaultPassword}).");
     }
 }

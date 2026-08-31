@@ -2,15 +2,17 @@ using FluentValidation;
 using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Application.Features.Auction.States;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Auction.Commands.CancelAuction;
 
 /// <summary>
 /// Command hủy phiên đấu giá.
-/// - Author chỉ được hủy khi phiên đang SCHEDULE (chưa bắt đầu).
-/// - Admin có thể hủy ở bất kỳ trạng thái nào ngoại trừ END.
+/// ★ State Pattern: Giao toàn bộ kiểm tra tính hợp lệ cho IAuctionState.Cancel().
+/// - ScheduledAuctionState.Cancel(): cho phép cả Author và Admin
+/// - ActiveAuctionState.Cancel(): chỉ cho phép Admin
+/// - EndedAuctionState/CancelledAuctionState.Cancel(): throw BadRequestException
 /// </summary>
 public record CancelAuctionCommand(
     Guid AuctionId,
@@ -26,9 +28,7 @@ public class CancelAuctionCommandValidator : AbstractValidator<CancelAuctionComm
     public CancelAuctionCommandValidator()
     {
         RuleFor(x => x.AuctionId).NotEmpty().WithMessage("ID phiên đấu giá không hợp lệ.");
-
-        RuleFor(x => x.CancellationReason)
-            .MaximumLength(500).WithMessage("Lý do hủy không quá 500 ký tự.");
+        RuleFor(x => x.CancellationReason).MaximumLength(500).WithMessage("Lý do hủy không quá 500 ký tự.");
     }
 }
 
@@ -49,25 +49,14 @@ public class CancelAuctionCommandHandler : IRequestHandler<CancelAuctionCommand,
         if (auction == null)
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.AuctionId}'.");
 
-        // Kiểm tra quyền
+        // Kiểm tra quyền sở hữu (Author hoặc Admin)
         if (!request.IsAdmin && auction.AuthorId != request.RequesterId)
             throw new ForbiddenAccessException("Bạn không có quyền hủy phiên đấu giá này.");
 
-        // Kiểm tra trạng thái có thể hủy
-        if (auction.AuctionStatus == AuctionStatus.END)
-            throw new BadRequestException("Không thể hủy phiên đấu giá đã kết thúc.");
-
-        if (auction.AuctionStatus == AuctionStatus.CANCELLED)
-            throw new BadRequestException("Phiên đấu giá này đã bị hủy trước đó.");
-
-        // User thường chỉ được hủy khi SCHEDULE
-        if (!request.IsAdmin && auction.AuctionStatus == AuctionStatus.ACTIVE)
-            throw new ForbiddenAccessException("Phiên đấu giá đã bắt đầu, chỉ quản trị viên mới có quyền hủy.");
-
-        // Cập nhật trạng thái
-        auction.AuctionStatus = AuctionStatus.CANCELLED;
-        auction.IsActive = false;
-        // TODO: Lưu CancellationReason vào field (nếu thêm field sau)
+        // ★ State Pattern: Ủy thác toàn bộ kiểm tra hợp lệ + chuyển trạng thái cho State Object.
+        // State sẽ tự throw exception nếu không hợp lệ (VD: END/CANCELLED không thể hủy, ACTIVE chỉ Admin được hủy).
+        var state = AuctionStateContext.GetState(auction.AuctionStatus);
+        state.Cancel(auction, request.CancellationReason, request.IsAdmin);
 
         _auctionRepository.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
