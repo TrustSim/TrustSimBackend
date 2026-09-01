@@ -87,8 +87,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             Email = normalizedEmail,
             PhoneNumber = normalizedPhone,
             IdentityNumber = normalizedIdentity,
-            DateOfBirth = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            Address = string.Empty,
+            DateOfBirth = request.DateOfBirth ?? new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            Address = request.Address?.Trim() ?? string.Empty,
             AvatarImg = string.Empty,
             VerificationStatus = VerificationStatus.PENDING_VERIFICATION
         };

@@ -43,6 +43,18 @@ builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
+// ─── 1.1 Cấu hình CORS cho phép Frontend giao tiếp ───────────────────────────
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "https://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 // ─── 2. Cấu hình JWT Authentication ──────────────────────────────────────────────
 var jwtSecretKey = builder.Configuration["JwtSettings:SecretKey"] 
     ?? "TrustSimSuperSecretKey2026WithSufficientLengthForHMACSHA256!";
@@ -132,6 +144,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Kích hoạt CORS trước Authentication
+app.UseCors("AllowFrontend");
 
 // Thứ tự quan trọng: Authentication -> Authorization
 app.UseAuthentication();
