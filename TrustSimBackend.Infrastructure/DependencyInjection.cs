@@ -18,9 +18,11 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // ─── 1. DbContext ─────────────────────────────────────────────────────────
+        // ─── 1. Cấu hình Option Settings ──────────────────────────────────────────
+        services.Configure<SePaySettings>(configuration.GetSection(SePaySettings.SectionName));
+
+        // ─── 2. DbContext ─────────────────────────────────────────────────────────
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
-        // MigrationsConnection → Direct (unpooled)  — dùng cho dotnet ef migrations
         services.AddDbContext<TrustSimDbContext>(options =>
         {
             options.UseNpgsql(
@@ -35,17 +37,32 @@ public static class DependencyInjection
                 });
         });
 
-        // ─── 2. UnitOfWork ───────────────────────────────────────────
+        // ─── 3. UnitOfWork ───────────────────────────────────────────
         // Chuyển tiếp IUnitOfWork về cùng 1 instance TrustSimDbContext trong request (tránh tạo 2 DbContext riêng)
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<TrustSimDbContext>());
 
-        // ─── 3. Repositories ─────────────────────────────────────────
-        services.AddScoped<ITradeTransactionRepository, TradeTransactionRepository>();
+        // ─── 4. Repositories ─────────────────────────────────────────
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
+        services.AddScoped<IIdentityVerificationRepository, IdentityVerificationRepository>();
+        services.AddScoped<IWalletRepository, WalletRepository>();
+        services.AddScoped<IWalletTransactionRepository, WalletTransactionRepository>();
+        services.AddScoped<ISimCarrierRepository, SimCarrierRepository>();
+        services.AddScoped<ISimCategoryRepository, SimCategoryRepository>();
+        services.AddScoped<IPhonePrefixRepository, PhonePrefixRepository>();
+        services.AddScoped<ISimNumberRepository, SimNumberRepository>();
+        services.AddScoped<IAuctionRepository, AuctionRepository>();
+        services.AddScoped<IBidRepository, BidRepository>();
+        services.AddScoped<ITradeTransactionRepository, TradeTransactionRepository>();
+        services.AddScoped<IDisputeTicketRepository, DisputeTicketRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IDocumentRepository, DocumentRepository>();
 
-        // ─── 4. Infrastructure Services ──────────────────────────────
+        // ─── 5. Infrastructure Services ──────────────────────────────
+        services.AddHttpContextAccessor();
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<ISePayService, SePayService>();
 
         return services;
     }

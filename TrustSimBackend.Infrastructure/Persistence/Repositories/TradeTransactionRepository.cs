@@ -21,12 +21,47 @@ public class TradeTransactionRepository : ITradeTransactionRepository
 
     public async Task<TradeTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        // Khi lấy Giao dịch, lấy luôn các bảng phụ liên quan để xử lý nghiệp vụ
         return await _dbContext.TradeTransactions
+            .Include(t => t.Buyer)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.Seller)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.SimNumber)
             .Include(t => t.Escrow)
             .Include(t => t.TransferContract)
             .Include(t => t.SimTransfer)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedByUserIdAsync(
+        Guid userId,
+        TradeTransactionStatus? status,
+        int pageIndex,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.TradeTransactions
+            .Include(t => t.Buyer)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.Seller)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.SimNumber)
+            .Where(t => t.BuyerId == userId || t.SellerId == userId);
+
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.TradeTransactionStatus == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(t => t.CreatedDate)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
     }
 
     public void Update(TradeTransaction tradeTransaction)

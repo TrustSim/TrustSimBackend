@@ -170,8 +170,15 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedAdminUserAsync(TrustSimDbContext context)
     {
-        // Kiểm tra theo Role ADMIN
-        if (await context.UserAccounts.AnyAsync(u => u.Role == UserRole.ADMIN)) return;
+        var existingAdmin = await context.UserAccounts.FirstOrDefaultAsync(u => u.UserName == "admin" || u.Role == UserRole.ADMIN);
+        if (existingAdmin != null)
+        {
+            // Cập nhật lại password hash chuẩn cho Admin nếu cần
+            existingAdmin.PassWordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123456", 11);
+            existingAdmin.IsActive = true;
+            context.UserAccounts.Update(existingAdmin);
+            return;
+        }
 
         var adminId = Guid.NewGuid();
 
@@ -180,9 +187,7 @@ public static class DbSeeder
             Id          = adminId,
             UserName    = "admin",
             UserEmail   = "admin@trustsim.vn",
-            // NOTE: Đây là hash BCrypt của password "Admin@123456"
-            // Trong production, hãy thay bằng hash thực từ BCrypt.HashPassword(...)
-            PassWordHash = "$2a$12$SampleHashAdminTrustSimPleaseChangeThis",
+            PassWordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123456", 11),
             Role        = UserRole.ADMIN,
             IsActive    = true,
         };

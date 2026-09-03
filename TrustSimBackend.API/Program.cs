@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// ─── 3. Controllers và Swagger với hỗ trợ JWT Bearer ─────────────────────────────
+// ─── 3. Controllers và Swagger với hỗ trợ JWT Bearer & XML Comments ──────────────
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -82,7 +83,7 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "TrustSim API",
         Version = "v1",
-        Description = "Hệ thống sàn giao dịch và đấu giá SIM số đẹp an toàn TrustSim"
+        Description = "Hệ thống sàn giao dịch và đấu giá SIM số đẹp an toàn TrustSim tích hợp cổng SePay"
     });
 
     // Cấu hình nút Authorize (hình ổ khóa) trên giao diện Swagger UI
@@ -109,6 +110,14 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    // Nạp XML Documentation để hiển thị ghi chú mô tả API trên Swagger
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
 });
 
 var app = builder.Build();

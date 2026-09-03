@@ -7,11 +7,35 @@ namespace TrustSimBackend.API.Middlewares;
 
 /// <summary>
 /// Middleware bắt tập trung mọi Exception trong Pipeline và chuyển đổi thành ApiResponse chuẩn.
+/// Sử dụng Dictionary Mapping Pattern (O(1) Lookup) thay vì switch-case để tuân thủ Open/Closed Principle (OCP).
 /// </summary>
 public class GlobalExceptionMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
+    // Bảng tra cứu xử lý lỗi tập trung O(1) theo Type
+    private static readonly Dictionary<Type, Func<Exception, (int StatusCode, string Message, List<string>? Errors)>> _exceptionHandlers = new()
+    {
+        [typeof(ValidationException)] = ex =>
+        {
+            var vEx = (ValidationException)ex;
+            return (
+                StatusCodes.Status400BadRequest,
+                vEx.Message,
+                vEx.Errors.SelectMany(x => x.Value.Select(err => $"{x.Key}: {err}")).ToList()
+            );
+        },
+        [typeof(BadRequestException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(NotFoundException)] = ex => (StatusCodes.Status404NotFound, ex.Message, null),
+        [typeof(ForbiddenAccessException)] = ex => (StatusCodes.Status403Forbidden, ex.Message, null),
+        [typeof(UnauthorizedException)] = ex => (StatusCodes.Status401Unauthorized, ex.Message, null),
+        [typeof(UnauthorizedAccessException)] = ex => (StatusCodes.Status401Unauthorized, ex.Message, null),
+        [typeof(KeyNotFoundException)] = ex => (StatusCodes.Status404NotFound, ex.Message, null),
+        [typeof(ArgumentNullException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(ArgumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(InvalidOperationException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
+    };
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
     {
@@ -27,7 +51,7 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Đã xảy ra lỗi chưa được xử lý: {Message}", ex.Message);
+            _logger.LogError(ex, "[GlobalExceptionMiddleware] Lỗi chưa được xử lý: {Message}", ex.Message);
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -36,45 +60,37 @@ public class GlobalExceptionMiddleware
     {
         context.Response.ContentType = "application/json";
 
-        var response = new ApiResponse<object>
+        var exceptionType = exception.GetType();
+        int statusCode;
+        string message;
+        List<string>? errors = null;
+
+        // 1. Tìm chính xác Type trong Dictionary (O(1))
+        if (_exceptionHandlers.TryGetValue(exceptionType, out var handler))
         {
-            Success = false,
-            Timestamp = DateTime.UtcNow
-        };
-
-        switch (exception)
-        {
-            case ValidationException validationEx:
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                response.Message = validationEx.Message;
-                response.Errors = validationEx.Errors
-                    .SelectMany(x => x.Value.Select(err => $"{x.Key}: {err}"))
-                    .ToList();
-                break;
-
-            case BadRequestException badRequestEx:
-                context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                response.Message = badRequestEx.Message;
-                break;
-
-            case NotFoundException notFoundEx:
-                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                response.Message = notFoundEx.Message;
-                break;
-
-            case ForbiddenAccessException forbiddenEx:
-                context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
-                response.Message = forbiddenEx.Message;
-                break;
-
-            default:
-                context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                response.Message = "Đã xảy ra lỗi máy chủ nội bộ. Vui lòng thử lại sau.";
-#if DEBUG
-                response.Errors = new List<string> { exception.Message, exception.StackTrace ?? string.Empty };
-#endif
-                break;
+            (statusCode, message, errors) = handler(exception);
         }
+        else
+        {
+            // 2. Tìm kiếm theo kiểu kế thừa (Assignable Type fallback)
+            var assignableEntry = _exceptionHandlers.FirstOrDefault(entry => entry.Key.IsAssignableFrom(exceptionType));
+            if (assignableEntry.Value != null)
+            {
+                (statusCode, message, errors) = assignableEntry.Value(exception);
+            }
+            else
+            {
+                // 3. Fallback mặc định 500 Internal Server Error
+                statusCode = StatusCodes.Status500InternalServerError;
+                message = "Đã xảy ra lỗi máy chủ nội bộ. Vui lòng thử lại sau.";
+#if DEBUG
+                errors = new List<string> { exception.Message, exception.StackTrace ?? string.Empty };
+#endif
+            }
+        }
+
+        context.Response.StatusCode = statusCode;
+        var response = ApiResponse<object>.FailureResult(message, errors);
 
         var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
         {

@@ -178,22 +178,3 @@ public class AuthController : ControllerBase
         return false;
     }
 }
-
-// ─── DTO Request Models cho Controller ──────────────────────────────────────────
-public record UpdateProfileRequest(
-    string FullName,
-    DateTime? DateOfBirth,
-    string Address,
-    string IdentityNumber,
-    string PhoneNumber
-);
-
-public record ChangePasswordRequest(
-    string CurrentPassword,
-    string NewPassword,
-    string ConfirmNewPassword
-);
-
-public record UpdateAvatarRequest(
-    string AvatarUrl
-);

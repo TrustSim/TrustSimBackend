@@ -23,4 +23,8 @@
     <ProjectReference Include="..\TrustSimBackend.Application\TrustSimBackend.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Migrations\" />
+  </ItemGroup>
+
 </Project>
