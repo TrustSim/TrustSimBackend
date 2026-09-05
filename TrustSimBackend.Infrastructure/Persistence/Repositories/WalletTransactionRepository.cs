@@ -53,6 +53,7 @@ public class WalletTransactionRepository : IWalletTransactionRepository
         CancellationToken cancellationToken = default)
     {
         var query = _context.WalletTransactions
+            .Include(t => t.Wallet)
             .Where(t => t.WalletId == walletId);
 
         if (type.HasValue)
@@ -83,7 +84,9 @@ public class WalletTransactionRepository : IWalletTransactionRepository
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.WalletTransactions.AsQueryable();
+        var query = _context.WalletTransactions
+            .Include(t => t.Wallet)
+            .AsQueryable();
 
         if (type.HasValue)
         {

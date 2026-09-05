@@ -46,6 +46,7 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .Include(t => t.Seller)
                 .ThenInclude(u => u!.UserProfile)
             .Include(t => t.SimNumber)
+            .Include(t => t.Escrow)
             .Where(t => t.BuyerId == userId || t.SellerId == userId);
 
         if (status.HasValue)

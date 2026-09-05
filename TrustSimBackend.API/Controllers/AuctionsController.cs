@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Auction.Commands;
-using TrustSimBackend.Application.Features.Auction.DTOs;
-using TrustSimBackend.Application.Features.Auction.Queries;
+using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
+using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
@@ -26,7 +25,7 @@ public class AuctionsController : BaseApiController
     {
         var query = new GetAuctionsQuery(keyword, status, type, authorId, pageIndex, pageSize);
         var result = await Mediator.Send(query);
-        return Ok(result);
+        return Ok(ApiResponse<PagedResult<AuctionDto>>.SuccessResult(result, "Lấy danh sách phiên đấu giá thành công."));
     }
 
     /// <summary>
@@ -38,7 +37,7 @@ public class AuctionsController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetAuctionByIdQuery(id));
-        return Ok(result);
+        return Ok(ApiResponse<AuctionDto>.SuccessResult(result, "Lấy thông tin phiên đấu giá thành công."));
     }
 
     /// <summary>
@@ -49,7 +48,7 @@ public class AuctionsController : BaseApiController
     public async Task<IActionResult> GetBids([FromRoute] Guid id, [FromQuery] int top = 50)
     {
         var result = await Mediator.Send(new GetAuctionBidsQuery(id, top));
-        return Ok(result);
+        return Ok(ApiResponse<IReadOnlyList<BidDto>>.SuccessResult(result, "Lấy lịch sử trả giá thành công."));
     }
 
     /// <summary>
@@ -59,22 +58,10 @@ public class AuctionsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<AuctionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateAuctionRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateAuctionCommand command)
     {
-        var command = new CreateAuctionCommand(
-            CurrentUserId,
-            request.SimNumberId,
-            request.AuctionType,
-            request.StartingPrice,
-            request.ReservePrice,
-            request.StartAt,
-            request.EndAt,
-            request.RegistrationStartAt,
-            request.RegistrationEndAt
-        );
-
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { AuthorId = CurrentUserId });
+        return Ok(ApiResponse<AuctionDto>.SuccessResult(result, "Tạo phiên đấu giá thành công."));
     }
 
     /// <summary>
@@ -87,7 +74,7 @@ public class AuctionsController : BaseApiController
     public async Task<IActionResult> RegisterParticipant([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new RegisterParticipantCommand(id, CurrentUserId));
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đăng ký tham gia phiên đấu giá thành công."));
     }
 
     /// <summary>
@@ -97,10 +84,9 @@ public class AuctionsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<BidDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> PlaceBid([FromRoute] Guid id, [FromBody] PlaceBidRequest request)
+    public async Task<IActionResult> PlaceBid([FromRoute] Guid id, [FromBody] PlaceBidCommand command)
     {
-        var command = new PlaceBidCommand(id, CurrentUserId, request.BidAmount);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { AuctionId = id, UserId = CurrentUserId });
+        return Ok(ApiResponse<BidDto>.SuccessResult(result, "Trả giá thành công."));
     }
 }

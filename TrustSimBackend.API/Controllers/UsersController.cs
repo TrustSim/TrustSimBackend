@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Identity.Commands.Kyc;
-using TrustSimBackend.Application.Features.Identity.DTOs;
-using TrustSimBackend.Application.Features.Identity.Queries.Kyc;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
+using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
@@ -18,11 +17,10 @@ public class UsersController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<IdentityVerificationDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> SubmitKyc([FromBody] SubmitKycRequest request)
+    public async Task<IActionResult> SubmitKyc([FromBody] SubmitKycCommand command)
     {
-        var command = new SubmitKycCommand(CurrentUserId, request.IdentityNumber, request.AvatarImg);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<IdentityVerificationDto>.SuccessResult(result, "Gửi hồ sơ xác minh KYC thành công. Vui lòng chờ phê duyệt."));
     }
 
     /// <summary>
@@ -35,7 +33,7 @@ public class UsersController : BaseApiController
     public async Task<IActionResult> GetMyKycStatus()
     {
         var result = await Mediator.Send(new GetMyKycStatusQuery(CurrentUserId));
-        return Ok(result);
+        return Ok(ApiResponse<IdentityVerificationDto>.SuccessResult(result, "Lấy thông tin trạng thái KYC thành công."));
     }
 
     /// <summary>
@@ -49,8 +47,9 @@ public class UsersController : BaseApiController
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        var result = await Mediator.Send(new GetPendingKycQuery(status, pageIndex, pageSize));
-        return Ok(result);
+        var query = new GetPendingKycQuery(status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<IdentityVerificationDto>>.SuccessResult(result, "Lấy danh sách hồ sơ KYC thành công."));
     }
 
     /// <summary>
@@ -60,10 +59,9 @@ public class UsersController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ReviewKyc([FromRoute] Guid verificationId, [FromBody] ReviewKycRequest request)
+    public async Task<IActionResult> ReviewKyc([FromRoute] Guid verificationId, [FromBody] ReviewKycCommand command)
     {
-        var command = new ReviewKycCommand(verificationId, request.Status, request.RejectionReason);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { VerificationId = verificationId });
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Duyệt hồ sơ xác minh KYC thành công."));
     }
 }

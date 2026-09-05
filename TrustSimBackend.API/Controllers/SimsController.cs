@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Sim.Commands.Sims;
-using TrustSimBackend.Application.Features.Sim.DTOs;
-using TrustSimBackend.Application.Features.Sim.Queries.Sims;
+using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
+using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
@@ -27,7 +26,7 @@ public class SimsController : BaseApiController
     {
         var query = new GetSimsQuery(keyword, carrierId, categoryId, prefixId, status, pageIndex, pageSize);
         var result = await Mediator.Send(query);
-        return Ok(result);
+        return Ok(ApiResponse<PagedResult<SimNumberDto>>.SuccessResult(result, "Lấy danh sách SIM thành công."));
     }
 
     /// <summary>
@@ -39,7 +38,7 @@ public class SimsController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetSimByIdQuery(id));
-        return Ok(result);
+        return Ok(ApiResponse<SimNumberDto>.SuccessResult(result, "Lấy thông tin chi tiết số SIM thành công."));
     }
 
     /// <summary>
@@ -49,11 +48,10 @@ public class SimsController : BaseApiController
     [Authorize(Roles = "ADMIN,CONSULTANT")]
     [ProducesResponseType(typeof(ApiResponse<SimNumberDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateSimRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateSimCommand command)
     {
-        var command = new CreateSimCommand(request.PhoneNumber, request.PhonePrefixId, request.FormatRhythmId, request.CategoryIds);
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<SimNumberDto>.SuccessResult(result, "Thêm mới số SIM thành công."));
     }
 
     /// <summary>
@@ -63,11 +61,10 @@ public class SimsController : BaseApiController
     [Authorize(Roles = "ADMIN,CONSULTANT")]
     [ProducesResponseType(typeof(ApiResponse<SimNumberDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateSimRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateSimCommand command)
     {
-        var command = new UpdateSimCommand(id, request.SimStatus, request.PhonePrefixId, request.FormatRhythmId, request.CategoryIds);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { Id = id });
+        return Ok(ApiResponse<SimNumberDto>.SuccessResult(result, "Cập nhật số SIM thành công."));
     }
 
     /// <summary>
@@ -80,6 +77,6 @@ public class SimsController : BaseApiController
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new DeleteSimCommand(id));
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa số SIM thành công."));
     }
 }

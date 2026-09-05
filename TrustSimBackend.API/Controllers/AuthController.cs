@@ -3,17 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Identity.Commands.ChangePassword;
-using TrustSimBackend.Application.Features.Identity.Commands.ForgotPassword;
-using TrustSimBackend.Application.Features.Identity.Commands.LoginUser;
-using TrustSimBackend.Application.Features.Identity.Commands.Logout;
-using TrustSimBackend.Application.Features.Identity.Commands.RefreshToken;
-using TrustSimBackend.Application.Features.Identity.Commands.RegisterUser;
-using TrustSimBackend.Application.Features.Identity.Commands.ResetPassword;
-using TrustSimBackend.Application.Features.Identity.Commands.UpdateAvatar;
-using TrustSimBackend.Application.Features.Identity.Commands.UpdateProfile;
-using TrustSimBackend.Application.Features.Identity.DTOs;
-using TrustSimBackend.Application.Features.Identity.Queries.GetUserProfile;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
+using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -28,7 +19,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Đăng ký tài khoản thành công."));
     }
 
     /// <summary>
@@ -40,7 +31,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> Login([FromBody] LoginUserCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Đăng nhập thành công."));
     }
 
     /// <summary>
@@ -49,12 +40,12 @@ public class AuthController : BaseApiController
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> RefreshToken([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenRequestDto? request)
+    public async Task<IActionResult> RefreshToken([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenCommand? command)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var command = new RefreshTokenCommand(request?.RefreshToken, ipAddress);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var cmd = (command ?? new RefreshTokenCommand()) with { IpAddress = ipAddress };
+        var result = await Mediator.Send(cmd);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Làm mới Access Token thành công."));
     }
 
     /// <summary>
@@ -62,12 +53,12 @@ public class AuthController : BaseApiController
     /// </summary>
     [HttpPost("logout")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Logout([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenRequestDto? request)
+    public async Task<IActionResult> Logout([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] LogoutCommand? command)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var command = new LogoutCommand(request?.RefreshToken, ipAddress);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var cmd = (command ?? new LogoutCommand()) with { IpAddress = ipAddress };
+        var result = await Mediator.Send(cmd);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đăng xuất thành công."));
     }
 
     /// <summary>
@@ -81,7 +72,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> GetProfile()
     {
         var result = await Mediator.Send(new GetUserProfileQuery(CurrentUserId));
-        return Ok(result);
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(result, "Lấy thông tin hồ sơ thành công."));
     }
 
     /// <summary>
@@ -92,19 +83,10 @@ public class AuthController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
     {
-        var command = new UpdateProfileCommand(
-            CurrentUserId,
-            request.FullName,
-            request.DateOfBirth,
-            request.Address,
-            request.IdentityNumber,
-            request.PhoneNumber
-        );
-
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(result, "Cập nhật hồ sơ cá nhân thành công."));
     }
 
     /// <summary>
@@ -115,17 +97,10 @@ public class AuthController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
     {
-        var command = new ChangePasswordCommand(
-            CurrentUserId,
-            request.CurrentPassword,
-            request.NewPassword,
-            request.ConfirmNewPassword
-        );
-
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đổi mật khẩu thành công."));
     }
 
     /// <summary>
@@ -136,11 +111,10 @@ public class AuthController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateAvatar([FromBody] UpdateAvatarRequest request)
+    public async Task<IActionResult> UpdateAvatar([FromBody] UpdateAvatarCommand command)
     {
-        var command = new UpdateAvatarCommand(CurrentUserId, request.AvatarUrl);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<string>.SuccessResult(result, "Cập nhật ảnh đại diện thành công."));
     }
 
     /// <summary>
@@ -152,7 +126,7 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<string>.SuccessResult(result, "Mã xác thực đặt lại mật khẩu đã được gửi thành công."));
     }
 
     /// <summary>
@@ -164,6 +138,6 @@ public class AuthController : BaseApiController
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đặt lại mật khẩu mới thành công."));
     }
 }

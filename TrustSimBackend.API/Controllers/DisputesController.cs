@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Dispute.Commands;
-using TrustSimBackend.Application.Features.Dispute.DTOs;
-using TrustSimBackend.Application.Features.Dispute.Queries;
+using TrustSimBackend.Application.Features.Dispute.DTOs.Requests;
+using TrustSimBackend.Application.Features.Dispute.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
@@ -12,7 +11,7 @@ namespace TrustSimBackend.API.Controllers;
 public class DisputesController : BaseApiController
 {
     /// <summary>
-    /// Lấy danh sách khiếu nại (User xem của mình, Admin xem tất cả)
+    /// Lấy danh sách khiếu nại tranh chấp (có phân trang và lọc theo trạng thái)
     /// </summary>
     [HttpGet]
     [Authorize]
@@ -22,14 +21,13 @@ public class DisputesController : BaseApiController
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        var isAdminOrConsultant = IsAdmin || IsConsultant;
-        var query = new GetDisputesQuery(isAdminOrConsultant ? null : CurrentUserId, status, pageIndex, pageSize);
+        var query = new GetDisputesQuery(IsAdmin ? null : CurrentUserId, status, pageIndex, pageSize);
         var result = await Mediator.Send(query);
-        return Ok(result);
+        return Ok(ApiResponse<PagedResult<DisputeTicketDto>>.SuccessResult(result, "Lấy danh sách khiếu nại thành công."));
     }
 
     /// <summary>
-    /// Lấy thông tin chi tiết một khiếu nại
+    /// Lấy chi tiết một khiếu nại tranh chấp theo ID
     /// </summary>
     [HttpGet("{id:guid}")]
     [Authorize]
@@ -38,7 +36,7 @@ public class DisputesController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetDisputeByIdQuery(id));
-        return Ok(result);
+        return Ok(ApiResponse<DisputeTicketDto>.SuccessResult(result, "Lấy thông tin khiếu nại thành công."));
     }
 
     /// <summary>
@@ -48,24 +46,22 @@ public class DisputesController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<DisputeTicketDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateDisputeRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateDisputeCommand command)
     {
-        var command = new CreateDisputeCommand(CurrentUserId, request.TradeTransactionId, request.Reason);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { ComplainantId = CurrentUserId });
+        return Ok(ApiResponse<DisputeTicketDto>.SuccessResult(result, "Mở khiếu nại tranh chấp thành công."));
     }
 
     /// <summary>
-    /// [Admin/Consultant] Đưa ra phán quyết và giải quyết khiếu nại
+    /// [Admin] Phán quyết và giải quyết khiếu nại tranh chấp
     /// </summary>
     [HttpPost("{id:guid}/resolve")]
-    [Authorize(Roles = "ADMIN,CONSULTANT")]
+    [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Resolve([FromRoute] Guid id, [FromBody] ResolveDisputeRequest request)
+    public async Task<IActionResult> Resolve([FromRoute] Guid id, [FromBody] ResolveDisputeCommand command)
     {
-        var command = new ResolveDisputeCommand(id, CurrentUserId, request.ResolutionStatus, request.ResolutionNotes);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { TicketId = id, AdminId = CurrentUserId });
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Xử lý phán quyết khiếu nại thành công."));
     }
 }

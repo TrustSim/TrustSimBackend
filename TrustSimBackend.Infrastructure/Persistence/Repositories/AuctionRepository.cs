@@ -34,6 +34,8 @@ public class AuctionRepository : IAuctionRepository
             .Include(a => a.SimNumber)
             .Include(a => a.Author)
             .Include(a => a.AuctionRule)
+            .Include(a => a.Participants)
+            .Include(a => a.Bids)
             .FirstOrDefaultAsync(a => a.AuctionCode == auctionCode && !a.IsDeleted, cancellationToken);
     }
 
@@ -53,6 +55,8 @@ public class AuctionRepository : IAuctionRepository
             .Include(a => a.Author)
                 .ThenInclude(u => u!.UserProfile)
             .Include(a => a.AuctionRule)
+            .Include(a => a.Participants)
+            .Include(a => a.Bids)
             .Where(a => !a.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(keyword))

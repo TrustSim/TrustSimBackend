@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Trade.Commands;
-using TrustSimBackend.Application.Features.Trade.DTOs;
-using TrustSimBackend.Application.Features.Trade.Queries;
+using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
+using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
@@ -22,8 +21,9 @@ public class TradeTransactionsController : BaseApiController
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        var result = await Mediator.Send(new GetMyTradeTransactionsQuery(CurrentUserId, status, pageIndex, pageSize));
-        return Ok(result);
+        var query = new GetMyTradeTransactionsQuery(CurrentUserId, status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<TradeTransactionDto>>.SuccessResult(result, "Lấy danh sách giao dịch thành công."));
     }
 
     /// <summary>
@@ -36,7 +36,7 @@ public class TradeTransactionsController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetTradeTransactionByIdQuery(id, CurrentUserId));
-        return Ok(result);
+        return Ok(ApiResponse<TradeTransactionDto>.SuccessResult(result, "Lấy thông tin giao dịch thành công."));
     }
 
     /// <summary>
@@ -46,11 +46,10 @@ public class TradeTransactionsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<TradeTransactionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateTradeRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateTradeTransactionCommand command)
     {
-        var command = new CreateTradeTransactionCommand(CurrentUserId, request.SellerId, request.SimNumberId, request.AuctionId, request.EscrowAmount);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { BuyerId = CurrentUserId });
+        return Ok(ApiResponse<TradeTransactionDto>.SuccessResult(result, "Tạo giao dịch chuyển nhượng SIM thành công."));
     }
 
     /// <summary>
@@ -64,6 +63,6 @@ public class TradeTransactionsController : BaseApiController
     {
         var command = new UpdateTradeStatusCommand(id, newStatus);
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Cập nhật trạng thái giao dịch thành công."));
     }
 }

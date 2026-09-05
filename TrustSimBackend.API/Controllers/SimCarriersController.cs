@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Sim.Commands.Carriers;
-using TrustSimBackend.Application.Features.Sim.DTOs;
-using TrustSimBackend.Application.Features.Sim.Queries.Carriers;
+using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
+using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -18,7 +17,7 @@ public class SimCarriersController : BaseApiController
     public async Task<IActionResult> GetAll()
     {
         var result = await Mediator.Send(new GetCarriersQuery());
-        return Ok(result);
+        return Ok(ApiResponse<IReadOnlyList<SimCarrierDto>>.SuccessResult(result, "Lấy danh sách nhà mạng thành công."));
     }
 
     /// <summary>
@@ -30,7 +29,7 @@ public class SimCarriersController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetCarrierByIdQuery(id));
-        return Ok(result);
+        return Ok(ApiResponse<SimCarrierDto>.SuccessResult(result, "Lấy thông tin chi tiết nhà mạng thành công."));
     }
 
     /// <summary>
@@ -40,11 +39,10 @@ public class SimCarriersController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<SimCarrierDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateCarrierRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateCarrierCommand command)
     {
-        var command = new CreateCarrierCommand(request.CarrierName, request.CarrierCode, request.LogoImg);
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<SimCarrierDto>.SuccessResult(result, "Thêm mới nhà mạng thành công."));
     }
 
     /// <summary>
@@ -54,11 +52,10 @@ public class SimCarriersController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<SimCarrierDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateCarrierRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateCarrierCommand command)
     {
-        var command = new UpdateCarrierCommand(id, request.CarrierName, request.LogoImg);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { Id = id });
+        return Ok(ApiResponse<SimCarrierDto>.SuccessResult(result, "Cập nhật nhà mạng thành công."));
     }
 
     /// <summary>
@@ -71,6 +68,6 @@ public class SimCarriersController : BaseApiController
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new DeleteCarrierCommand(id));
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa nhà mạng thành công."));
     }
 }

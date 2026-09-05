@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.System.Commands;
-using TrustSimBackend.Application.Features.System.DTOs;
-using TrustSimBackend.Application.Features.System.Queries;
+using TrustSimBackend.Application.Features.System.DTOs.Requests;
+using TrustSimBackend.Application.Features.System.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -18,7 +17,7 @@ public class DocumentsController : BaseApiController
     public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = true)
     {
         var result = await Mediator.Send(new GetDocumentsQuery(activeOnly));
-        return Ok(result);
+        return Ok(ApiResponse<IReadOnlyList<DocumentDto>>.SuccessResult(result, "Lấy danh sách văn bản thành công."));
     }
 
     /// <summary>
@@ -30,7 +29,7 @@ public class DocumentsController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetDocumentByIdQuery(id));
-        return Ok(result);
+        return Ok(ApiResponse<DocumentDto>.SuccessResult(result, "Lấy chi tiết văn bản thành công."));
     }
 
     /// <summary>
@@ -40,11 +39,10 @@ public class DocumentsController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<DocumentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateDocumentRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateDocumentCommand command)
     {
-        var command = new CreateDocumentCommand(request.DocumentName, request.LinkUrl);
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<DocumentDto>.SuccessResult(result, "Tạo văn bản điều khoản thành công."));
     }
 
     /// <summary>
@@ -54,10 +52,9 @@ public class DocumentsController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<DocumentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateDocumentRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateDocumentCommand command)
     {
-        var command = new UpdateDocumentCommand(id, request.DocumentName, request.LinkUrl);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { Id = id });
+        return Ok(ApiResponse<DocumentDto>.SuccessResult(result, "Cập nhật văn bản điều khoản thành công."));
     }
 }

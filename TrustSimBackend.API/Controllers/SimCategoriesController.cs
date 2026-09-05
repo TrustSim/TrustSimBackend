@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Sim.Commands.Categories;
-using TrustSimBackend.Application.Features.Sim.DTOs;
-using TrustSimBackend.Application.Features.Sim.Queries.Categories;
+using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
+using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -18,7 +17,7 @@ public class SimCategoriesController : BaseApiController
     public async Task<IActionResult> GetAll()
     {
         var result = await Mediator.Send(new GetCategoriesQuery());
-        return Ok(result);
+        return Ok(ApiResponse<IReadOnlyList<SimCategoryDto>>.SuccessResult(result, "Lấy danh sách thể loại SIM thành công."));
     }
 
     /// <summary>
@@ -30,7 +29,7 @@ public class SimCategoriesController : BaseApiController
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new GetCategoryByIdQuery(id));
-        return Ok(result);
+        return Ok(ApiResponse<SimCategoryDto>.SuccessResult(result, "Lấy thông tin thể loại SIM thành công."));
     }
 
     /// <summary>
@@ -40,11 +39,10 @@ public class SimCategoriesController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<SimCategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Create([FromBody] CreateCategoryRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateCategoryCommand command)
     {
-        var command = new CreateCategoryCommand(request.CategoryCode, request.CategoryName, request.Description, request.ValuationMultiplier);
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return Ok(ApiResponse<SimCategoryDto>.SuccessResult(result, "Thêm mới thể loại SIM thành công."));
     }
 
     /// <summary>
@@ -54,11 +52,10 @@ public class SimCategoriesController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<SimCategoryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateCategoryRequest request)
+    public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateCategoryCommand command)
     {
-        var command = new UpdateCategoryCommand(id, request.CategoryName, request.Description, request.ValuationMultiplier);
-        var result = await Mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { Id = id });
+        return Ok(ApiResponse<SimCategoryDto>.SuccessResult(result, "Cập nhật thể loại SIM thành công."));
     }
 
     /// <summary>
@@ -71,6 +68,6 @@ public class SimCategoriesController : BaseApiController
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new DeleteCategoryCommand(id));
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa thể loại SIM thành công."));
     }
 }

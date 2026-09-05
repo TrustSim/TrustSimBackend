@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.System.Commands;
-using TrustSimBackend.Application.Features.System.DTOs;
-using TrustSimBackend.Application.Features.System.Queries;
+using TrustSimBackend.Application.Features.System.DTOs.Requests;
+using TrustSimBackend.Application.Features.System.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -21,8 +20,9 @@ public class NotificationsController : BaseApiController
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        var result = await Mediator.Send(new GetMyNotificationsQuery(CurrentUserId, isRead, pageIndex, pageSize));
-        return Ok(result);
+        var query = new GetMyNotificationsQuery(CurrentUserId, isRead, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<NotificationDto>>.SuccessResult(result, "Lấy danh sách thông báo thành công."));
     }
 
     /// <summary>
@@ -34,6 +34,6 @@ public class NotificationsController : BaseApiController
     public async Task<IActionResult> MarkAsRead([FromRoute] Guid id)
     {
         var result = await Mediator.Send(new MarkNotificationAsReadCommand(id, CurrentUserId));
-        return Ok(result);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đánh dấu đã đọc thông báo thành công."));
     }
 }
