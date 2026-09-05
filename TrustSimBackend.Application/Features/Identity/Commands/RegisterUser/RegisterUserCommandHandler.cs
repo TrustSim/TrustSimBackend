@@ -11,25 +11,37 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Identity.Commands.RegisterUser;
 
 /// <summary>
-/// Xử lý nghiệp vụ đăng ký tài khoản người dùng mới.
+/// Xử lý nghiệp vụ đăng ký tài khoản người dùng mới:
+/// 1. Kiểm tra tính duy nhất (Username, Email, SĐT, CCCD).
+/// 2. Băm mật khẩu an toàn.
+/// 3. Khởi tạo UserAccount, UserProfile và Wallet.
+/// 4. Sinh JWT Access Token & Refresh Token.
+/// 5. Lưu Refresh Token và thiết lập HttpOnly Cookies.
+/// 6. Trả về kết quả xác thực.
 /// </summary>
 public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, ApiResponse<AuthResponseDto>>
 {
     private readonly IUserAccountRepository _userAccountRepository;
+    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
+    private readonly ICookieService _cookieService;
 
     public RegisterUserCommandHandler(
         IUserAccountRepository userAccountRepository,
+        IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
-        IJwtTokenGenerator jwtTokenGenerator)
+        IJwtTokenGenerator jwtTokenGenerator,
+        ICookieService cookieService)
     {
         _userAccountRepository = userAccountRepository;
+        _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
+        _cookieService = cookieService;
     }
 
     public async Task<ApiResponse<AuthResponseDto>> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
@@ -106,14 +118,37 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         };
         userAccount.Wallet = wallet;
 
-        // 9. Lưu xuống DB
+        // 9. Lưu UserAccount xuống DB
         await _userAccountRepository.AddAsync(userAccount, cancellationToken);
+
+        // 10. Tạo Access Token và Refresh Token
+        var tokenResult = _jwtTokenGenerator.GenerateTokens(userAccount, userProfile);
+
+        // 11. Lưu Refresh Token vào DB
+        var refreshTokenEntity = new Domain.Entities.Identity.RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            UserAccountId = userAccountId,
+            Token = tokenResult.RefreshToken,
+            JwtId = tokenResult.JwtId,
+            ExpiresAt = tokenResult.RefreshTokenExpiresAt,
+            IsUsed = false,
+            IsRevoked = false
+        };
+        await _refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
+
+        // 12. Commit Transaction
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // 10. Tạo JWT Token
-        var (token, expiresAt) = _jwtTokenGenerator.GenerateToken(userAccount, userProfile);
+        // 13. Ghi HttpOnly Cookies
+        _cookieService.SetAuthCookies(
+            tokenResult.AccessToken,
+            tokenResult.AccessTokenExpiresAt,
+            tokenResult.RefreshToken,
+            tokenResult.RefreshTokenExpiresAt
+        );
 
-        // 11. Đóng gói kết quả
+        // 14. Đóng gói kết quả DTO
         var authResponse = new AuthResponseDto
         {
             UserId = userAccount.Id,
@@ -122,8 +157,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             FullName = userProfile.FullName,
             PhoneNumber = userProfile.PhoneNumber,
             Role = userAccount.Role.ToString(),
-            Token = token,
-            ExpiresAt = expiresAt
+            Token = tokenResult.AccessToken,
+            ExpiresAt = tokenResult.AccessTokenExpiresAt
         };
 
         return ApiResponse<AuthResponseDto>.SuccessResult(authResponse, "Đăng ký tài khoản thành công.");

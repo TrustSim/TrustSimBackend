@@ -1,6 +1,6 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Sim.Commands.Sims;
 using TrustSimBackend.Application.Features.Sim.DTOs;
@@ -9,17 +9,8 @@ using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class SimsController : ControllerBase
+public class SimsController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public SimsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Tìm kiếm và lọc danh sách SIM số đẹp (phân trang, lọc theo nhà mạng, thể loại, đầu số, từ khóa)
     /// </summary>
@@ -35,7 +26,7 @@ public class SimsController : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var query = new GetSimsQuery(keyword, carrierId, categoryId, prefixId, status, pageIndex, pageSize);
-        var result = await _mediator.Send(query);
+        var result = await Mediator.Send(query);
         return Ok(result);
     }
 
@@ -47,7 +38,7 @@ public class SimsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetSimByIdQuery(id));
+        var result = await Mediator.Send(new GetSimByIdQuery(id));
         return Ok(result);
     }
 
@@ -61,7 +52,7 @@ public class SimsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateSimRequest request)
     {
         var command = new CreateSimCommand(request.PhoneNumber, request.PhonePrefixId, request.FormatRhythmId, request.CategoryIds);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -75,7 +66,7 @@ public class SimsController : ControllerBase
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateSimRequest request)
     {
         var command = new UpdateSimCommand(id, request.SimStatus, request.PhonePrefixId, request.FormatRhythmId, request.CategoryIds);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -88,7 +79,7 @@ public class SimsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new DeleteSimCommand(id));
+        var result = await Mediator.Send(new DeleteSimCommand(id));
         return Ok(result);
     }
 }

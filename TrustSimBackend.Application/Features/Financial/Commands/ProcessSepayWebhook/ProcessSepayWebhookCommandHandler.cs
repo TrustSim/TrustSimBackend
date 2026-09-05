@@ -55,14 +55,13 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
             return ApiResponse<bool>.SuccessResult(true, "Bỏ qua giao dịch không phải nạp tiền.");
         }
 
-        // 3. Trích xuất mã giao dịch (từ trường Code hoặc nội dung Content)
-        var transactionCode = !string.IsNullOrWhiteSpace(payload.Code)
-            ? payload.Code.Trim()
-            : _sePayService.ExtractTransactionCode(payload.Content);
+        // 3. Trích xuất mã giao dịch TS... (từ nội dung Content hoặc trường Code)
+        var transactionCode = _sePayService.ExtractTransactionCode(payload.Content)
+            ?? (!string.IsNullOrWhiteSpace(payload.Code) ? _sePayService.ExtractTransactionCode(payload.Code) ?? payload.Code.Trim() : null);
 
         if (string.IsNullOrWhiteSpace(transactionCode))
         {
-            _logger.LogWarning("[SePay Webhook] Không tìm thấy mã giao dịch hợp lệ trong nội dung '{Content}'.", payload.Content);
+            _logger.LogWarning("[SePay Webhook] Không tìm thấy mã giao dịch hợp lệ trong nội dung '{Content}' hoặc Code '{Code}'.", payload.Content, payload.Code);
             return ApiResponse<bool>.SuccessResult(true, "Không nhận diện được mã giao dịch trong nội dung chuyển khoản.");
         }
 

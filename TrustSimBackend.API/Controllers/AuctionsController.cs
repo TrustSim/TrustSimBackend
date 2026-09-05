@@ -1,7 +1,6 @@
-using System.Security.Claims;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.Commands;
 using TrustSimBackend.Application.Features.Auction.DTOs;
@@ -10,17 +9,8 @@ using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AuctionsController : ControllerBase
+public class AuctionsController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public AuctionsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Tìm kiếm và lọc danh sách phiên đấu giá (phân trang, lọc theo trạng thái, loại hình, từ khóa)
     /// </summary>
@@ -35,7 +25,7 @@ public class AuctionsController : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var query = new GetAuctionsQuery(keyword, status, type, authorId, pageIndex, pageSize);
-        var result = await _mediator.Send(query);
+        var result = await Mediator.Send(query);
         return Ok(result);
     }
 
@@ -47,7 +37,7 @@ public class AuctionsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetAuctionByIdQuery(id));
+        var result = await Mediator.Send(new GetAuctionByIdQuery(id));
         return Ok(result);
     }
 
@@ -58,7 +48,7 @@ public class AuctionsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<BidDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBids([FromRoute] Guid id, [FromQuery] int top = 50)
     {
-        var result = await _mediator.Send(new GetAuctionBidsQuery(id, top));
+        var result = await Mediator.Send(new GetAuctionBidsQuery(id, top));
         return Ok(result);
     }
 
@@ -71,13 +61,8 @@ public class AuctionsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateAuctionRequest request)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
         var command = new CreateAuctionCommand(
-            userId,
+            CurrentUserId,
             request.SimNumberId,
             request.AuctionType,
             request.StartingPrice,
@@ -88,7 +73,7 @@ public class AuctionsController : ControllerBase
             request.RegistrationEndAt
         );
 
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -101,12 +86,7 @@ public class AuctionsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RegisterParticipant([FromRoute] Guid id)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var result = await _mediator.Send(new RegisterParticipantCommand(id, userId));
+        var result = await Mediator.Send(new RegisterParticipantCommand(id, CurrentUserId));
         return Ok(result);
     }
 
@@ -119,24 +99,8 @@ public class AuctionsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> PlaceBid([FromRoute] Guid id, [FromBody] PlaceBidRequest request)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new PlaceBidCommand(id, userId, request.BidAmount);
-        var result = await _mediator.Send(command);
+        var command = new PlaceBidCommand(id, CurrentUserId, request.BidAmount);
+        var result = await Mediator.Send(command);
         return Ok(result);
-    }
-
-    private bool TryGetUserId(out Guid userId)
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out userId))
-        {
-            return true;
-        }
-        userId = Guid.Empty;
-        return false;
     }
 }

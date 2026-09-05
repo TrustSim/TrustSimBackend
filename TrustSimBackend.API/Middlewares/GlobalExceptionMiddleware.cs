@@ -34,7 +34,8 @@ public class GlobalExceptionMiddleware
         [typeof(KeyNotFoundException)] = ex => (StatusCodes.Status404NotFound, ex.Message, null),
         [typeof(ArgumentNullException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(ArgumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
-        [typeof(InvalidOperationException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
+        [typeof(InvalidOperationException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)] = ex => (StatusCodes.Status409Conflict, "Giao dịch tài chính đang được xử lý đồng thời bởi một luồng khác. Vui lòng thử lại sau giây lát.", null)
     };
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
@@ -51,7 +52,15 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[GlobalExceptionMiddleware] Lỗi chưa được xử lý: {Message}", ex.Message);
+            if (ex is ValidationException || ex is BadRequestException || ex is NotFoundException || ex is UnauthorizedException)
+            {
+                _logger.LogWarning("[GlobalExceptionMiddleware] Lỗi nghiệp vụ ({Type}): {Message}", ex.GetType().Name, ex.Message);
+            }
+            else
+            {
+                _logger.LogError(ex, "[GlobalExceptionMiddleware] Lỗi chưa được xử lý: {Message}", ex.Message);
+            }
+
             await HandleExceptionAsync(context, ex);
         }
     }

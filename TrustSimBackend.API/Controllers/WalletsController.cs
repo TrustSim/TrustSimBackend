@@ -1,7 +1,6 @@
-using System.Security.Claims;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Financial.Commands.ApproveWithdraw;
 using TrustSimBackend.Application.Features.Financial.Commands.CreateDeposit;
@@ -17,17 +16,8 @@ using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class WalletsController : ControllerBase
+public class WalletsController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public WalletsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Lấy thông tin ví và số dư của tài khoản đang đăng nhập
     /// </summary>
@@ -37,17 +27,12 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetMyWallet()
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var result = await _mediator.Send(new GetMyWalletQuery(userId));
+        var result = await Mediator.Send(new GetMyWalletQuery(CurrentUserId));
         return Ok(result);
     }
 
     /// <summary>
-    /// Lấy danh sách lịch sử nạp / rút tiền của ví cá nhân (có phân trang &amp; bộ lọc)
+    /// Lấy danh sách lịch sử nạp / rút tiền của ví cá nhân (có phân trang và bộ lọc)
     /// </summary>
     [HttpGet("transactions")]
     [Authorize]
@@ -59,13 +44,8 @@ public class WalletsController : ControllerBase
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 10)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var query = new GetWalletTransactionsQuery(userId, type, status, pageIndex, pageSize);
-        var result = await _mediator.Send(query);
+        var query = new GetWalletTransactionsQuery(CurrentUserId, type, status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
         return Ok(result);
     }
 
@@ -78,17 +58,12 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetTransactionById([FromRoute] Guid id)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var result = await _mediator.Send(new GetWalletTransactionByIdQuery(id, userId));
+        var result = await Mediator.Send(new GetWalletTransactionByIdQuery(id, CurrentUserId));
         return Ok(result);
     }
 
     /// <summary>
-    /// Tạo yêu cầu nạp tiền vào ví -&gt; Trả về thông tin VietQR SePay &amp; cú pháp chuyển khoản
+    /// Tạo yêu cầu nạp tiền vào ví -> Trả về thông tin VietQR SePay và cú pháp chuyển khoản
     /// </summary>
     [HttpPost("deposit")]
     [Authorize]
@@ -96,18 +71,13 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateDeposit([FromBody] CreateDepositRequest request)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new CreateDepositCommand(userId, request.Amount, request.Note);
-        var result = await _mediator.Send(command);
+        var command = new CreateDepositCommand(CurrentUserId, request.Amount, request.Note);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
     /// <summary>
-    /// Tạo yêu cầu rút tiền từ ví về tài khoản ngân hàng của người dùng
+    /// Rút tiền từ ví về tài khoản ngân hàng của cá nhân (Hoàn tất tức thì, không cần duyệt)
     /// </summary>
     [HttpPost("withdraw")]
     [Authorize]
@@ -115,13 +85,8 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateWithdraw([FromBody] CreateWithdrawRequest request)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
         var command = new CreateWithdrawCommand(
-            userId,
+            CurrentUserId,
             request.Amount,
             request.DestinationBankCode,
             request.DestinationBankName,
@@ -130,7 +95,7 @@ public class WalletsController : ControllerBase
             request.Note
         );
 
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -145,16 +110,16 @@ public class WalletsController : ControllerBase
     {
         var authHeader = Request.Headers.Authorization.ToString();
         var command = new ProcessSepayWebhookCommand(payload, authHeader);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // ADMIN ENDPOINTS (Duyệt & Quản lý yêu cầu rút tiền)
+    // ADMIN ENDPOINTS (Quản lý và tra cứu giao dịch)
     // ─────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// [Admin] Lấy danh sách tất cả yêu cầu rút tiền trong hệ thống
+    /// [Admin] Lấy danh sách tất cả giao dịch rút tiền trong hệ thống
     /// </summary>
     [HttpGet("admin/withdrawals")]
     [Authorize(Roles = "ADMIN")]
@@ -165,12 +130,12 @@ public class WalletsController : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var query = new AdminGetWithdrawalsQuery(status, pageIndex, pageSize);
-        var result = await _mediator.Send(query);
+        var result = await Mediator.Send(query);
         return Ok(result);
     }
 
     /// <summary>
-    /// [Admin] Phê duyệt yêu cầu rút tiền đã hoàn tất chi tiền
+    /// [Admin] Phê duyệt giao dịch rút tiền thủ công (nếu có)
     /// </summary>
     [HttpPost("admin/withdrawals/{id:guid}/approve")]
     [Authorize(Roles = "ADMIN")]
@@ -178,18 +143,13 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AdminApproveWithdraw([FromRoute] Guid id, [FromQuery] string? note)
     {
-        if (!TryGetUserId(out var adminId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính Admin từ Token."));
-        }
-
-        var command = new ApproveWithdrawCommand(id, adminId, note);
-        var result = await _mediator.Send(command);
+        var command = new ApproveWithdrawCommand(id, CurrentUserId, note);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
     /// <summary>
-    /// [Admin] Từ chối yêu cầu rút tiền và hoàn tiền lại vào ví người dùng
+    /// [Admin] Hủy/Từ chối giao dịch rút tiền và hoàn tiền lại vào ví người dùng
     /// </summary>
     [HttpPost("admin/withdrawals/{id:guid}/reject")]
     [Authorize(Roles = "ADMIN")]
@@ -197,24 +157,8 @@ public class WalletsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AdminRejectWithdraw([FromRoute] Guid id, [FromBody] RejectWithdrawRequest request)
     {
-        if (!TryGetUserId(out var adminId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính Admin từ Token."));
-        }
-
-        var command = new RejectWithdrawCommand(id, adminId, request.Reason);
-        var result = await _mediator.Send(command);
+        var command = new RejectWithdrawCommand(id, CurrentUserId, request.Reason);
+        var result = await Mediator.Send(command);
         return Ok(result);
-    }
-
-    private bool TryGetUserId(out Guid userId)
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out userId))
-        {
-            return true;
-        }
-        userId = Guid.Empty;
-        return false;
     }
 }

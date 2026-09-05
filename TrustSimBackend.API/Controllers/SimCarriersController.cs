@@ -1,6 +1,6 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Sim.Commands.Carriers;
 using TrustSimBackend.Application.Features.Sim.DTOs;
@@ -8,17 +8,8 @@ using TrustSimBackend.Application.Features.Sim.Queries.Carriers;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class SimCarriersController : ControllerBase
+public class SimCarriersController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public SimCarriersController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Lấy danh sách tất cả các nhà mạng viễn thông
     /// </summary>
@@ -26,7 +17,7 @@ public class SimCarriersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SimCarrierDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
-        var result = await _mediator.Send(new GetCarriersQuery());
+        var result = await Mediator.Send(new GetCarriersQuery());
         return Ok(result);
     }
 
@@ -38,7 +29,7 @@ public class SimCarriersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetCarrierByIdQuery(id));
+        var result = await Mediator.Send(new GetCarrierByIdQuery(id));
         return Ok(result);
     }
 
@@ -52,7 +43,7 @@ public class SimCarriersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateCarrierRequest request)
     {
         var command = new CreateCarrierCommand(request.CarrierName, request.CarrierCode, request.LogoImg);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -66,7 +57,7 @@ public class SimCarriersController : ControllerBase
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateCarrierRequest request)
     {
         var command = new UpdateCarrierCommand(id, request.CarrierName, request.LogoImg);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -79,7 +70,7 @@ public class SimCarriersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new DeleteCarrierCommand(id));
+        var result = await Mediator.Send(new DeleteCarrierCommand(id));
         return Ok(result);
     }
 }

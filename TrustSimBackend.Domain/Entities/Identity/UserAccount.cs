@@ -70,6 +70,11 @@ namespace TrustSimBackend.Domain.Entities.Identity
         public virtual ICollection<DigitalSignature> DigitalSignatures { get; set; } = new HashSet<DigitalSignature>();
 
         /// <summary>
+        /// Danh sách các Refresh Token liên kết với tài khoản này (1-N).
+        /// </summary>
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
+        /// <summary>
         /// Danh sách các thông báo mà tài khoản này nhận được (1-N).
         /// </summary>
         private readonly List<Notification> _notifications = new();

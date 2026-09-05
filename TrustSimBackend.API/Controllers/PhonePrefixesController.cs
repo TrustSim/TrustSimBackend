@@ -1,6 +1,6 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Sim.Commands.Prefixes;
 using TrustSimBackend.Application.Features.Sim.DTOs;
@@ -8,17 +8,8 @@ using TrustSimBackend.Application.Features.Sim.Queries.Prefixes;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class PhonePrefixesController : ControllerBase
+public class PhonePrefixesController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public PhonePrefixesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Lấy danh sách các đầu số (có thể lọc theo nhà mạng)
     /// </summary>
@@ -26,7 +17,7 @@ public class PhonePrefixesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PhonePrefixDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll([FromQuery] Guid? carrierId)
     {
-        var result = await _mediator.Send(new GetPrefixesQuery(carrierId));
+        var result = await Mediator.Send(new GetPrefixesQuery(carrierId));
         return Ok(result);
     }
 
@@ -40,7 +31,7 @@ public class PhonePrefixesController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreatePrefixRequest request)
     {
         var command = new CreatePrefixCommand(request.PrefixValue, request.SimCarrierId);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -53,7 +44,7 @@ public class PhonePrefixesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new DeletePrefixCommand(id));
+        var result = await Mediator.Send(new DeletePrefixCommand(id));
         return Ok(result);
     }
 }

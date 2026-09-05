@@ -1,7 +1,6 @@
-using System.Security.Claims;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Dispute.Commands;
 using TrustSimBackend.Application.Features.Dispute.DTOs;
@@ -10,17 +9,8 @@ using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class DisputesController : ControllerBase
+public class DisputesController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public DisputesController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Lấy danh sách khiếu nại (User xem của mình, Admin xem tất cả)
     /// </summary>
@@ -32,14 +22,9 @@ public class DisputesController : ControllerBase
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var isAdmin = User.IsInRole("ADMIN") || User.IsInRole("CONSULTANT");
-        var query = new GetDisputesQuery(isAdmin ? null : userId, status, pageIndex, pageSize);
-        var result = await _mediator.Send(query);
+        var isAdminOrConsultant = IsAdmin || IsConsultant;
+        var query = new GetDisputesQuery(isAdminOrConsultant ? null : CurrentUserId, status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
         return Ok(result);
     }
 
@@ -52,7 +37,7 @@ public class DisputesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetDisputeByIdQuery(id));
+        var result = await Mediator.Send(new GetDisputeByIdQuery(id));
         return Ok(result);
     }
 
@@ -65,13 +50,8 @@ public class DisputesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateDisputeRequest request)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new CreateDisputeCommand(userId, request.TradeTransactionId, request.Reason);
-        var result = await _mediator.Send(command);
+        var command = new CreateDisputeCommand(CurrentUserId, request.TradeTransactionId, request.Reason);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -84,24 +64,8 @@ public class DisputesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Resolve([FromRoute] Guid id, [FromBody] ResolveDisputeRequest request)
     {
-        if (!TryGetUserId(out var adminId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new ResolveDisputeCommand(id, adminId, request.ResolutionStatus, request.ResolutionNotes);
-        var result = await _mediator.Send(command);
+        var command = new ResolveDisputeCommand(id, CurrentUserId, request.ResolutionStatus, request.ResolutionNotes);
+        var result = await Mediator.Send(command);
         return Ok(result);
-    }
-
-    private bool TryGetUserId(out Guid userId)
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out userId))
-        {
-            return true;
-        }
-        userId = Guid.Empty;
-        return false;
     }
 }

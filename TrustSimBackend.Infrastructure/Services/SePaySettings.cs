@@ -25,6 +25,9 @@ public class SePaySettings
     /// <summary>Token xác thực Webhook gửi từ SePay (Authorization header: Apikey {token})</summary>
     public string WebhookToken { get; set; } = string.Empty;
 
+    /// <summary>URL Webhook nhận thông báo biến động số dư từ SePay</summary>
+    public string WebhookUrl { get; set; } = string.Empty;
+
     /// <summary>Template mẫu giao diện VietQR của SePay (VD: compact, compact2, qr_only)</summary>
     public string QrTemplate { get; set; } = "compact2";
 

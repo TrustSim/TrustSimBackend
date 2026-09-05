@@ -56,12 +56,14 @@ public static class DependencyInjection
         services.AddScoped<IDisputeTicketRepository, DisputeTicketRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<ICookieService, CookieService>();
         services.AddScoped<ISePayService, SePayService>();
 
         return services;

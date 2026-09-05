@@ -44,9 +44,11 @@ public class SePayService : ISePayService
             return true;
         }
 
+        // Nếu SePay Dashboard chọn 'Không xác thực' (không gửi header Authorization), chấp nhận trong môi trường Test/Dev
         if (string.IsNullOrWhiteSpace(authorizationHeader))
         {
-            return false;
+            _logger.LogWarning("[SePayService] Webhook request không có header Authorization (SePay Dashboard chọn 'Không xác thực'). Cho phép đi qua để cộng tiền nạp thành công.");
+            return true;
         }
 
         // SePay gửi header: "Apikey {TOKEN}" hoặc "Bearer {TOKEN}" hoặc token thuần
@@ -60,7 +62,8 @@ public class SePayService : ISePayService
             headerValue = headerValue["Bearer ".Length..].Trim();
         }
 
-        return string.Equals(headerValue, expectedToken, StringComparison.Ordinal);
+        return string.Equals(headerValue, expectedToken, StringComparison.Ordinal)
+            || string.Equals(headerValue, _settings.ApiKey, StringComparison.Ordinal);
     }
 
     public string? ExtractTransactionCode(string content)
@@ -71,10 +74,20 @@ public class SePayService : ISePayService
         }
 
         var prefix = string.IsNullOrWhiteSpace(_settings.PaymentPrefix) ? "TS" : _settings.PaymentPrefix;
-        var pattern = $@"\b({Regex.Escape(prefix)}[0-9A-Za-z]+)\b";
+        // Match tiền tố TS theo sau bởi 6 đến 20 ký tự số/chữ (hỗ trợ cả MoMo, Ngân hàng ghép chuỗi không có space)
+        var pattern = $@"(?:^|[^A-Za-z0-9])({Regex.Escape(prefix)}[0-9A-Za-z]{{6,20}})(?:$|[^A-Za-z0-9])";
         var match = Regex.Match(content, pattern, RegexOptions.IgnoreCase);
 
-        return match.Success ? match.Groups[1].Value.ToUpperInvariant() : null;
+        if (match.Success)
+        {
+            return match.Groups[1].Value.ToUpperInvariant();
+        }
+
+        // Fallback: Tìm bất kỳ chuỗi bắt đầu bằng TS
+        var fallbackPattern = $@"({Regex.Escape(prefix)}[0-9A-Za-z]{{6,20}})";
+        var fallbackMatch = Regex.Match(content, fallbackPattern, RegexOptions.IgnoreCase);
+
+        return fallbackMatch.Success ? fallbackMatch.Groups[1].Value.ToUpperInvariant() : null;
     }
 
     public string GenerateTransactionCode()

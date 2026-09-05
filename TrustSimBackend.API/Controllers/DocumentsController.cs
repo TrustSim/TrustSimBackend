@@ -1,6 +1,6 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.System.Commands;
 using TrustSimBackend.Application.Features.System.DTOs;
@@ -8,17 +8,8 @@ using TrustSimBackend.Application.Features.System.Queries;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class DocumentsController : ControllerBase
+public class DocumentsController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public DocumentsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
     /// Lấy danh sách tài liệu / quy chế sàn / chính sách
     /// </summary>
@@ -26,7 +17,7 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<DocumentDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = true)
     {
-        var result = await _mediator.Send(new GetDocumentsQuery(activeOnly));
+        var result = await Mediator.Send(new GetDocumentsQuery(activeOnly));
         return Ok(result);
     }
 
@@ -38,7 +29,7 @@ public class DocumentsController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetDocumentByIdQuery(id));
+        var result = await Mediator.Send(new GetDocumentByIdQuery(id));
         return Ok(result);
     }
 
@@ -52,7 +43,7 @@ public class DocumentsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateDocumentRequest request)
     {
         var command = new CreateDocumentCommand(request.DocumentName, request.LinkUrl);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 
@@ -66,7 +57,7 @@ public class DocumentsController : ControllerBase
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateDocumentRequest request)
     {
         var command = new UpdateDocumentCommand(id, request.DocumentName, request.LinkUrl);
-        var result = await _mediator.Send(command);
+        var result = await Mediator.Send(command);
         return Ok(result);
     }
 }

@@ -10,7 +10,10 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Financial.Commands.CreateWithdraw;
 
 /// <summary>
-/// Xử lý yêu cầu rút tiền: kiểm tra số dư khả dụng, trừ tiền ví ngay lập tức và tạo giao dịch PENDING chờ Admin duyệt/chi tiền.
+/// Xử lý hành động rút tiền cá nhân của người dùng:
+/// 1. Kiểm tra trạng thái ví ACTIVE và số dư khả dụng.
+/// 2. Trừ tiền ví ngay lập tức, cập nhật LockVersion (Optimistic Concurrency Control chống Race Condition).
+/// 3. Hoàn tất giao dịch rút tiền trực tiếp (TransactionStatus = COMPLETED).
 /// </summary>
 public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawCommand, ApiResponse<WalletTransactionDto>>
 {
@@ -33,6 +36,11 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
 
     public async Task<ApiResponse<WalletTransactionDto>> Handle(CreateWithdrawCommand request, CancellationToken cancellationToken)
     {
+        if (request.Amount <= 0)
+        {
+            throw new BadRequestException("Số tiền rút phải lớn hơn 0 VNĐ.");
+        }
+
         // 1. Tìm ví người dùng
         var wallet = await _walletRepository.GetByUserIdAsync(request.UserId, cancellationToken);
         if (wallet == null)
@@ -52,13 +60,13 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
                 $"Số dư khả dụng ({wallet.AvailableBalance:N0} VNĐ) không đủ để rút {request.Amount:N0} VNĐ.");
         }
 
-        // 3. Trừ số dư khả dụng và cập nhật Audit trail
+        // 3. Trừ số dư khả dụng và cập nhật LockVersion (Optimistic Concurrency Control)
         var balanceBefore = wallet.AvailableBalance;
         wallet.AvailableBalance -= request.Amount;
         var balanceAfter = wallet.AvailableBalance;
         wallet.LockVersion++;
 
-        // 4. Sinh mã giao dịch rút tiền
+        // 4. Sinh mã giao dịch rút tiền duy nhất
         var transactionCode = $"WD{DateTime.UtcNow:yyMMdd}{Random.Shared.Next(100000, 999999)}";
         while (await _walletTransactionRepository.ExistsByTransactionCodeAsync(transactionCode, cancellationToken))
         {
@@ -71,14 +79,15 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
             ? new string('*', accNumber.Length - 4) + accNumber[^4..]
             : new string('*', accNumber.Length);
 
-        // 6. Tạo WalletTransaction với trạng thái PENDING
+        // 6. Tạo WalletTransaction với trạng thái COMPLETED trực tiếp (Hành động rút tiền cá nhân tức thì)
+        var now = DateTime.UtcNow;
         var transaction = new WalletTransaction
         {
             Id = Guid.NewGuid(),
             WalletId = wallet.Id,
             TransactionCode = transactionCode,
             Amount = request.Amount,
-            TransactionStatus = TransactionStatus.PENDING,
+            TransactionStatus = TransactionStatus.COMPLETED,
             WalletTransactionType = WalletTransactionType.WITHDRAW,
             BalanceBefore = balanceBefore,
             BalanceAfter = balanceAfter,
@@ -87,8 +96,9 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
             DestinationAccountNumber = accNumber,
             DestinationAccountNumberMasked = maskedAccount,
             DestinationAccountHolderName = request.DestinationAccountHolderName.Trim().ToUpperInvariant(),
-            Description = request.Note ?? $"Rút tiền về {request.DestinationBankName} ({maskedAccount})",
-            CreatedAt = DateTime.UtcNow
+            Description = request.Note ?? $"Rút tiền thành công về {request.DestinationBankName} ({maskedAccount})",
+            CreatedAt = now,
+            CompletedAt = now
         };
 
         _walletRepository.Update(wallet);
@@ -96,6 +106,6 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = _mapper.Map<WalletTransactionDto>(transaction);
-        return ApiResponse<WalletTransactionDto>.SuccessResult(dto, "Yêu cầu rút tiền đã được gửi thành công và đang chờ xử lý.");
+        return ApiResponse<WalletTransactionDto>.SuccessResult(dto, "Rút tiền thành công.");
     }
 }
