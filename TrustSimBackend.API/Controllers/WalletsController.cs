@@ -90,6 +90,18 @@ public class WalletsController : BaseApiController
     public async Task<IActionResult> ProcessSepayWebhook([FromBody] SepayWebhookDto payload)
     {
         var authHeader = Request.Headers.Authorization.ToString();
+        if (string.IsNullOrWhiteSpace(authHeader))
+        {
+            if (Request.Headers.TryGetValue("X-Api-Key", out var xApiKey))
+            {
+                authHeader = xApiKey.ToString();
+            }
+            else if (Request.Headers.TryGetValue("apikey", out var apiKey))
+            {
+                authHeader = apiKey.ToString();
+            }
+        }
+
         var command = new ProcessSepayWebhookCommand(payload, authHeader);
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<bool>.SuccessResult(result, "Xử lý nạp tiền qua SePay thành công."));

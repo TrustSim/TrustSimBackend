@@ -184,10 +184,10 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
-
-// CORS phải đặt trước Authentication & Authorization
+// CORS phải đặt TRƯỜC UseHttpsRedirection để preflight OPTIONS request không bị redirect trước khi có CORS header
 app.UseCors("AllowTrustSimClients");
+
+app.UseHttpsRedirection();
 
 // Thứ tự quan trọng: Authentication -> UserContextMiddleware -> Authorization
 app.UseAuthentication();

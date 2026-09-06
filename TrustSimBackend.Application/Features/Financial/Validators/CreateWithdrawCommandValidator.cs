@@ -11,7 +11,7 @@ public class CreateWithdrawCommandValidator : AbstractValidator<CreateWithdrawCo
             .NotEmpty().WithMessage("UserId không được để trống.");
 
         RuleFor(v => v.Amount)
-            .GreaterThanOrEqualTo(50_000).WithMessage("Số tiền rút tối thiểu là 50,000 VNĐ.")
+            .GreaterThanOrEqualTo(10_000).WithMessage("Số tiền rút tối thiểu là 10,000 VNĐ.")
             .LessThanOrEqualTo(100_000_000).WithMessage("Số tiền rút tối đa mỗi lần là 100,000,000 VNĐ.");
 
         RuleFor(v => v.DestinationBankCode)

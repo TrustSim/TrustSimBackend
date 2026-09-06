@@ -26,9 +26,21 @@ public class WalletTransactionRepository : IWalletTransactionRepository
 
     public async Task<WalletTransaction?> GetByTransactionCodeAsync(string transactionCode, CancellationToken cancellationToken = default)
     {
+        var cleanCode = transactionCode.Trim();
+        // 1. Thử tìm chính xác (case-insensitive)
+        var transaction = await _context.WalletTransactions
+            .Include(t => t.Wallet)
+            .FirstOrDefaultAsync(t => EF.Functions.ILike(t.TransactionCode, cleanCode), cancellationToken);
+
+        if (transaction != null) return transaction;
+
+        // 2. Thử tìm theo prefix hoặc tiền tố (nếu SePay trích xuất code ngắn hơn hoặc dài hơn)
         return await _context.WalletTransactions
             .Include(t => t.Wallet)
-            .FirstOrDefaultAsync(t => t.TransactionCode == transactionCode, cancellationToken);
+            .FirstOrDefaultAsync(t => 
+                EF.Functions.ILike(t.TransactionCode, cleanCode + "%") || 
+                EF.Functions.ILike(cleanCode, t.TransactionCode + "%"), 
+                cancellationToken);
     }
 
     public async Task<WalletTransaction?> GetByExternalIdAsync(string externalId, CancellationToken cancellationToken = default)
