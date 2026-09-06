@@ -41,6 +41,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
 
 // ─── 1. Đăng ký tầng Application & Infrastructure vào DI Container ─────────────
+builder.Services.AddMemoryCache();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
