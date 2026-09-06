@@ -20,6 +20,8 @@ public static class DependencyInjection
     {
         // ─── 1. Cấu hình Option Settings ──────────────────────────────────────────
         services.Configure<SePaySettings>(configuration.GetSection(SePaySettings.SectionName));
+        services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
+        services.Configure<SpeedSmsSettings>(configuration.GetSection(SpeedSmsSettings.SectionName));
 
         // ─── 2. DbContext ─────────────────────────────────────────────────────────
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
@@ -65,6 +67,18 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<ICookieService, CookieService>();
         services.AddScoped<ISePayService, SePayService>();
+
+        // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
+        services.AddScoped<IBulkDataService, BulkDataService>();
+        services.AddScoped<ICsvService, CsvService>();
+        services.AddScoped<IExcelService, ExcelService>();
+
+        // ─── 7. Email Service ────────────────────────────────────────
+        services.AddScoped<IEmailService, EmailService>();
+
+        // ─── 8. SpeedSMS & OTP Services ──────────────────────────────
+        services.AddHttpClient<ISpeedSmsService, SpeedSmsService>();
+        services.AddScoped<IOtpService, OtpService>();
 
         return services;
     }
