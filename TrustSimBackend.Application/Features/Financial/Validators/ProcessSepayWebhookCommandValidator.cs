@@ -12,20 +12,12 @@ public class ProcessSepayWebhookCommandValidator : AbstractValidator<ProcessSepa
 
         When(v => v.WebhookPayload != null, () =>
         {
-            RuleFor(v => v.WebhookPayload.AccountNumber)
-                .NotEmpty().WithMessage("AccountNumber trong webhook không được để trống.");
-
             RuleFor(v => v.WebhookPayload.TransferAmount)
                 .GreaterThan(0).WithMessage("Số tiền chuyển khoản phải lớn hơn 0.");
 
-            RuleFor(v => v.WebhookPayload.TransferType)
-                .NotEmpty().WithMessage("TransferType trong webhook không được để trống.");
-
-            RuleFor(v => v.WebhookPayload.Content)
-                .NotEmpty().WithMessage("Nội dung chuyển khoản trong webhook không được để trống.");
+            RuleFor(v => v.WebhookPayload)
+                .Must(p => !string.IsNullOrWhiteSpace(p.Content) || !string.IsNullOrWhiteSpace(p.Code))
+                .WithMessage("Webhook phải chứa nội dung (Content) hoặc mã (Code) chuyển khoản.");
         });
-
-        RuleFor(v => v.AuthorizationHeader)
-            .NotEmpty().WithMessage("Authorization header không được để trống.");
     }
 }

@@ -74,8 +74,8 @@ public class SePayService : ISePayService
         }
 
         var prefix = string.IsNullOrWhiteSpace(_settings.PaymentPrefix) ? "TS" : _settings.PaymentPrefix;
-        // Match tiền tố TS theo sau bởi 6 đến 20 ký tự số/chữ (hỗ trợ cả MoMo, Ngân hàng ghép chuỗi không có space)
-        var pattern = $@"(?:^|[^A-Za-z0-9])({Regex.Escape(prefix)}[0-9A-Za-z]{{6,20}})(?:$|[^A-Za-z0-9])";
+        // Match tiền tố TS theo sau bởi 4 đến 30 ký tự số/chữ (hỗ trợ cả MoMo, Ngân hàng ghép chuỗi không có space)
+        var pattern = $@"(?:^|[^A-Za-z0-9])({Regex.Escape(prefix)}[0-9A-Za-z]{{4,30}})(?:$|[^A-Za-z0-9])";
         var match = Regex.Match(content, pattern, RegexOptions.IgnoreCase);
 
         if (match.Success)
@@ -84,7 +84,7 @@ public class SePayService : ISePayService
         }
 
         // Fallback: Tìm bất kỳ chuỗi bắt đầu bằng TS
-        var fallbackPattern = $@"({Regex.Escape(prefix)}[0-9A-Za-z]{{6,20}})";
+        var fallbackPattern = $@"({Regex.Escape(prefix)}[0-9A-Za-z]{{4,30}})";
         var fallbackMatch = Regex.Match(content, fallbackPattern, RegexOptions.IgnoreCase);
 
         return fallbackMatch.Success ? fallbackMatch.Groups[1].Value.ToUpperInvariant() : null;
