@@ -111,5 +111,104 @@ public class UsersController : BaseApiController
         var result = await Mediator.Send(command with { VerificationId = verificationId, AdminUserId = CurrentUserId });
         return Ok(ApiResponse<bool>.SuccessResult(result, "Duyệt hồ sơ xác minh KYC thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Lấy danh sách tài khoản thành viên trong hệ thống (phân trang, lọc theo vai trò, trạng thái, tìm kiếm tên/email/sđt)
+    /// </summary>
+    [HttpGet("admin")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<AdminUserDetailDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminGetUsers(
+        [FromQuery] string? keyword,
+        [FromQuery] UserRole? role,
+        [FromQuery] bool? isActive,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new AdminGetUsersQuery(keyword, role, isActive, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<AdminUserDetailDto>>.SuccessResult(result, "Lấy danh sách người dùng thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Xem thông tin chi tiết một tài khoản (kèm hồ sơ, số dư ví, cặp khóa PKI)
+    /// </summary>
+    [HttpGet("admin/{id:guid}")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<AdminUserDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminGetUserById([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new AdminGetUserByIdQuery(id));
+        return Ok(ApiResponse<AdminUserDetailDto>.SuccessResult(result, "Lấy chi tiết người dùng thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Tạo mới tài khoản nội bộ (Admin, Consultant, Đối tác...)
+    /// </summary>
+    [HttpPost("admin")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<AdminUserDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AdminCreateUser([FromBody] AdminCreateUserCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<AdminUserDetailDto>.SuccessResult(result, "Tạo tài khoản thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Cập nhật thông tin tài khoản, hồ sơ và vai trò người dùng
+    /// </summary>
+    [HttpPut("admin/{id:guid}")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<AdminUserDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminUpdateUser([FromRoute] Guid id, [FromBody] AdminUpdateUserCommand command)
+    {
+        var result = await Mediator.Send(command with { Id = id });
+        return Ok(ApiResponse<AdminUserDetailDto>.SuccessResult(result, "Cập nhật tài khoản người dùng thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Khóa hoặc Kích hoạt lại tài khoản người dùng
+    /// </summary>
+    [HttpPatch("admin/{id:guid}/status")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminToggleUserStatus([FromRoute] Guid id, [FromQuery] bool isActive)
+    {
+        var result = await Mediator.Send(new AdminToggleUserStatusCommand(id, isActive));
+        var msg = isActive ? "Kích hoạt tài khoản thành công." : "Khóa tài khoản thành công.";
+        return Ok(ApiResponse<bool>.SuccessResult(result, msg));
+    }
+
+    /// <summary>
+    /// [Admin] Xuất danh sách người dùng ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("admin/export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportUsers(
+        [FromQuery] string? keyword,
+        [FromQuery] UserRole? role,
+        [FromQuery] bool? isActive)
+    {
+        var bytes = await Mediator.Send(new AdminExportUsersQuery(keyword, role, isActive));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Users_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+
+    /// <summary>
+    /// [Admin] Xuất danh sách báo cáo thẩm định KYC ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("admin/kyc/export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportKyc([FromQuery] VerificationStatus? status)
+    {
+        var bytes = await Mediator.Send(new AdminExportKycQuery(status));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"KYC_Verifications_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
 }
+
 

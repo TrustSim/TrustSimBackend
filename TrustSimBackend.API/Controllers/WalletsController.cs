@@ -153,4 +153,82 @@ public class WalletsController : BaseApiController
         var result = await Mediator.Send(command with { TransactionId = id, AdminId = CurrentUserId });
         return Ok(ApiResponse<bool>.SuccessResult(result, "Từ chối yêu cầu rút tiền và hoàn tiền vào ví người dùng thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Lấy danh sách ví người dùng và số dư (phân trang, tìm kiếm theo username/email/tên, lọc trạng thái ví)
+    /// </summary>
+    [HttpGet("admin")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<AdminWalletDetailDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminGetWallets(
+        [FromQuery] string? keyword,
+        [FromQuery] WalletStatus? status,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new AdminGetWalletsQuery(keyword, status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<AdminWalletDetailDto>>.SuccessResult(result, "Lấy danh sách ví thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Đóng băng hoặc mở đóng băng ví người dùng
+    /// </summary>
+    [HttpPatch("admin/{id:guid}/freeze")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminFreezeWallet([FromRoute] Guid id, [FromQuery] bool freeze)
+    {
+        var result = await Mediator.Send(new AdminFreezeWalletCommand(id, freeze));
+        var msg = freeze ? "Đã đóng băng ví người dùng thành công." : "Đã mở đóng băng ví người dùng thành công.";
+        return Ok(ApiResponse<bool>.SuccessResult(result, msg));
+    }
+
+    /// <summary>
+    /// [Admin] Điều chỉnh số dư ví thủ công (cộng hoặc trừ số dư, ghi nhận log kế toán)
+    /// </summary>
+    [HttpPost("admin/{id:guid}/adjust-balance")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AdminAdjustBalance([FromRoute] Guid id, [FromQuery] decimal amount, [FromQuery] string reason)
+    {
+        var command = new AdminAdjustBalanceCommand(id, amount, reason, CurrentUserId);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Điều chỉnh số dư ví thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Tra cứu toàn bộ lịch sử biến động số dư trên toàn sàn
+    /// </summary>
+    [HttpGet("admin/transactions")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<WalletTransactionDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminGetAllTransactions(
+        [FromQuery] Guid? userId,
+        [FromQuery] WalletTransactionType? type,
+        [FromQuery] TransactionStatus? status,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new AdminGetAllTransactionsQuery(userId, type, status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<WalletTransactionDto>>.SuccessResult(result, "Lấy lịch sử giao dịch toàn sàn thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Xuất lịch sử biến động số dư ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("admin/transactions/export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportTransactions(
+        [FromQuery] WalletTransactionType? type,
+        [FromQuery] TransactionStatus? status)
+    {
+        var bytes = await Mediator.Send(new AdminExportTransactionsQuery(type, status));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"WalletTransactions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
 }
+

@@ -33,6 +33,39 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
+        TradeTransactionStatus? status,
+        int pageIndex,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.TradeTransactions
+            .Include(t => t.Buyer)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.Seller)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.SimNumber)
+            .Include(t => t.Escrow)
+            .Include(t => t.TransferContract)
+            .Include(t => t.SimTransfer)
+            .AsQueryable();
+
+        if (status.HasValue)
+        {
+            query = query.Where(t => t.TradeTransactionStatus == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderByDescending(t => t.CreatedDate)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
         TradeTransactionStatus? status,

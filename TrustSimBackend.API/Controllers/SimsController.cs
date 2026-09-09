@@ -79,4 +79,47 @@ public class SimsController : BaseApiController
         var result = await Mediator.Send(new DeleteSimCommand(id));
         return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa số SIM thành công."));
     }
+
+    /// <summary>
+    /// [Người bán/Seller] Bulk Import danh sách SIM số đẹp sở hữu từ file Excel (.xlsx) hoặc CSV (.csv) bằng EFCore.BulkExtensions
+    /// </summary>
+    [HttpPost("import")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<ImportResult<SimNumberDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Import([FromForm] ImportSimsRequest request)
+    {
+        var result = await Mediator.Send(new ImportSimsCommand(request.File, CurrentUserId, AutoVerify: false));
+        return Ok(ApiResponse<ImportResult<SimNumberDto>>.SuccessResult(result, $"Import hoàn tất: {result.SuccessCount}/{result.TotalRows} SIM hợp lệ đã được nạp vào kho."));
+    }
+
+    /// <summary>
+    /// Xuất danh sách SIM số đẹp theo bộ lọc ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export(
+        [FromQuery] string? keyword,
+        [FromQuery] Guid? carrierId,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] Guid? prefixId,
+        [FromQuery] SimStatus? status)
+    {
+        var query = new ExportSimsQuery(keyword, carrierId, categoryId, prefixId, status);
+        var bytes = await Mediator.Send(query);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"SimNumbers_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+
+    /// <summary>
+    /// Tải file Excel mẫu (.xlsx) để chuẩn bị dữ liệu import danh sách SIM
+    /// </summary>
+    [HttpGet("import-template")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetImportTemplate()
+    {
+        var bytes = await Mediator.Send(new GetSimImportTemplateQuery());
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Sim_Import_Template.xlsx");
+    }
 }
+

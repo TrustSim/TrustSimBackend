@@ -35,6 +35,42 @@ public class WalletRepository : IWalletRepository
             .AnyAsync(w => w.UserAccountId == userId, cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<Wallet> Items, int TotalCount)> GetPagedAsync(
+        string? keyword = null,
+        Domain.Enums.WalletStatus? status = null,
+        int pageIndex = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Wallets
+            .Include(w => w.UserAccount)
+                .ThenInclude(u => u!.UserProfile)
+            .AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(w =>
+                (w.UserAccount != null && w.UserAccount.UserName.ToLower().Contains(kw)) ||
+                (w.UserAccount != null && w.UserAccount.UserEmail.ToLower().Contains(kw)) ||
+                (w.UserAccount != null && w.UserAccount.UserProfile != null && w.UserAccount.UserProfile.FullName.ToLower().Contains(kw)));
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(w => w.WalletStatus == status.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(w => w.AvailableBalance)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default)
     {
         await _context.Wallets.AddAsync(wallet, cancellationToken);

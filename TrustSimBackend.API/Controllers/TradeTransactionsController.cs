@@ -65,4 +65,33 @@ public class TradeTransactionsController : BaseApiController
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<bool>.SuccessResult(result, "Cập nhật trạng thái giao dịch thành công."));
     }
+
+    /// <summary>
+    /// [Admin/Consultant] Lấy danh sách toàn bộ các giao dịch chuyển nhượng trên sàn
+    /// </summary>
+    [HttpGet("admin")]
+    [Authorize(Roles = "ADMIN,CONSULTANT")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<TradeTransactionDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminGetAllTrades(
+        [FromQuery] TradeTransactionStatus? status,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new AdminGetAllTradesQuery(status, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<TradeTransactionDto>>.SuccessResult(result, "Lấy danh sách giao dịch chuyển nhượng thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Xuất danh sách giao dịch chuyển nhượng ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportTrades([FromQuery] TradeTransactionStatus? status)
+    {
+        var bytes = await Mediator.Send(new AdminExportTradesQuery(status));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Trades_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
 }
+
