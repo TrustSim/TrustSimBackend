@@ -23,4 +23,10 @@
     <ProjectReference Include="..\TrustSimBackend.Infrastructure\TrustSimBackend.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\uploads\kyc\back\" />
+    <Folder Include="wwwroot\uploads\kyc\front\" />
+    <Folder Include="wwwroot\uploads\kyc\selfie\" />
+  </ItemGroup>
+
 </Project>

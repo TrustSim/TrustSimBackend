@@ -11,7 +11,29 @@ namespace TrustSimBackend.API.Controllers;
 public class UsersController : BaseApiController
 {
     /// <summary>
-    /// Người dùng gửi hồ sơ xác minh danh tính KYC (CCCD và ảnh chân dung)
+    /// Người dùng gửi hồ sơ eKYC tự động tích hợp AI AWS Rekognition (Tải lên ảnh CCCD mặt trước, mặt sau và ảnh chân dung Selfie).
+    /// </summary>
+    [HttpPost("kyc/submit-ekyc")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<EkycVerificationResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SubmitEkyc([FromForm] SubmitEkycRequest request)
+    {
+        var command = new SubmitEkycVerificationCommand(
+            request.FrontCardImage,
+            request.BackCardImage,
+            request.SelfieImage,
+            CurrentUserId
+        );
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<EkycVerificationResultDto>.SuccessResult(result, result.Message));
+    }
+
+    /// <summary>
+    /// Người dùng gửi hồ sơ xác minh danh tính KYC thủ công (CCCD và ảnh đại diện)
     /// </summary>
     [HttpPost("kyc")]
     [Authorize]
@@ -37,6 +59,18 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy danh sách lịch sử tất cả các lần nộp hồ sơ KYC của người dùng hiện tại
+    /// </summary>
+    [HttpGet("kyc/history")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<IdentityVerificationDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyKycHistory()
+    {
+        var result = await Mediator.Send(new GetMyKycHistoryQuery(CurrentUserId));
+        return Ok(ApiResponse<IReadOnlyList<IdentityVerificationDto>>.SuccessResult(result, "Lấy lịch sử xác minh KYC thành công."));
+    }
+
+    /// <summary>
     /// [Admin] Lấy danh sách các hồ sơ KYC chờ duyệt (có phân trang và lọc theo trạng thái)
     /// </summary>
     [HttpGet("admin/kyc")]
@@ -53,7 +87,20 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Phê duyệt hoặc từ chối hồ sơ xác minh KYC
+    /// [Admin] Xem chi tiết hồ sơ KYC kèm bằng chứng ảnh (CCCD, Selfie) và dữ liệu AI để thẩm định
+    /// </summary>
+    [HttpGet("admin/kyc/{verificationId:guid}")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<IdentityVerificationDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetKycDetail([FromRoute] Guid verificationId)
+    {
+        var result = await Mediator.Send(new GetKycVerificationDetailQuery(verificationId));
+        return Ok(ApiResponse<IdentityVerificationDetailDto>.SuccessResult(result, "Lấy chi tiết hồ sơ xác minh KYC thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Phê duyệt hoặc từ chối hồ sơ xác minh KYC thủ công
     /// </summary>
     [HttpPost("admin/kyc/{verificationId:guid}/review")]
     [Authorize(Roles = "ADMIN")]
@@ -61,7 +108,8 @@ public class UsersController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ReviewKyc([FromRoute] Guid verificationId, [FromBody] ReviewKycCommand command)
     {
-        var result = await Mediator.Send(command with { VerificationId = verificationId });
+        var result = await Mediator.Send(command with { VerificationId = verificationId, AdminUserId = CurrentUserId });
         return Ok(ApiResponse<bool>.SuccessResult(result, "Duyệt hồ sơ xác minh KYC thành công."));
     }
 }
+

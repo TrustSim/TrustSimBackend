@@ -9,7 +9,9 @@ namespace TrustSimBackend.Domain.Repositories;
 public interface IIdentityVerificationRepository
 {
     Task<IdentityVerification?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IdentityVerification?> GetDetailByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IdentityVerification?> GetLatestByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<IdentityVerification>> GetHistoryByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedAsync(
         VerificationStatus? status,
         int pageIndex,
@@ -18,3 +20,4 @@ public interface IIdentityVerificationRepository
     Task AddAsync(IdentityVerification verification, CancellationToken cancellationToken = default);
     void Update(IdentityVerification verification);
 }
+

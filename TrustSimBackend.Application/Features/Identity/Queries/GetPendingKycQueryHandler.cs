@@ -34,10 +34,16 @@ public class GetPendingKycQueryHandler : IRequestHandler<GetPendingKycQuery, Pag
             UserName = v.UserProfile?.UserAccount?.UserName ?? string.Empty,
             FullName = v.UserProfile?.FullName ?? string.Empty,
             IdentityNumber = v.UserProfile?.IdentityNumber ?? string.Empty,
+            FrontIdCardUrl = v.FrontIdCardUrl,
+            BackIdCardUrl = v.BackIdCardUrl,
+            FaceSelfieUrl = v.FaceSelfieUrl,
+            FaceSimilarityScore = v.FaceSimilarityScore,
+            VerificationMethod = v.VerificationMethod,
             VerificationStatus = v.VerificationStatus,
             RejectionReason = v.RejectionReason,
             SubmittedAt = v.SubmittedAt,
-            VerifiedAt = v.VerifiedAt
+            VerifiedAt = v.VerifiedAt,
+            VerifiedByUserName = v.VerifiedByUser?.UserName
         }).ToList();
 
         return PagedResult<IdentityVerificationDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);

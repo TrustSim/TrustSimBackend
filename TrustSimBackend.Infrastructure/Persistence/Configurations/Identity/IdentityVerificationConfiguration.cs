@@ -17,6 +17,13 @@ public class IdentityVerificationConfiguration : IEntityTypeConfiguration<Identi
 
         builder.Property(x => x.SubmittedAt).IsRequired();
 
+        builder.Property(x => x.FrontIdCardUrl).HasMaxLength(500);
+        builder.Property(x => x.BackIdCardUrl).HasMaxLength(500);
+        builder.Property(x => x.FaceSelfieUrl).HasMaxLength(500);
+        builder.Property(x => x.FaceSimilarityScore).HasDefaultValue(0.0f);
+        builder.Property(x => x.OcrRawData).HasColumnType("text");
+        builder.Property(x => x.VerificationMethod).HasMaxLength(50).HasDefaultValue("AUTOMATED_AWS_REKOGNITION");
+
         builder.Property(x => x.RejectionReason).HasMaxLength(500);
 
         builder.HasOne(x => x.UserProfile)
@@ -24,6 +31,13 @@ public class IdentityVerificationConfiguration : IEntityTypeConfiguration<Identi
                .HasForeignKey(x => x.UserProfileId)
                .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne(x => x.VerifiedByUser)
+               .WithMany()
+               .HasForeignKey(x => x.VerifiedByUserId)
+               .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(x => x.UserProfileId);
+        builder.HasIndex(x => x.VerificationStatus);
     }
 }
+

@@ -34,10 +34,16 @@ public class GetMyKycStatusQueryHandler : IRequestHandler<GetMyKycStatusQuery, I
             UserName = verification.UserProfile?.UserAccount?.UserName ?? string.Empty,
             FullName = verification.UserProfile?.FullName ?? string.Empty,
             IdentityNumber = verification.UserProfile?.IdentityNumber ?? string.Empty,
+            FrontIdCardUrl = verification.FrontIdCardUrl,
+            BackIdCardUrl = verification.BackIdCardUrl,
+            FaceSelfieUrl = verification.FaceSelfieUrl,
+            FaceSimilarityScore = verification.FaceSimilarityScore,
+            VerificationMethod = verification.VerificationMethod,
             VerificationStatus = verification.VerificationStatus,
             RejectionReason = verification.RejectionReason,
             SubmittedAt = verification.SubmittedAt,
-            VerifiedAt = verification.VerifiedAt
+            VerifiedAt = verification.VerifiedAt,
+            VerifiedByUserName = verification.VerifiedByUser?.UserName
         };
     }
 }

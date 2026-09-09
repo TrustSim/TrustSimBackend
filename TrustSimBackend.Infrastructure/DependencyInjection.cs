@@ -22,6 +22,7 @@ public static class DependencyInjection
         services.Configure<SePaySettings>(configuration.GetSection(SePaySettings.SectionName));
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
         services.Configure<SpeedSmsSettings>(configuration.GetSection(SpeedSmsSettings.SectionName));
+        services.Configure<AwsRekognitionSettings>(configuration.GetSection(AwsRekognitionSettings.SectionName));
 
         // ─── 2. DbContext ─────────────────────────────────────────────────────────
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
@@ -79,6 +80,10 @@ public static class DependencyInjection
         // ─── 8. SpeedSMS & OTP Services ──────────────────────────────
         services.AddHttpClient<ISpeedSmsService, SpeedSmsService>();
         services.AddScoped<IOtpService, OtpService>();
+
+        // ─── 9. AWS Rekognition & Storage Services (eKYC) ────────────
+        services.AddScoped<IAwsRekognitionService, AwsRekognitionService>();
+        services.AddScoped<ICloudStorageService, CloudStorageService>();
 
         return services;
     }

@@ -32,6 +32,8 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
         verification.VerificationStatus = request.Status;
         verification.RejectionReason = request.RejectionReason?.Trim();
         verification.VerifiedAt = DateTime.UtcNow;
+        verification.VerifiedByUserId = request.AdminUserId;
+        verification.VerificationMethod = "MANUAL_ADMIN_REVIEW";
 
         if (verification.UserProfile != null)
         {
