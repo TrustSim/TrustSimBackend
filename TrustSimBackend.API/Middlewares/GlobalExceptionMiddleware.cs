@@ -35,7 +35,14 @@ public class GlobalExceptionMiddleware
         [typeof(ArgumentNullException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(ArgumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(InvalidOperationException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
-        [typeof(Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)] = ex => (StatusCodes.Status409Conflict, "Giao dịch tài chính đang được xử lý đồng thời bởi một luồng khác. Vui lòng thử lại sau giây lát.", null)
+        [typeof(Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)] = ex => (StatusCodes.Status409Conflict, "Giao dịch tài chính đang được xử lý đồng thời bởi một luồng khác. Vui lòng thử lại sau giây lát.", null),
+
+        // ─── Các Exception Nghiệp vụ eKYC / Identity Verification ──────────────
+        [typeof(IdentityAlreadyVerifiedException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
+        [typeof(DuplicateIdentityNumberException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
+        [typeof(KycFaceMismatchException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(InvalidIdentityDocumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(KycImageQualityException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
     };
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)

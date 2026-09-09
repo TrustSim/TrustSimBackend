@@ -22,6 +22,15 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
             .FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
     }
 
+    public async Task<IdentityVerification?> GetDetailByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.IdentityVerifications
+            .Include(v => v.UserProfile)
+                .ThenInclude(u => u!.UserAccount)
+            .Include(v => v.VerifiedByUser)
+            .FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
+    }
+
     public async Task<IdentityVerification?> GetLatestByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.IdentityVerifications
@@ -29,6 +38,16 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
             .Where(v => v.UserProfile != null && v.UserProfile.UserAccountId == userId)
             .OrderByDescending(v => v.SubmittedAt)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<IdentityVerification>> GetHistoryByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.IdentityVerifications
+            .Include(v => v.UserProfile)
+            .Include(v => v.VerifiedByUser)
+            .Where(v => v.UserProfile != null && v.UserProfile.UserAccountId == userId)
+            .OrderByDescending(v => v.SubmittedAt)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedAsync(
@@ -40,6 +59,7 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
         var query = _context.IdentityVerifications
             .Include(v => v.UserProfile)
                 .ThenInclude(u => u!.UserAccount)
+            .Include(v => v.VerifiedByUser)
             .AsQueryable();
 
         if (status.HasValue)
@@ -68,3 +88,4 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
         _context.IdentityVerifications.Update(verification);
     }
 }
+

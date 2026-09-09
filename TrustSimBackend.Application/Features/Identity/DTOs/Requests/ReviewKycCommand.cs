@@ -9,5 +9,7 @@ namespace TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 public record ReviewKycCommand(
     VerificationStatus Status,
     string? RejectionReason = null,
-    Guid VerificationId = default
+    Guid VerificationId = default,
+    Guid? AdminUserId = default
 ) : IRequest<bool>;
+
