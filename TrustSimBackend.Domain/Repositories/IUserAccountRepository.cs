@@ -15,6 +15,13 @@ public interface IUserAccountRepository
     Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<bool> ExistsByIdentityNumberAsync(string identityNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task<bool> ExistsByPhoneNumberAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> GetPagedAsync(
+        string? keyword = null,
+        Domain.Enums.UserRole? role = null,
+        bool? isActive = null,
+        int pageIndex = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default);
     Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default);
     void Update(UserAccount userAccount);
 }

@@ -70,4 +70,40 @@ public class SimCarriersController : BaseApiController
         var result = await Mediator.Send(new DeleteCarrierCommand(id));
         return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa nhà mạng thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Bulk Import danh sách nhà mạng viễn thông từ file Excel (.xlsx) / CSV (.csv)
+    /// </summary>
+    [HttpPost("import")]
+    [Authorize(Roles = "ADMIN")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<ImportResult<SimCarrierDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Import([FromForm] ImportCarriersRequest request)
+    {
+        var result = await Mediator.Send(new ImportCarriersCommand(request.File));
+        return Ok(ApiResponse<ImportResult<SimCarrierDto>>.SuccessResult(result, $"Import hoàn tất: {result.SuccessCount}/{result.TotalRows} thành công."));
+    }
+
+    /// <summary>
+    /// Xuất danh sách nhà mạng ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export()
+    {
+        var bytes = await Mediator.Send(new ExportCarriersQuery());
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Carriers_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+
+    /// <summary>
+    /// Tải file Excel mẫu (.xlsx) để import nhà mạng
+    /// </summary>
+    [HttpGet("import-template")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetImportTemplate()
+    {
+        var bytes = await Mediator.Send(new GetCarrierImportTemplateQuery());
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Carrier_Import_Template.xlsx");
+    }
 }
+

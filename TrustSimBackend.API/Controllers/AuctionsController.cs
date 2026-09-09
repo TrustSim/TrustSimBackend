@@ -89,4 +89,33 @@ public class AuctionsController : BaseApiController
         var result = await Mediator.Send(command with { AuctionId = id, UserId = CurrentUserId });
         return Ok(ApiResponse<BidDto>.SuccessResult(result, "Trả giá thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Hủy phiên đấu giá do vi phạm quy chế hoặc gian lận
+    /// </summary>
+    [HttpPatch("{id:guid}/cancel")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminCancelAuction([FromRoute] Guid id, [FromQuery] string reason)
+    {
+        var result = await Mediator.Send(new AdminCancelAuctionCommand(id, reason, CurrentUserId));
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Hủy phiên đấu giá thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Xuất báo cáo danh sách phiên đấu giá ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportAuctions(
+        [FromQuery] string? keyword,
+        [FromQuery] AuctionStatus? status,
+        [FromQuery] AuctionType? type)
+    {
+        var bytes = await Mediator.Send(new AdminExportAuctionsQuery(keyword, status, type));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Auctions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
 }
+

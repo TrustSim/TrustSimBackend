@@ -1,0 +1,50 @@
+using MediatR;
+using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
+using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
+using TrustSimBackend.Domain.Repositories;
+
+namespace TrustSimBackend.Application.Features.Identity.Queries;
+
+public class AdminGetUsersQueryHandler : IRequestHandler<AdminGetUsersQuery, PagedResult<AdminUserDetailDto>>
+{
+    private readonly IUserAccountRepository _userRepository;
+
+    public AdminGetUsersQueryHandler(IUserAccountRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+
+    public async Task<PagedResult<AdminUserDetailDto>> Handle(AdminGetUsersQuery request, CancellationToken cancellationToken)
+    {
+        var (users, totalCount) = await _userRepository.GetPagedAsync(
+            request.Keyword,
+            request.Role,
+            request.IsActive,
+            request.PageIndex,
+            request.PageSize,
+            cancellationToken);
+
+        var dtos = users.Select(u => new AdminUserDetailDto
+        {
+            Id = u.Id,
+            UserName = u.UserName,
+            Email = u.UserEmail,
+            Role = u.Role,
+            IsActive = !u.IsDeleted,
+            FullName = u.UserProfile?.FullName ?? string.Empty,
+            PhoneNumber = u.UserProfile?.PhoneNumber ?? string.Empty,
+            Address = u.UserProfile?.Address ?? string.Empty,
+            IdentityNumber = u.UserProfile?.IdentityNumber ?? string.Empty,
+            DateOfBirth = u.UserProfile?.DateOfBirth,
+            AvatarImg = u.UserProfile?.AvatarImg ?? string.Empty,
+            VerificationStatus = u.UserProfile?.VerificationStatus ?? Domain.Enums.VerificationStatus.PENDING_VERIFICATION,
+            AvailableBalance = u.Wallet?.AvailableBalance ?? 0m,
+            LockedBalance = u.Wallet?.LockedBalance ?? 0m,
+            HasPkiKeys = u.UserSecurityProfile != null,
+            CreatedDate = u.CreatedDate
+        }).ToList();
+
+        return new PagedResult<AdminUserDetailDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+    }
+}

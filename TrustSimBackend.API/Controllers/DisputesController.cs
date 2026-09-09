@@ -64,4 +64,17 @@ public class DisputesController : BaseApiController
         var result = await Mediator.Send(command with { TicketId = id, AdminId = CurrentUserId });
         return Ok(ApiResponse<bool>.SuccessResult(result, "Xử lý phán quyết khiếu nại thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Xuất báo cáo khiếu nại và tranh chấp ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportDisputes([FromQuery] DisputeStatus? status)
+    {
+        var bytes = await Mediator.Send(new AdminExportDisputesQuery(status));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Disputes_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
 }
+

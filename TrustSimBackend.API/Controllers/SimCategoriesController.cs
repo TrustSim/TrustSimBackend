@@ -70,4 +70,40 @@ public class SimCategoriesController : BaseApiController
         var result = await Mediator.Send(new DeleteCategoryCommand(id));
         return Ok(ApiResponse<bool>.SuccessResult(result, "Xóa thể loại SIM thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Bulk Import danh mục thể loại SIM từ file Excel (.xlsx) / CSV (.csv)
+    /// </summary>
+    [HttpPost("import")]
+    [Authorize(Roles = "ADMIN")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<ImportResult<SimCategoryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Import([FromForm] ImportCategoriesRequest request)
+    {
+        var result = await Mediator.Send(new ImportCategoriesCommand(request.File));
+        return Ok(ApiResponse<ImportResult<SimCategoryDto>>.SuccessResult(result, $"Import hoàn tất: {result.SuccessCount}/{result.TotalRows} thành công."));
+    }
+
+    /// <summary>
+    /// Xuất danh sách thể loại SIM ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Export()
+    {
+        var bytes = await Mediator.Send(new ExportCategoriesQuery());
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"SimCategories_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+    }
+
+    /// <summary>
+    /// Tải file Excel mẫu (.xlsx) để import thể loại SIM
+    /// </summary>
+    [HttpGet("import-template")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetImportTemplate()
+    {
+        var bytes = await Mediator.Send(new GetCategoryImportTemplateQuery());
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "SimCategory_Import_Template.xlsx");
+    }
 }
+

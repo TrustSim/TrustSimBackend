@@ -60,6 +60,8 @@ public static class DependencyInjection
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IFormatRhythmRepository, FormatRhythmRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();

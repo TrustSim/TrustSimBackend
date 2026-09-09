@@ -36,4 +36,18 @@ public class NotificationsController : BaseApiController
         var result = await Mediator.Send(new MarkNotificationAsReadCommand(id, CurrentUserId));
         return Ok(ApiResponse<bool>.SuccessResult(result, "Đánh dấu đã đọc thông báo thành công."));
     }
+
+    /// <summary>
+    /// [Admin] Phát thông báo toàn sàn (Broadcast) hoặc gửi thông báo theo nhóm vai trò
+    /// </summary>
+    [HttpPost("broadcast")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Broadcast([FromBody] BroadcastNotificationCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<int>.SuccessResult(result, $"Đã gửi thông báo thành công đến {result} người dùng."));
+    }
 }
+
