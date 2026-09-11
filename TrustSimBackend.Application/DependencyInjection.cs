@@ -11,7 +11,6 @@ namespace TrustSimBackend.Application;
 /// - MediatR (tất cả Command/Query Handlers)
 /// - Pipeline Behaviors (ValidationBehavior)
 /// - FluentValidation (tất cả Validators)
-/// - AutoMapper (tất cả Mapping Profiles)
 /// </summary>
 public static class DependencyInjection
 {
@@ -19,13 +18,10 @@ public static class DependencyInjection
     {
         var assembly = Assembly.GetExecutingAssembly();
 
-        // 1. Đăng ký AutoMapper quét tất cả Profile trong Application assembly
-        services.AddAutoMapper(assembly);
-
-        // 2. Đăng ký tất cả Validator của FluentValidation trong Application assembly
+        // 1. Đăng ký tất cả Validator của FluentValidation trong Application assembly
         services.AddValidatorsFromAssembly(assembly);
 
-        // 3. Đăng ký MediatR và tích hợp Pipeline Behavior
+        // 2. Đăng ký MediatR và tích hợp Pipeline Behavior
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(assembly);

@@ -1,4 +1,5 @@
 using TrustSimBackend.Domain.Entities.Trade;
+using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -7,6 +8,19 @@ public interface ITradeTransactionRepository
     // Lấy giao dịch kèm theo toàn bộ thông tin vệ tinh (Escrow, Contract, SimTransfer)
     Task<TradeTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     
+    Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
+        TradeTransactionStatus? status,
+        int pageIndex,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
+    Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedByUserIdAsync(
+        Guid userId,
+        TradeTransactionStatus? status,
+        int pageIndex,
+        int pageSize,
+        CancellationToken cancellationToken = default);
+
     // Thêm mới một giao dịch vào DB
     Task AddAsync(TradeTransaction tradeTransaction, CancellationToken cancellationToken = default);
     

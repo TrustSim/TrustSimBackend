@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +21,12 @@
   <ItemGroup>
     <ProjectReference Include="..\TrustSimBackend.Application\TrustSimBackend.Application.csproj" />
     <ProjectReference Include="..\TrustSimBackend.Infrastructure\TrustSimBackend.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\uploads\kyc\back\" />
+    <Folder Include="wwwroot\uploads\kyc\front\" />
+    <Folder Include="wwwroot\uploads\kyc\selfie\" />
   </ItemGroup>
 
 </Project>

@@ -29,6 +29,7 @@ public class TrustSimDbContext : DbContext, IUnitOfWork
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
     public DbSet<UserSecurityProfile> UserSecurityProfiles => Set<UserSecurityProfile>();
     public DbSet<IdentityVerification> IdentityVerifications => Set<IdentityVerification>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     #endregion
 
     #region Sim DbSets

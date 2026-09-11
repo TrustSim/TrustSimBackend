@@ -4,17 +4,37 @@ using TrustSimBackend.Domain.Enums;
 namespace TrustSimBackend.Domain.Entities.Financial
 {
     /// <summary>
-    /// Lưu trữ lịch sử giao dịch nạp / rút tiền qua ngân hàng (Banking Gateway).
+    /// Lưu trữ lịch sử giao dịch nạp / rút tiền qua ngân hàng (Banking Gateway / SePay).
     /// Bất biến (Immutable) — chỉ thêm mới và cập nhật trạng thái kết quả từ ngân hàng, KHÔNG BAO GIỜ xóa.
     /// </summary>
     public class WalletTransaction : AuditableEntity
     {
         /// <summary>Khóa chính của giao dịch nạp/rút (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid WalletTransactionId { get => Id; private set => Id = value; }
+        public Guid WalletTransactionId { get => Id; set => Id = value; }
 
         // --- Khóa ngoại ---
         /// <summary>ID của ví tiền (<see cref="Wallet"/>) thực hiện giao dịch.</summary>
         public Guid WalletId { get; set; }
+
+        /// <summary>
+        /// Mã giao dịch nội bộ duy nhất dùng để đối soát và làm nội dung chuyển khoản (VD: "TS982312").
+        /// </summary>
+        public string TransactionCode { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Mã giao dịch hoặc mã tham chiếu từ ngân hàng / SePay (ID giao dịch SePay / Reference Code).
+        /// </summary>
+        public string? ExternalTransactionId { get; set; }
+
+        /// <summary>
+        /// URL ảnh mã QR VietQR sinh từ cổng thanh toán SePay.
+        /// </summary>
+        public string? QrCodeUrl { get; set; }
+
+        /// <summary>
+        /// Ghi chú, nội dung giao dịch hoặc lý do từ chối rút tiền từ Admin.
+        /// </summary>
+        public string? Description { get; set; }
 
         // --- Trạng thái và loại giao dịch ---
         /// <summary>Trạng thái giao dịch: PENDING, COMPLETED, FAILED, CANCELLED.</summary>

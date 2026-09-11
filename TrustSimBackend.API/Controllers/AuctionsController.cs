@@ -1,216 +1,121 @@
-using System.Security.Claims;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Auction.Commands.CancelAuction;
-using TrustSimBackend.Application.Features.Auction.Commands.CreateAuction;
-using TrustSimBackend.Application.Features.Auction.Commands.UpdateAuction;
-using TrustSimBackend.Application.Features.Auction.DTOs;
-using TrustSimBackend.Application.Features.Auction.Queries.GetAuctionDetail;
-using TrustSimBackend.Application.Features.Auction.Queries.GetAuctions;
-using TrustSimBackend.Application.Features.Auction.Queries.GetMyAuctions;
+using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
+using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
-/// <summary>
-/// Quản lý phiên đấu giá SIM — Dành cho Người dùng và Public.
-/// </summary>
-[ApiController]
-[Route("api/auctions")]
-[Produces("application/json")]
-public class AuctionsController : ControllerBase
+public class AuctionsController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public AuctionsController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // PUBLIC: Xem danh sách & tra cứu
-    // ─────────────────────────────────────────────────────────────
-
     /// <summary>
-    /// Lấy danh sách phiên đấu giá đang hoạt động / đang lên lịch (Phân trang + Lọc đa tiêu chí).
+    /// Tìm kiếm và lọc danh sách phiên đấu giá (phân trang, lọc theo trạng thái, loại hình, từ khóa)
     /// </summary>
-    /// <remarks>
-    /// **Bộ lọc có thể kết hợp:**
-    /// - `auctionType`: 0 = ENGLISH, 1 = DUTCH
-    /// - `status`: 1 = SCHEDULE, 2 = ACTIVE
-    /// - `carrierId`: Lọc theo nhà mạng
-    /// - `categoryId`: Lọc theo danh mục SIM
-    /// - `search`: Tìm theo mã đấu giá hoặc số SIM
-    /// - `minPrice` / `maxPrice`: Lọc theo khoảng giá hiện tại
-    /// - `startFrom` / `startTo`: Lọc theo khoảng thời gian bắt đầu
-    /// </remarks>
     [HttpGet]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(ApiResponse<PagedResult<AuctionListItemDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<AuctionDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAuctions(
+        [FromQuery] string? keyword,
+        [FromQuery] AuctionStatus? status,
+        [FromQuery] AuctionType? type,
+        [FromQuery] Guid? authorId,
         [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] AuctionType? auctionType = null,
-        [FromQuery] AuctionStatus? status = null,
-        [FromQuery] Guid? carrierId = null,
-        [FromQuery] Guid? categoryId = null,
-        [FromQuery] string? search = null,
-        [FromQuery] decimal? minPrice = null,
-        [FromQuery] decimal? maxPrice = null,
-        [FromQuery] DateTime? startFrom = null,
-        [FromQuery] DateTime? startTo = null,
-        CancellationToken cancellationToken = default)
+        [FromQuery] int pageSize = 20)
     {
-        var query = new GetAuctionsQuery(pageIndex, pageSize, auctionType, status,
-            carrierId, categoryId, search, minPrice, maxPrice, startFrom, startTo);
-        var result = await _mediator.Send(query, cancellationToken);
-        return Ok(result);
+        var query = new GetAuctionsQuery(keyword, status, type, authorId, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<AuctionDto>>.SuccessResult(result, "Lấy danh sách phiên đấu giá thành công."));
     }
 
     /// <summary>
-    /// Xem chi tiết phiên đấu giá theo ID.
+    /// Lấy thông tin chi tiết phiên đấu giá
     /// </summary>
     [HttpGet("{id:guid}")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(ApiResponse<AuctionDetailDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAuctionById([FromRoute] Guid id, CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<AuctionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById([FromRoute] Guid id)
     {
-        var result = await _mediator.Send(new GetAuctionDetailQuery(AuctionId: id), cancellationToken);
-        return Ok(result);
+        var result = await Mediator.Send(new GetAuctionByIdQuery(id));
+        return Ok(ApiResponse<AuctionDto>.SuccessResult(result, "Lấy thông tin phiên đấu giá thành công."));
     }
 
     /// <summary>
-    /// Tìm kiếm phiên đấu giá theo AuctionCode (VD: AUC-20240801-0001).
+    /// Lấy lịch sử các lượt trả giá (Bids) của một phiên đấu giá
     /// </summary>
-    [HttpGet("by-code/{code}")]
-    [AllowAnonymous]
-    [ProducesResponseType(typeof(ApiResponse<AuctionDetailDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetAuctionByCode([FromRoute] string code, CancellationToken cancellationToken)
+    [HttpGet("{id:guid}/bids")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<BidDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBids([FromRoute] Guid id, [FromQuery] int top = 50)
     {
-        var result = await _mediator.Send(new GetAuctionDetailQuery(AuctionCode: code), cancellationToken);
-        return Ok(result);
+        var result = await Mediator.Send(new GetAuctionBidsQuery(id, top));
+        return Ok(ApiResponse<IReadOnlyList<BidDto>>.SuccessResult(result, "Lấy lịch sử trả giá thành công."));
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // AUTH: Kho đấu giá của tôi
-    // ─────────────────────────────────────────────────────────────
-
     /// <summary>
-    /// Lấy danh sách phiên đấu giá do Người dùng hiện tại tạo ra (Kho đấu giá cá nhân).
+    /// Tạo phiên đấu giá mới cho số SIM
     /// </summary>
-    [HttpGet("my")]
-    [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<PagedResult<AuctionListItemDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetMyAuctions(
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] AuctionStatus? status = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!TryGetUserId(out var userId))
-            return Unauthorized(ApiResponse<object>.FailureResult("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
-
-        var query = new GetMyAuctionsQuery(pageIndex, pageSize, status) { AuthorId = userId };
-        var result = await _mediator.Send(query, cancellationToken);
-        return Ok(result);
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // AUTH: Tạo / Sửa / Hủy phiên đấu giá
-    // ─────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Tạo phiên đấu giá mới (Dành cho Người bán - Seller).
-    /// </summary>
-    /// <remarks>
-    /// **English Auction**: yêu cầu `minimumBidIncrement > 0`.<br/>
-    /// **Dutch Auction**: yêu cầu `dutchDecreaseAmount > 0` và `dutchDecreaseIntervalSeconds > 0`.<br/><br/>
-    /// Phiên được tạo với trạng thái **SCHEDULE** và sẽ tự động **ACTIVE** đúng giờ `startAt`.
-    /// </remarks>
     [HttpPost]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<AuctionDetailDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> CreateAuction(
-        [FromBody] CreateAuctionCommand command,
-        CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<AuctionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Create([FromBody] CreateAuctionCommand command)
     {
-        if (!TryGetUserId(out var userId))
-            return Unauthorized(ApiResponse<object>.FailureResult("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
-
-        command.AuthorId = userId;
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetAuctionById), new { id = result.Data?.AuctionId }, result);
+        var result = await Mediator.Send(command with { AuthorId = CurrentUserId });
+        return Ok(ApiResponse<AuctionDto>.SuccessResult(result, "Tạo phiên đấu giá thành công."));
     }
 
     /// <summary>
-    /// Cập nhật thông tin phiên đấu giá (chỉ khi đang SCHEDULE và là người tạo).
+    /// Đăng ký tham gia phiên đấu giá
     /// </summary>
-    [HttpPut("{id:guid}")]
+    [HttpPost("{id:guid}/register")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<AuctionDetailDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateAuction(
-        [FromRoute] Guid id,
-        [FromBody] UpdateAuctionCommand command,
-        CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RegisterParticipant([FromRoute] Guid id)
     {
-        if (!TryGetUserId(out var userId))
-            return Unauthorized(ApiResponse<object>.FailureResult("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
-
-        // Gán AuctionId từ route (tránh bị giả mạo từ body)
-        var updatedCommand = command with { AuctionId = id };
-        updatedCommand.RequesterId = userId;
-        updatedCommand.IsAdmin = false;
-
-        var result = await _mediator.Send(updatedCommand, cancellationToken);
-        return Ok(result);
+        var result = await Mediator.Send(new RegisterParticipantCommand(id, CurrentUserId));
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đăng ký tham gia phiên đấu giá thành công."));
     }
 
     /// <summary>
-    /// Hủy phiên đấu giá của mình (chỉ khi đang SCHEDULE, chưa bắt đầu).
+    /// Trả giá (Đặt Bid) trong phiên đấu giá
     /// </summary>
-    [HttpDelete("{id:guid}")]
+    [HttpPost("{id:guid}/bids")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> CancelMyAuction(
-        [FromRoute] Guid id,
-        [FromBody] CancelAuctionCommand command,
-        CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(ApiResponse<BidDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> PlaceBid([FromRoute] Guid id, [FromBody] PlaceBidCommand command)
     {
-        if (!TryGetUserId(out var userId))
-            return Unauthorized(ApiResponse<object>.FailureResult("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
-
-        var updatedCommand = command with { AuctionId = id };
-        updatedCommand.RequesterId = userId;
-        updatedCommand.IsAdmin = false;
-
-        var result = await _mediator.Send(updatedCommand, cancellationToken);
-        return Ok(result);
+        var result = await Mediator.Send(command with { AuctionId = id, UserId = CurrentUserId });
+        return Ok(ApiResponse<BidDto>.SuccessResult(result, "Trả giá thành công."));
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────
-
-    private bool TryGetUserId(out Guid userId)
+    /// <summary>
+    /// [Admin] Hủy phiên đấu giá do vi phạm quy chế hoặc gian lận
+    /// </summary>
+    [HttpPatch("{id:guid}/cancel")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminCancelAuction([FromRoute] Guid id, [FromQuery] string reason)
     {
-        userId = Guid.Empty;
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return !string.IsNullOrEmpty(claim) && Guid.TryParse(claim, out userId);
+        var result = await Mediator.Send(new AdminCancelAuctionCommand(id, reason, CurrentUserId));
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Hủy phiên đấu giá thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Xuất báo cáo danh sách phiên đấu giá ra file Excel (.xlsx)
+    /// </summary>
+    [HttpGet("export")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminExportAuctions(
+        [FromQuery] string? keyword,
+        [FromQuery] AuctionStatus? status,
+        [FromQuery] AuctionType? type)
+    {
+        var bytes = await Mediator.Send(new AdminExportAuctionsQuery(keyword, status, type));
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Auctions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 }
+

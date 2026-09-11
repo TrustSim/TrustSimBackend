@@ -80,6 +80,51 @@ public class UserAccountRepository : IUserAccountRepository
         return await query.AnyAsync(p => p.PhoneNumber == phoneNumber, cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> GetPagedAsync(
+        string? keyword = null,
+        Domain.Enums.UserRole? role = null,
+        bool? isActive = null,
+        int pageIndex = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.UserAccounts
+            .Include(u => u.UserProfile)
+            .Include(u => u.Wallet)
+            .Include(u => u.UserSecurityProfile)
+            .AsNoTracking()
+            .Where(u => !u.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim().ToLower();
+            query = query.Where(u =>
+                u.UserName.ToLower().Contains(kw) ||
+                u.UserEmail.ToLower().Contains(kw) ||
+                (u.UserProfile != null && u.UserProfile.FullName.ToLower().Contains(kw)) ||
+                (u.UserProfile != null && u.UserProfile.PhoneNumber.Contains(kw)));
+        }
+
+        if (role.HasValue)
+        {
+            query = query.Where(u => u.Role == role.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(u => u.CreatedDate)
+            .Skip((pageIndex - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default)
     {
         await _context.UserAccounts.AddAsync(userAccount, cancellationToken);

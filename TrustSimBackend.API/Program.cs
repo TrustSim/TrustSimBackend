@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -40,23 +41,24 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
 
 // ─── 1. Đăng ký tầng Application & Infrastructure vào DI Container ─────────────
+builder.Services.AddMemoryCache();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
-// ─── 1.1 Cấu hình CORS cho phép Frontend giao tiếp ───────────────────────────
+// ─── 2. Cấu hình CORS Hỗ trợ Truyền Cookie (Credentials) & Mọi Domain Test (Live Server / Ngrok) ──
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
+    options.AddPolicy("AllowTrustSimClients", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000", "https://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.SetIsOriginAllowed(origin => true)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
-// ─── 2. Cấu hình JWT Authentication ──────────────────────────────────────────────
-var jwtSecretKey = builder.Configuration["JwtSettings:SecretKey"] 
+// ─── 3. Cấu hình JWT Authentication Hỗ trợ Cả Header & HttpOnly Cookie ─────────
+var jwtSecretKey = builder.Configuration["JwtSettings:SecretKey"]
     ?? "TrustSimSuperSecretKey2026WithSufficientLengthForHMACSHA256!";
 var jwtIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "TrustSimBackend";
 var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "TrustSimClient";
@@ -81,12 +83,39 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+
+    // Cơ chế Hybrid Token Extraction: Ưu tiên Header Authorization -> Fallback sang HttpOnly Cookie
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // 1. Kiểm tra Authorization Header (dành cho Mobile App / Postman / Swagger Authorize Modal)
+            var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Token = authHeader["Bearer ".Length..].Trim();
+                return Task.CompletedTask;
+            }
+
+            // 2. Nếu không có Header, trích xuất từ Cookie 'accessToken'
+            if (context.Request.Cookies.TryGetValue("accessToken", out var cookieToken) && !string.IsNullOrWhiteSpace(cookieToken))
+            {
+                context.Token = cookieToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
 
-// ─── 3. Controllers và Swagger với hỗ trợ JWT Bearer ─────────────────────────────
-builder.Services.AddControllers();
+// ─── 4. Controllers và Swagger với hỗ trợ JWT Bearer, Cookie & XML Comments ──────
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -94,13 +123,13 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "TrustSim API",
         Version = "v1",
-        Description = "Hệ thống sàn giao dịch và đấu giá SIM số đẹp an toàn TrustSim"
+        Description = "Hệ thống sàn giao dịch và đấu giá SIM số đẹp an toàn TrustSim tích hợp cổng SePay (Hỗ trợ xác thực qua HttpOnly Cookie & Bearer Token)"
     });
 
     // Cấu hình nút Authorize (hình ổ khóa) trên giao diện Swagger UI
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "Nhập Token theo cú pháp: Bearer {your_token}",
+        Description = "Nhập Token theo cú pháp: Bearer {your_token}. Lưu ý: Khi test trên Swagger UI, sau khi gọi Login/Register thành công, Swagger sẽ tự động gửi kèm HttpOnly Cookie nên không bắt buộc phải nhập Token vào đây.",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -121,11 +150,19 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    // Nạp XML Documentation để hiển thị ghi chú mô tả API trên Swagger
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
 });
 
 var app = builder.Build();
 
-// ─── 4. Seed dữ liệu ban đầu khi ứng dụng khởi động ────────────────────────────
+// ─── 5. Seed dữ liệu ban đầu khi ứng dụng khởi động ────────────────────────────
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<TrustSimDbContext>();
@@ -133,23 +170,29 @@ await using (var scope = app.Services.CreateAsyncScope())
     await DbSeeder.SeedAsync(context);
 }
 
-// ─── 5. Middleware Pipeline ───────────────────────────────────────────────────────
+// ─── 6. Middleware Pipeline ───────────────────────────────────────────────────────
 // Middleware bắt lỗi toàn cục và định dạng JSON ApiResponse
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "TrustSim API v1");
+        // Kích hoạt Swagger UI gửi kèm Cookie trong tất cả các request
+        c.ConfigObject.AdditionalItems["withCredentials"] = true;
+    });
 }
+
+// CORS phải đặt TRƯỜC UseHttpsRedirection để preflight OPTIONS request không bị redirect trước khi có CORS header
+app.UseCors("AllowTrustSimClients");
 
 app.UseHttpsRedirection();
 
-// Kích hoạt CORS trước Authentication
-app.UseCors("AllowFrontend");
-
-// Thứ tự quan trọng: Authentication -> Authorization
+// Thứ tự quan trọng: Authentication -> UserContextMiddleware -> Authorization
 app.UseAuthentication();
+app.UseMiddleware<UserContextMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

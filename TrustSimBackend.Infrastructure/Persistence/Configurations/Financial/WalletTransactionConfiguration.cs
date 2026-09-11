@@ -10,6 +10,19 @@ public class WalletTransactionConfiguration : IEntityTypeConfiguration<WalletTra
     {
         builder.HasKey(x => x.Id);
 
+        builder.Property(x => x.TransactionCode)
+               .IsRequired()
+               .HasMaxLength(100);
+
+        builder.Property(x => x.ExternalTransactionId)
+               .HasMaxLength(100);
+
+        builder.Property(x => x.QrCodeUrl)
+               .HasMaxLength(1000);
+
+        builder.Property(x => x.Description)
+               .HasMaxLength(500);
+
         builder.Property(x => x.TransactionStatus)
                .IsRequired()
                .HasConversion<string>()
@@ -36,6 +49,8 @@ public class WalletTransactionConfiguration : IEntityTypeConfiguration<WalletTra
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.WalletId);
+        builder.HasIndex(x => x.TransactionCode);
         builder.HasIndex(x => x.TransactionStatus);
+        builder.HasIndex(x => x.WalletTransactionType);
     }
 }

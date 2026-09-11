@@ -1,57 +1,68 @@
-using System.Security.Claims;
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Identity.Commands.ChangePassword;
-using TrustSimBackend.Application.Features.Identity.Commands.ForgotPassword;
-using TrustSimBackend.Application.Features.Identity.Commands.LoginUser;
-using TrustSimBackend.Application.Features.Identity.Commands.RegisterUser;
-using TrustSimBackend.Application.Features.Identity.Commands.ResetPassword;
-using TrustSimBackend.Application.Features.Identity.Commands.UpdateAvatar;
-using TrustSimBackend.Application.Features.Identity.Commands.UpdateProfile;
-using TrustSimBackend.Application.Features.Identity.DTOs;
-using TrustSimBackend.Application.Features.Identity.Queries.GetUserProfile;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
+using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+public class AuthController : BaseApiController
 {
-    private readonly IMediator _mediator;
-
-    public AuthController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
     /// <summary>
-    /// Đăng ký tài khoản người dùng mới (Bắt buộc CCCD 12 số)
+    /// Đăng ký tài khoản người dùng mới (Tự động thiết lập HttpOnly Cookie accessToken và refreshToken)
     /// </summary>
     [HttpPost("register")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
     {
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Đăng ký tài khoản thành công."));
     }
 
     /// <summary>
-    /// Đăng nhập hệ thống bằng Username/Email và Password
+    /// Đăng nhập hệ thống bằng Username/Email và Password (Tự động thiết lập HttpOnly Cookie accessToken và refreshToken)
     /// </summary>
     [HttpPost("login")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Login([FromBody] LoginUserCommand command)
     {
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Đăng nhập thành công."));
     }
 
     /// <summary>
-    /// Lấy thông tin hồ sơ của người dùng đang đăng nhập (Yêu cầu Token)
+    /// Làm mới Access Token bằng Refresh Token (Tự động lấy từ HttpOnly Cookie hoặc qua Request Body)
+    /// </summary>
+    [HttpPost("refresh-token")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RefreshToken([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenCommand? command)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var cmd = (command ?? new RefreshTokenCommand()) with { IpAddress = ipAddress };
+        var result = await Mediator.Send(cmd);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Làm mới Access Token thành công."));
+    }
+
+    /// <summary>
+    /// Đăng xuất khỏi hệ thống (Thu hồi Refresh Token và xóa HttpOnly Cookies)
+    /// </summary>
+    [HttpPost("logout")]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] LogoutCommand? command)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var cmd = (command ?? new LogoutCommand()) with { IpAddress = ipAddress };
+        var result = await Mediator.Send(cmd);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đăng xuất thành công."));
+    }
+
+    /// <summary>
+    /// Lấy thông tin hồ sơ của người dùng đang đăng nhập (Yêu cầu xác thực qua Middleware)
     /// </summary>
     [HttpGet("profile")]
     [Authorize]
@@ -60,87 +71,50 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfile()
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var result = await _mediator.Send(new GetUserProfileQuery(userId));
-        return Ok(result);
+        var result = await Mediator.Send(new GetUserProfileQuery(CurrentUserId));
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(result, "Lấy thông tin hồ sơ thành công."));
     }
 
     /// <summary>
-    /// Cập nhật hồ sơ cá nhân: Họ tên, Ngày sinh, Địa chỉ, CCCD, Số điện thoại (Yêu cầu Token)
+    /// Cập nhật hồ sơ cá nhân: Họ tên, Ngày sinh, Địa chỉ, CCCD, Số điện thoại (Yêu cầu xác thực qua Middleware)
     /// </summary>
     [HttpPut("profile")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new UpdateProfileCommand(
-            userId,
-            request.FullName,
-            request.DateOfBirth,
-            request.Address,
-            request.IdentityNumber,
-            request.PhoneNumber
-        );
-
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(result, "Cập nhật hồ sơ cá nhân thành công."));
     }
 
     /// <summary>
-    /// Đổi mật khẩu tài khoản (Yêu cầu Token)
+    /// Đổi mật khẩu tài khoản (Yêu cầu xác thực qua Middleware)
     /// </summary>
     [HttpPut("change-password")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new ChangePasswordCommand(
-            userId,
-            request.CurrentPassword,
-            request.NewPassword,
-            request.ConfirmNewPassword
-        );
-
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đổi mật khẩu thành công."));
     }
 
     /// <summary>
-    /// Cập nhật ảnh đại diện Avatar (Yêu cầu Token)
+    /// Cập nhật ảnh đại diện Avatar (Yêu cầu xác thực qua Middleware)
     /// </summary>
     [HttpPut("avatar")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateAvatar([FromBody] UpdateAvatarRequest request)
+    public async Task<IActionResult> UpdateAvatar([FromBody] UpdateAvatarCommand command)
     {
-        if (!TryGetUserId(out var userId))
-        {
-            return Unauthorized(ApiResponse<object>.FailureResult("Không xác định được danh tính người dùng từ Token."));
-        }
-
-        var command = new UpdateAvatarCommand(userId, request.AvatarUrl);
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        return Ok(ApiResponse<string>.SuccessResult(result, "Cập nhật ảnh đại diện thành công."));
     }
 
     /// <summary>
@@ -151,8 +125,8 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
     {
-        var result = await _mediator.Send(command);
-        return Ok(result);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<string>.SuccessResult(result, "Mã xác thực đặt lại mật khẩu đã được gửi thành công."));
     }
 
     /// <summary>
@@ -163,37 +137,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
     {
-        var result = await _mediator.Send(command);
-        return Ok(result);
-    }
-
-    private bool TryGetUserId(out Guid userId)
-    {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out userId))
-        {
-            return true;
-        }
-        userId = Guid.Empty;
-        return false;
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đặt lại mật khẩu mới thành công."));
     }
 }
-
-// ─── DTO Request Models cho Controller ──────────────────────────────────────────
-public record UpdateProfileRequest(
-    string FullName,
-    DateTime? DateOfBirth,
-    string Address,
-    string IdentityNumber,
-    string PhoneNumber
-);
-
-public record ChangePasswordRequest(
-    string CurrentPassword,
-    string NewPassword,
-    string ConfirmNewPassword
-);
-
-public record UpdateAvatarRequest(
-    string AvatarUrl
-);
