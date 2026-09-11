@@ -6,4 +6,4 @@ namespace TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 public record CreatePrefixCommand(
     string PrefixValue,
     Guid SimCarrierId
-) : IRequest<PhonePrefixDto>;
+) : IRequest<Responses.PhonePrefixDto>;

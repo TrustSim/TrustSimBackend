@@ -3,4 +3,4 @@ using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 
-public record GetFormatRhythmByIdQuery(Guid Id) : IRequest<FormatRhythmDto>;
+public record GetFormatRhythmByIdQuery(Guid Id) : IRequest<Responses.FormatRhythmDto>;

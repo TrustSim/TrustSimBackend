@@ -259,24 +259,27 @@ public static class DbSeeder
     {
         if (await context.SimNumbers.AnyAsync()) return;
 
-        var pr098 = Guid.Parse("cb000000-0000-0000-0000-000000000001");
-        var pr097 = Guid.Parse("cb000000-0000-0000-0000-000000000002");
-        var pr091 = Guid.Parse("cb000000-0000-0000-0000-000000000004");
-        var pr088 = Guid.Parse("cb000000-0000-0000-0000-000000000005");
-        var pr090 = Guid.Parse("cb000000-0000-0000-0000-000000000006");
-        var pr079 = Guid.Parse("cb000000-0000-0000-0000-000000000007");
+        var defaultPrefix = await context.PhonePrefixes.Select(p => p.Id).FirstOrDefaultAsync();
+        var pr098 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "098"))?.Id ?? defaultPrefix;
+        var pr097 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "097"))?.Id ?? defaultPrefix;
+        var pr091 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "091"))?.Id ?? defaultPrefix;
+        var pr088 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "088"))?.Id ?? defaultPrefix;
+        var pr090 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "090"))?.Id ?? defaultPrefix;
+        var pr079 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "079"))?.Id ?? defaultPrefix;
 
-        var fBatQuy = Guid.Parse("f1000000-0000-0000-0000-000000000001");
-        var fTuQuy = Guid.Parse("f1000000-0000-0000-0000-000000000004");
-        var fSanhTien = Guid.Parse("f1000000-0000-0000-0000-000000000005");
-        var fLocPhat = Guid.Parse("f1000000-0000-0000-0000-000000000009");
-        var fThanTai = Guid.Parse("f1000000-0000-0000-0000-000000000010");
+        var defaultRhythm = await context.FormatRhythms.Select(r => r.Id).FirstOrDefaultAsync();
+        var fBatQuy = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "AAAAAAAA"))?.Id ?? defaultRhythm;
+        var fTuQuy = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "AAAA"))?.Id ?? defaultRhythm;
+        var fSanhTien = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "ABCDE"))?.Id ?? defaultRhythm;
+        var fLocPhat = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "68"))?.Id ?? defaultRhythm;
+        var fThanTai = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "79"))?.Id ?? defaultRhythm;
 
-        var caBatQuy = Guid.Parse("ca000000-0000-0000-0000-000000000001");
-        var caTuQuy = Guid.Parse("ca000000-0000-0000-0000-000000000004");
-        var caSanhTien = Guid.Parse("ca000000-0000-0000-0000-000000000005");
-        var caThanTai = Guid.Parse("ca000000-0000-0000-0000-000000000006");
-        var caLocPhat = Guid.Parse("ca000000-0000-0000-0000-000000000007");
+        var defaultCategory = await context.SimCategories.Select(c => c.Id).FirstOrDefaultAsync();
+        var caBatQuy = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "BAT_QUY"))?.Id ?? defaultCategory;
+        var caTuQuy = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "TU_QUY"))?.Id ?? defaultCategory;
+        var caSanhTien = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "SANH_TIEN"))?.Id ?? defaultCategory;
+        var caThanTai = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "THAN_TAI"))?.Id ?? defaultCategory;
+        var caLocPhat = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "LOC_PHAT"))?.Id ?? defaultCategory;
 
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
         var sellerDaiPhat = Guid.Parse("11000000-0000-0000-0000-000000000004");
@@ -620,9 +623,14 @@ public static class DbSeeder
     {
         if (await context.Notifications.AnyAsync()) return;
 
-        var adminId = Guid.Parse("11000000-0000-0000-0000-000000000001");
-        var bidderKinhDoanh = Guid.Parse("11000000-0000-0000-0000-000000000006");
-        var userSpamBot = Guid.Parse("11000000-0000-0000-0000-000000000010");
+        var adminId = (await context.UserAccounts.FirstOrDefaultAsync(u => u.UserName == "admin"))?.Id 
+            ?? await context.UserAccounts.Select(u => u.Id).FirstOrDefaultAsync();
+        if (adminId == Guid.Empty) return;
+
+        var bidderKinhDoanh = (await context.UserAccounts.FirstOrDefaultAsync(u => u.UserName == "bidder_kinh_doanh"))?.Id 
+            ?? adminId;
+        var userSpamBot = (await context.UserAccounts.FirstOrDefaultAsync(u => u.UserName == "user_suspicious_bot"))?.Id 
+            ?? adminId;
 
         var notifs = new List<Notification>
         {

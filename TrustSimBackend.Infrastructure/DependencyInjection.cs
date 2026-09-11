@@ -53,6 +53,8 @@ public static class DependencyInjection
         services.AddScoped<ISimCategoryRepository, SimCategoryRepository>();
         services.AddScoped<IPhonePrefixRepository, PhonePrefixRepository>();
         services.AddScoped<ISimNumberRepository, SimNumberRepository>();
+        services.AddScoped<ISimRepository, SimRepository>();
+        services.AddScoped<ISimMasterDataRepository, SimMasterDataRepository>();
         services.AddScoped<IAuctionRepository, AuctionRepository>();
         services.AddScoped<IBidRepository, BidRepository>();
         services.AddScoped<ITradeTransactionRepository, TradeTransactionRepository>();

@@ -17,7 +17,7 @@ namespace TrustSimBackend.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.30")
+                .HasAnnotation("ProductVersion", "8.0.31")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -904,10 +904,6 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("auction_deposit_id");
 
-                    b.Property<Guid?>("AuctionDepositId1")
-                        .HasColumnType("uuid")
-                        .HasColumnName("auction_deposit_id1");
-
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text")
                         .HasColumnName("created_by");
@@ -972,11 +968,8 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasName("pk_escrows");
 
                     b.HasIndex("AuctionDepositId")
-                        .HasDatabaseName("ix_escrows_auction_deposit_id");
-
-                    b.HasIndex("AuctionDepositId1")
                         .IsUnique()
-                        .HasDatabaseName("ix_escrows_auction_deposit_id1");
+                        .HasDatabaseName("ix_escrows_auction_deposit_id");
 
                     b.HasIndex("EscrowStatus")
                         .HasDatabaseName("ix_escrows_escrow_status");
@@ -1096,6 +1089,11 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
                     b.Property<string>("DestinationAccountHolderName")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -1130,9 +1128,25 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("expired_at");
 
+                    b.Property<string>("ExternalTransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("external_transaction_id");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<string>("QrCodeUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("qr_code_url");
+
+                    b.Property<string>("TransactionCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("transaction_code");
 
                     b.Property<string>("TransactionStatus")
                         .IsRequired()
@@ -1165,11 +1179,17 @@ namespace TrustSimBackend.Infrastructure.Migrations
                     b.HasKey("Id")
                         .HasName("pk_wallet_transactions");
 
+                    b.HasIndex("TransactionCode")
+                        .HasDatabaseName("ix_wallet_transactions_transaction_code");
+
                     b.HasIndex("TransactionStatus")
                         .HasDatabaseName("ix_wallet_transactions_transaction_status");
 
                     b.HasIndex("WalletId")
                         .HasDatabaseName("ix_wallet_transactions_wallet_id");
+
+                    b.HasIndex("WalletTransactionType")
+                        .HasDatabaseName("ix_wallet_transactions_wallet_transaction_type");
 
                     b.ToTable("wallet_transactions", (string)null);
                 });
@@ -1181,6 +1201,12 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("BackIdCardUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("back_id_card_url");
+
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text")
                         .HasColumnName("created_by");
@@ -1189,6 +1215,24 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_date");
 
+                    b.Property<string>("FaceSelfieUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("face_selfie_url");
+
+                    b.Property<float>("FaceSimilarityScore")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("real")
+                        .HasDefaultValue(0f)
+                        .HasColumnName("face_similarity_score");
+
+                    b.Property<string>("FrontIdCardUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("front_id_card_url");
+
                     b.Property<Guid>("IdentityVerificationId")
                         .HasColumnType("uuid")
                         .HasColumnName("identity_verification_id");
@@ -1196,6 +1240,10 @@ namespace TrustSimBackend.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
+
+                    b.Property<string>("OcrRawData")
+                        .HasColumnType("text")
+                        .HasColumnName("ocr_raw_data");
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
@@ -1218,6 +1266,14 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_profile_id");
 
+                    b.Property<string>("VerificationMethod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasDefaultValue("AUTOMATED_AWS_REKOGNITION")
+                        .HasColumnName("verification_method");
+
                     b.Property<string>("VerificationStatus")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1228,13 +1284,99 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("verified_at");
 
+                    b.Property<Guid?>("VerifiedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("verified_by_user_id");
+
                     b.HasKey("Id")
                         .HasName("pk_identity_verifications");
 
                     b.HasIndex("UserProfileId")
                         .HasDatabaseName("ix_identity_verifications_user_profile_id");
 
+                    b.HasIndex("VerificationStatus")
+                        .HasDatabaseName("ix_identity_verifications_verification_status");
+
+                    b.HasIndex("VerifiedByUserId")
+                        .HasDatabaseName("ix_identity_verifications_verified_by_user_id");
+
                     b.ToTable("identity_verifications", (string)null);
+                });
+
+            modelBuilder.Entity("TrustSimBackend.Domain.Entities.Identity.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CreatedByIp")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("created_by_ip");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_revoked");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_used");
+
+                    b.Property<string>("JwtId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("jwt_id");
+
+                    b.Property<string>("ReasonRevoked")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("reason_revoked");
+
+                    b.Property<string>("ReplacedByToken")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("replaced_by_token");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<string>("RevokedByIp")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("revoked_by_ip");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("token");
+
+                    b.Property<Guid>("UserAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_account_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_refresh_tokens");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_refresh_tokens_token");
+
+                    b.HasIndex("UserAccountId")
+                        .HasDatabaseName("ix_refresh_tokens_user_account_id");
+
+                    b.ToTable("refresh_tokens", (string)null);
                 });
 
             modelBuilder.Entity("TrustSimBackend.Domain.Entities.Identity.UserAccount", b =>
@@ -2857,15 +2999,10 @@ namespace TrustSimBackend.Infrastructure.Migrations
             modelBuilder.Entity("TrustSimBackend.Domain.Entities.Financial.Escrow", b =>
                 {
                     b.HasOne("TrustSimBackend.Domain.Entities.Auctions.AuctionDeposit", "AuctionDeposit")
-                        .WithMany()
-                        .HasForeignKey("AuctionDepositId")
+                        .WithOne("Escrow")
+                        .HasForeignKey("TrustSimBackend.Domain.Entities.Financial.Escrow", "AuctionDepositId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_escrows_auction_deposits_auction_deposit_id");
-
-                    b.HasOne("TrustSimBackend.Domain.Entities.Auctions.AuctionDeposit", null)
-                        .WithOne("Escrow")
-                        .HasForeignKey("TrustSimBackend.Domain.Entities.Financial.Escrow", "AuctionDepositId1")
-                        .HasConstraintName("fk_escrows_auction_deposits_auction_deposit_id1");
 
                     b.HasOne("TrustSimBackend.Domain.Entities.Trade.TradeTransaction", "TradeTransaction")
                         .WithOne("Escrow")
@@ -2912,7 +3049,27 @@ namespace TrustSimBackend.Infrastructure.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_identity_verifications_user_profiles_user_profile_id");
 
+                    b.HasOne("TrustSimBackend.Domain.Entities.Identity.UserAccount", "VerifiedByUser")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_identity_verifications_user_accounts_verified_by_user_id");
+
                     b.Navigation("UserProfile");
+
+                    b.Navigation("VerifiedByUser");
+                });
+
+            modelBuilder.Entity("TrustSimBackend.Domain.Entities.Identity.RefreshToken", b =>
+                {
+                    b.HasOne("TrustSimBackend.Domain.Entities.Identity.UserAccount", "UserAccount")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_refresh_tokens_user_accounts_user_account_id");
+
+                    b.Navigation("UserAccount");
                 });
 
             modelBuilder.Entity("TrustSimBackend.Domain.Entities.Identity.UserProfile", b =>
@@ -3210,6 +3367,8 @@ namespace TrustSimBackend.Infrastructure.Migrations
 
                     b.Navigation("Notifications");
 
+                    b.Navigation("RefreshTokens");
+
                     b.Navigation("SellerTradeTransactions");
 
                     b.Navigation("SimOwnerships");
@@ -3218,8 +3377,7 @@ namespace TrustSimBackend.Infrastructure.Migrations
 
                     b.Navigation("UserSecurityProfile");
 
-                    b.Navigation("Wallet")
-                        .IsRequired();
+                    b.Navigation("Wallet");
                 });
 
             modelBuilder.Entity("TrustSimBackend.Domain.Entities.Identity.UserProfile", b =>
@@ -3270,13 +3428,11 @@ namespace TrustSimBackend.Infrastructure.Migrations
                 {
                     b.Navigation("DisputeTickets");
 
-                    b.Navigation("Escrow")
-                        .IsRequired();
+                    b.Navigation("Escrow");
 
                     b.Navigation("SimTransfer");
 
-                    b.Navigation("TransferContract")
-                        .IsRequired();
+                    b.Navigation("TransferContract");
                 });
 #pragma warning restore 612, 618
         }

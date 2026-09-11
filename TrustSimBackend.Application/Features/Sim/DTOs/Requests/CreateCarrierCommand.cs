@@ -7,4 +7,4 @@ public record CreateCarrierCommand(
     string CarrierName,
     string CarrierCode,
     string? LogoImg = null
-) : IRequest<SimCarrierDto>;
+) : IRequest<Responses.SimCarrierDto>;

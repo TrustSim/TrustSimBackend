@@ -151,6 +151,9 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
+    // Tránh xung đột SchemaId khi có các DTO cùng tên ở các namespace khác nhau
+    c.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
+
     // Nạp XML Documentation để hiển thị ghi chú mô tả API trên Swagger
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);

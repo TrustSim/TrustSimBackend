@@ -5,4 +5,4 @@ using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 
-public record ImportFormatRhythmsCommand(IFormFile File) : IRequest<ImportResult<FormatRhythmDto>>;
+public record ImportFormatRhythmsCommand(IFormFile File) : IRequest<ImportResult<Responses.FormatRhythmDto>>;

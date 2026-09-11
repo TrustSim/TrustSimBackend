@@ -7,4 +7,4 @@ public record CreateFormatRhythmCommand(
     string FormatRhythmName,
     string Value,
     string Description
-) : IRequest<FormatRhythmDto>;
+) : IRequest<Responses.FormatRhythmDto>;
