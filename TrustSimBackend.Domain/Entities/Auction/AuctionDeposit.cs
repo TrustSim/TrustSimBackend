@@ -10,8 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Auctions
     /// </summary>
     public class AuctionDeposit : AuditableEntity
     {
-        /// <summary>Khóa chính của bản ghi cọc (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid AuctionDepositId { get => Id; set => Id = value; }
 
         // --- Liên kết người tham gia ---
         /// <summary>ID người tham gia đấu giá (<see cref="AuctionParticipant"/>) nộp khoản cọc này.</summary>

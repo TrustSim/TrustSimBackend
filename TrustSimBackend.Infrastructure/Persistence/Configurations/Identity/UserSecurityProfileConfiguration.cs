@@ -17,9 +17,9 @@ namespace TrustSimBackend.Infrastructure.Persistence.Configurations.Identity
 
             builder.HasIndex(u=>new { u.UserAccountId, u.UserSecurityProfileStatus}).IsUnique();
 
-            builder.Property(u=>u.KeyHash).IsRequired().HasMaxLength(250);
-            builder.Property(u=>u.PublicKey).IsRequired().HasMaxLength(250);
-            builder.Property(u=>u.EncryptedPrivateKey).IsRequired().HasMaxLength(250);
+            builder.Property(u=>u.KeyHash).IsRequired().HasMaxLength(128);
+            builder.Property(u=>u.PublicKey).IsRequired().HasMaxLength(1000);
+            builder.Property(u=>u.EncryptedPrivateKey).IsRequired().HasMaxLength(4000);
 
             builder.Property(u=>u.KeyGeneratedAt).IsRequired();
 

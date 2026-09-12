@@ -15,8 +15,6 @@ namespace TrustSimBackend.Domain.Entities.Identity
     /// </summary>
     public class UserAccount : FullAuditableEntity
     {
-        /// <summary>Khóa chính của tài khoản (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid UserAccountId { get => Id; set => Id = value; }
 
         /// <summary>Tên đăng nhập duy nhất của người dùng (không phân biệt hoa thường).</summary>
         public string UserName { get; set; } = string.Empty;

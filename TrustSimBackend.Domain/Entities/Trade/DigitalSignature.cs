@@ -11,10 +11,6 @@ namespace TrustSimBackend.Domain.Entities.Trade
     /// </summary>
     public class DigitalSignature: BaseEntity
     {
-        /// <summary>
-        /// Khóa chính của chữ ký số (alias cho <see cref="BaseEntity.Id"/>).
-        /// </summary>
-        public Guid DigitalSignatureId {get=>Id;private set =>Id =value;}
 
         /// <summary>
         /// Loại chữ ký số (hợp đồng, biên bản).

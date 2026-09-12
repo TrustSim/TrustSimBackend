@@ -9,8 +9,6 @@ namespace TrustSimBackend.Domain.Entities.Auctions
     /// </summary>
     public class AuctionRule : AuditableEntity
     {
-        /// <summary>Khóa chính của bộ quy tắc (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid AuctionRuleId { get => Id; private set => Id = value; }
 
         // --- Quy tắc đặt giá ---
         /// <summary>Mức tăng giá tối thiểu cho mỗi lượt đặt giá (VNĐ). VD: 100,000đ.</summary>

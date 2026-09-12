@@ -10,8 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Identity;
 /// </summary>
 public class IdentityVerification : AuditableEntity
 {
-    /// <summary>Khóa chính của lần xác minh này (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid IdentityVerificationId { get => Id; private set => Id = value; }
 
     // --- Foreign Key ---
     /// <summary>ID của hồ sơ cá nhân (<see cref="UserProfile"/>) thực hiện yêu cầu xác minh này.</summary>

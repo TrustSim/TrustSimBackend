@@ -11,8 +11,6 @@ namespace TrustSimBackend.Domain.Entities.Financial
     /// </summary>
     public class Escrow : AuditableEntity
     {
-        /// <summary>Khóa chính của khoản ký quỹ (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid EscrowId { get => Id; private set => Id = value; }
 
         /// <summary>Tổng số tiền mục tiêu cần ký quỹ (hoặc số tiền đã ký quỹ thành công) (VNĐ).</summary>
         public decimal EscrowAmount { get; set; }

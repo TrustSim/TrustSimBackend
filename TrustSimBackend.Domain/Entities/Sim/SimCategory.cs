@@ -9,8 +9,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimCategory : FullAuditableEntity
 {
-    /// <summary>Khóa chính của danh mục (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid SimCategoryId { get => Id; private set => Id = value; }
 
     /// <summary>Mã định danh ngắn của danh mục dùng trong hệ thống (VD: "THAN_TAI", "TU_QUY").</summary>
     public string CategoryCode { get; set; } = string.Empty;

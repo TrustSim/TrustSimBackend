@@ -11,8 +11,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimOwnership : AuditableEntity
 {
-    /// <summary>Khóa chính của bản ghi sở hữu (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid SimOwnershipId { get => Id; private set => Id = value; }
 
     /// <summary>Trạng thái của quyền sở hữu: ACTIVE (đang sở hữu), ENDED (đã chuyển nhượng), DISPUTED, REVOKED.</summary>
     public OwnershipStatus OwnershipStatus { get; set; } = OwnershipStatus.ACTIVE;

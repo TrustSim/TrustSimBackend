@@ -8,10 +8,6 @@ namespace TrustSimBackend.Domain.Entities.Trade
     /// </summary>
     public class TransferContract: AuditableEntity
     {
-        /// <summary>
-        /// ID của hợp đồng chuyển nhượng.
-        /// </summary>
-        public Guid TransferContractId {get=> Id;private set => Id = value;}
 
         /// <summary>
         /// Đường dẫn tới tài liệu hợp đồng.

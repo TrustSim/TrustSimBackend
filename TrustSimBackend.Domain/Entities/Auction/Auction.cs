@@ -12,8 +12,6 @@ namespace TrustSimBackend.Domain.Entities.Auctions
     /// </summary>
     public class Auction : FullAuditableEntity
     {
-        /// <summary>Khóa chính của phiên đấu giá (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid AuctionId { get => Id; private set => Id = value; }
 
         /// <summary>Mã định danh duy nhất của phiên đấu giá (VD: "AUC-20240801-001"), dùng để hiển thị cho người dùng.</summary>
         public string AuctionCode { get; set; } = string.Empty;

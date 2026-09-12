@@ -15,10 +15,6 @@ namespace TrustSimBackend.Domain.Entities.Trade
     /// </summary>
     public class TradeTransaction: AuditableEntity
     {
-        /// <summary>
-        /// Khóa chính của giao dịch (alias cho <see cref="BaseEntity.Id"/>).
-        /// </summary>
-        public Guid TradeTransactionId {get=>Id;private set =>Id =value;}
         
         /// <summary>
         /// Mã giao dịch duy nhất, dùng để hiển thị và tham chiếu.

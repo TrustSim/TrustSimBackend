@@ -9,8 +9,6 @@ namespace TrustSimBackend.Domain.Entities.Financial
     /// </summary>
     public class WalletTransaction : AuditableEntity
     {
-        /// <summary>Khóa chính của giao dịch nạp/rút (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid WalletTransactionId { get => Id; set => Id = value; }
 
         // --- Khóa ngoại ---
         /// <summary>ID của ví tiền (<see cref="Wallet"/>) thực hiện giao dịch.</summary>

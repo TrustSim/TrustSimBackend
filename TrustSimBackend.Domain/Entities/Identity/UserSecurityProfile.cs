@@ -10,8 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Identity;
 /// </summary>
 public class UserSecurityProfile : AuditableEntity
 {
-    /// <summary>Khóa chính của hồ sơ bảo mật (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid UserSecurityProfileId { get => Id; private set => Id = value; }
 
     /// <summary>
     /// Khóa công khai (Public Key) dùng để xác minh chữ ký số của người dùng.

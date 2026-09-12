@@ -9,8 +9,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimCategoryMapping : AuditableEntity
 {
-    /// <summary>Khóa chính của bản ghi ánh xạ (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid SimCategoryMappingId { get => Id; private set => Id = value; }
 
     /// <summary>
     /// Điểm đóng góp của danh mục này vào điểm định giá tổng của số SIM.

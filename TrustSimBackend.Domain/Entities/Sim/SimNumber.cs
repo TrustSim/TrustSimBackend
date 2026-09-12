@@ -11,8 +11,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimNumber : FullAuditableEntity
 {
-    /// <summary>Khóa chính của số SIM (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid SimNumberId { get => Id; private set => Id = value; }
 
     /// <summary>Chuỗi số điện thoại đầy đủ (VD: "0909123456"). Duy nhất trong toàn hệ thống.</summary>
     public string PhoneNumber { get; set; } = string.Empty;

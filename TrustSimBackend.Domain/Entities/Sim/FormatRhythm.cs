@@ -9,8 +9,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class FormatRhythm : FullAuditableEntity
 {
-    /// <summary>Khóa chính của kiểu định dạng (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid FormatRhythmId { get => Id; private set => Id = value; }
 
     /// <summary>Giá trị mẫu minh họa cho kiểu định dạng này (VD: "ABCDE" cho SIM sảnh 5 số).</summary>
     public string Value { get; set; } = string.Empty;

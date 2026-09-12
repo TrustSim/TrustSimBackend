@@ -8,8 +8,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimCarrier : FullAuditableEntity
 {
-    /// <summary>Khóa chính của nhà mạng (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid SimCarrierId { get => Id; private set => Id = value; }
 
     /// <summary>Tên đầy đủ của nhà mạng (VD: "Viettel Telecom").</summary>
     public string CarrierName { get; set; } = string.Empty;

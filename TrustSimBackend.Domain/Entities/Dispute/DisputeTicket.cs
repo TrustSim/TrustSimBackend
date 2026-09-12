@@ -10,10 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Dispute;
 /// </summary>
 public class DisputeTicket : AuditableEntity
 {
-    /// <summary>
-    /// Khóa chính
-    /// </summary>
-    public Guid DisputeTicketId { get => Id; private set => Id = value; }
     
     /// <summary>
     /// Khóa ngoại trỏ về Giao dịch gốc
