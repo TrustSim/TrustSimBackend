@@ -2,18 +2,20 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
+using TrustSimBackend.Application.Common.Helpers;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
-using TrustSimBackend.Application.Common.Models;
 
 namespace TrustSimBackend.Application.Features.Identity.Commands;
 
 /// <summary>
-/// Handler xử lý quy trình eKYC tự động tích hợp AWS Rekognition (OCR + Face Detection + Face Matching).
+/// Handler xử lý quy trình eKYC tự động tích hợp AWS Rekognition (OCR + Face Detection + Face Matching)
+/// kết hợp đối soát thông tin hồ sơ, tự động khởi tạo cặp khóa ký số PKI RSA-2048 và dọn dẹp ảnh tạm thời.
 /// </summary>
 public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVerificationCommand, EkycVerificationResultDto>
 {
@@ -21,6 +23,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
     private readonly IIdentityVerificationRepository _kycRepository;
     private readonly IAwsRekognitionService _rekognitionService;
     private readonly ICloudStorageService _storageService;
+    private readonly IPkiKeyService _pkiKeyService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly AwsRekognitionSettings _settings;
     private readonly ILogger<SubmitEkycVerificationCommandHandler> _logger;
@@ -30,6 +33,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         IIdentityVerificationRepository kycRepository,
         IAwsRekognitionService rekognitionService,
         ICloudStorageService storageService,
+        IPkiKeyService pkiKeyService,
         IUnitOfWork unitOfWork,
         IOptions<AwsRekognitionSettings> settings,
         ILogger<SubmitEkycVerificationCommandHandler> logger)
@@ -38,6 +42,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         _kycRepository = kycRepository;
         _rekognitionService = rekognitionService;
         _storageService = storageService;
+        _pkiKeyService = pkiKeyService;
         _unitOfWork = unitOfWork;
         _settings = settings.Value;
         _logger = logger;
@@ -82,7 +87,22 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             throw new InvalidIdentityDocumentException("Không thể đọc được số CMND/CCCD từ hình ảnh cung cấp. Vui lòng chụp rõ nét hơn.");
         }
 
-        // 5. Kiểm tra tính duy nhất của số CCCD trên toàn hệ thống (chống clone nick)
+        // 5. Đối soát số CCCD với UserProfile nếu hồ sơ đã có số CCCD
+        if (!string.IsNullOrWhiteSpace(user.UserProfile.IdentityNumber) &&
+            !IdentityMatchingHelper.IsIdentityNumberMatch(ocrResult.IdentityNumber, user.UserProfile.IdentityNumber))
+        {
+            throw new IdentityNumberMismatchException(ocrResult.IdentityNumber, user.UserProfile.IdentityNumber);
+        }
+
+        // 6. Đối soát Họ và tên với UserProfile nếu cả 2 bên đều có thông tin
+        if (!string.IsNullOrWhiteSpace(user.UserProfile.FullName) &&
+            !string.IsNullOrWhiteSpace(ocrResult.FullName) &&
+            !IdentityMatchingHelper.IsFullNameMatch(ocrResult.FullName, user.UserProfile.FullName))
+        {
+            throw new IdentityNameMismatchException(ocrResult.FullName, user.UserProfile.FullName);
+        }
+
+        // 7. Kiểm tra tính duy nhất của số CCCD trên toàn hệ thống (chống clone nick)
         var isDuplicate = await _userAccountRepository.ExistsByIdentityNumberAsync(
             ocrResult.IdentityNumber, user.Id, cancellationToken);
 
@@ -91,11 +111,11 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             throw new DuplicateIdentityNumberException(ocrResult.IdentityNumber);
         }
 
-        // 6. Gọi AWS Rekognition CompareFaces (So khớp CCCD vs Selfie)
+        // 8. Gọi AWS Rekognition CompareFaces (So khớp CCCD vs Selfie)
         var faceMatch = await _rekognitionService.CompareFacesAsync(
             frontBytes, selfieBytes, _settings.ManualReviewSimilarityThreshold, cancellationToken);
 
-        // 7. Upload ảnh lên Cloud Storage để lưu trữ bằng chứng
+        // 9. Upload ảnh lên Cloud Storage để lưu trữ bằng chứng
         var frontUrl = await _storageService.UploadImageAsync(request.FrontCardImage, "kyc/front", cancellationToken);
         var selfieUrl = await _storageService.UploadImageAsync(request.SelfieImage, "kyc/selfie", cancellationToken);
         string backUrl = string.Empty;
@@ -104,7 +124,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             backUrl = await _storageService.UploadImageAsync(request.BackCardImage, "kyc/back", cancellationToken);
         }
 
-        // 8. Động cơ Phân luồng Quyết định Hybrid
+        // 10. Động cơ Phân luồng Quyết định Hybrid
         var verification = new IdentityVerification
         {
             Id = Guid.NewGuid(),
@@ -128,14 +148,54 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             verification.VerificationMethod = "AUTOMATED_AWS_REKOGNITION";
             verification.VerifiedAt = DateTime.UtcNow;
 
+            // Cập nhật UserProfile
             user.UserProfile.VerificationStatus = VerificationStatus.VERIFIED;
             user.UserProfile.IdentityNumber = ocrResult.IdentityNumber;
-            if (!string.IsNullOrEmpty(ocrResult.FullName)) user.UserProfile.FullName = ocrResult.FullName;
-            if (ocrResult.DateOfBirth.HasValue) user.UserProfile.DateOfBirth = ocrResult.DateOfBirth.Value;
-            if (!string.IsNullOrEmpty(ocrResult.Address)) user.UserProfile.Address = ocrResult.Address;
+            if (!string.IsNullOrEmpty(ocrResult.FullName))
+            {
+                user.UserProfile.FullName = ocrResult.FullName;
+            }
+            if (ocrResult.DateOfBirth.HasValue)
+            {
+                user.UserProfile.DateOfBirth = ocrResult.DateOfBirth.Value;
+            }
+            if (!string.IsNullOrEmpty(ocrResult.Address))
+            {
+                user.UserProfile.Address = ocrResult.Address;
+            }
             user.UserProfile.AvatarImg = selfieUrl;
+            user.UserProfile.UpdatedDate = DateTime.UtcNow;
 
-            returnMessage = "Xác thực danh tính eKYC tự động thành công qua AI!";
+            // Khởi tạo/Kích hoạt cặp khóa ký số PKI RSA-2048 trong UserSecurityProfile
+            var keyPair = _pkiKeyService.GenerateKeyPair();
+            if (user.UserSecurityProfile == null)
+            {
+                user.UserSecurityProfile = new UserSecurityProfile
+                {
+                    UserAccountId = user.Id,
+                    PublicKey = keyPair.PublicKeyPem,
+                    EncryptedPrivateKey = keyPair.EncryptedPrivateKey,
+                    KeyHash = keyPair.KeyHash,
+                    KeyGeneratedAt = DateTime.UtcNow,
+                    UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE,
+                    IsActive = true,
+                    CreatedDate = DateTime.UtcNow
+                };
+            }
+            else
+            {
+                user.UserSecurityProfile.PublicKey = keyPair.PublicKeyPem;
+                user.UserSecurityProfile.EncryptedPrivateKey = keyPair.EncryptedPrivateKey;
+                user.UserSecurityProfile.KeyHash = keyPair.KeyHash;
+                user.UserSecurityProfile.KeyGeneratedAt = DateTime.UtcNow;
+                user.UserSecurityProfile.UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE;
+                user.UserSecurityProfile.UpdatedDate = DateTime.UtcNow;
+            }
+
+            // Cập nhật UserAccount
+            user.UpdatedDate = DateTime.UtcNow;
+
+            returnMessage = "Xác thực danh tính eKYC tự động thành công qua AI! Cặp khóa ký số PKI đã được kích hoạt.";
         }
         else if (faceMatch.SimilarityScore >= _settings.ManualReviewSimilarityThreshold)
         {
@@ -145,25 +205,43 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
 
             user.UserProfile.VerificationStatus = VerificationStatus.PENDING_VERIFICATION;
             user.UserProfile.IdentityNumber = ocrResult.IdentityNumber;
-            if (!string.IsNullOrEmpty(ocrResult.FullName)) user.UserProfile.FullName = ocrResult.FullName;
-            if (ocrResult.DateOfBirth.HasValue) user.UserProfile.DateOfBirth = ocrResult.DateOfBirth.Value;
+            if (!string.IsNullOrEmpty(ocrResult.FullName))
+            {
+                user.UserProfile.FullName = ocrResult.FullName;
+            }
+            if (ocrResult.DateOfBirth.HasValue)
+            {
+                user.UserProfile.DateOfBirth = ocrResult.DateOfBirth.Value;
+            }
+            if (!string.IsNullOrEmpty(ocrResult.Address))
+            {
+                user.UserProfile.Address = ocrResult.Address;
+            }
             user.UserProfile.AvatarImg = selfieUrl;
+            user.UserProfile.UpdatedDate = DateTime.UtcNow;
+
+            user.UpdatedDate = DateTime.UtcNow;
 
             returnMessage = "Hồ sơ eKYC của bạn đã được tiếp nhận và đang chờ chuyên viên đối soát trong vòng 24h.";
         }
         else
         {
-            // TH3: Dưới 70% -> TỪ CHỐI (REJECTED)
+            // TH3: Dưới ngưỡng -> TỪ CHỐI (REJECTED)
             verification.VerificationStatus = VerificationStatus.REJECTED;
             verification.VerificationMethod = "AUTOMATED_AWS_REKOGNITION";
             verification.RejectionReason = $"Độ tương đồng khuôn mặt không đạt yêu cầu ({faceMatch.SimilarityScore:F1}% < {_settings.ManualReviewSimilarityThreshold:F0}%).";
             verification.VerifiedAt = DateTime.UtcNow;
 
             user.UserProfile.VerificationStatus = VerificationStatus.REJECTED;
+            user.UserProfile.UpdatedDate = DateTime.UtcNow;
+            user.UpdatedDate = DateTime.UtcNow;
 
             _userAccountRepository.Update(user);
             await _kycRepository.AddAsync(verification, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Dọn dẹp tệp ảnh tạm thời trên web server
+            await CleanupTempUploadsAsync(frontUrl, backUrl, selfieUrl);
 
             throw new KycFaceMismatchException(faceMatch.SimilarityScore);
         }
@@ -171,6 +249,9 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         _userAccountRepository.Update(user);
         await _kycRepository.AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // 11. Tự động dọn dẹp các tệp ảnh tạm trên web server (wwwroot/uploads) sau khi lưu DB thành công
+        await CleanupTempUploadsAsync(frontUrl, backUrl, selfieUrl);
 
         _logger.LogInformation("[eKYC] Xử lý hoàn tất cho User {UserId}: Trạng thái={Status}, AutoApproved={Auto}, Similarity={Sim}%",
             user.Id, verification.VerificationStatus, isAutoApproved, faceMatch.SimilarityScore);
@@ -188,5 +269,23 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             Message = returnMessage,
             SubmittedAt = verification.SubmittedAt
         };
+    }
+
+    private async Task CleanupTempUploadsAsync(params string[] fileUrls)
+    {
+        foreach (var url in fileUrls)
+        {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                try
+                {
+                    await _storageService.DeleteFileAsync(url, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[eKYC] Không thể xóa tệp ảnh tạm thời: {Url}", url);
+                }
+            }
+        }
     }
 }

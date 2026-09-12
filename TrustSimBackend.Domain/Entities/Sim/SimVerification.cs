@@ -10,8 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimVerification : AuditableEntity
 {
-    /// <summary>Khóa chính của lần xác minh này (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid SimVerificationId { get => Id; private set => Id = value; }
 
     /// <summary>Trạng thái xử lý của yêu cầu xác minh: PENDING_VERIFICATION, VERIFIED, REJECTED, EXPIRED.</summary>
     public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.PENDING_VERIFICATION;

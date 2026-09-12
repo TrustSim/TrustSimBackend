@@ -9,10 +9,6 @@ namespace TrustSimBackend.Domain.Entities.System
     /// </summary>
     public class AuditLog : AuditableEntity
     {
-        /// <summary>
-        /// Khóa chính của log hệ thống (alias cho <see cref="BaseEntity.Id"/>)
-        /// </summary>
-        public Guid AuditLogId {get=>Id; private set => Id = value;}
 
         /// <summary>
         /// Tên của log hệ thống

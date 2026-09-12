@@ -11,8 +11,6 @@ namespace TrustSimBackend.Domain.Entities.Financial
     /// </summary>
     public class Wallet : AuditableEntity
     {
-        /// <summary>Khóa chính của ví tiền (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid WalletId { get => Id; private set => Id = value; }
 
         /// <summary>Số dư khả dụng có thể dùng để đặt giá, cọc hoặc rút tiền (VNĐ).</summary>
         public decimal AvailableBalance { get; set; } = 0;

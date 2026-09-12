@@ -88,6 +88,7 @@ public static class DependencyInjection
         // ─── 9. AWS Rekognition & Storage Services (eKYC) ────────────
         services.AddScoped<IAwsRekognitionService, AwsRekognitionService>();
         services.AddScoped<ICloudStorageService, CloudStorageService>();
+        services.AddScoped<IPkiKeyService, PkiKeyService>();
 
         return services;
     }

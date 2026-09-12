@@ -5,10 +5,6 @@ namespace TrustSimBackend.Domain.Entities.Auctions
 {
     public class Bid : AuditableEntity
     {
-        /// <summary>
-        /// ID của giá (thuộc tính chỉ để dễ gọi).
-        /// </summary>
-        public Guid BidId {get=>Id; set=>Id=value;}
 
         /// <summary>
         /// ID của phiên đấu giá (FK đến <see cref="Auction.Id"/>).

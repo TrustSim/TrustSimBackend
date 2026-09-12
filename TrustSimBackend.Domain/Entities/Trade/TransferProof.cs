@@ -5,7 +5,6 @@ namespace TrustSimBackend.Domain.Entities.Trade
 {
     public class TransferProof: AuditableEntity
     {
-        public Guid TransferProofId {get=> Id; private set =>Id=value;}
 
         public string ImageUrl {get;set;}=string.Empty;
         public string? Description {get;set;}=string.Empty;

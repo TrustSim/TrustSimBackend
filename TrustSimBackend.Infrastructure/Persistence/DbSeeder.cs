@@ -243,9 +243,51 @@ public static class DbSeeder
 
             var ivs = new List<IdentityVerification>
             {
-                new() { Id = Guid.Parse("15000000-0000-0000-0000-000000000001"), UserProfileId = profile3, VerifiedByUserId = adminId, FrontIdCardUrl = "https://storage.trustsim.vn/ekyc/front_001.jpg", BackIdCardUrl = "https://storage.trustsim.vn/ekyc/back_001.jpg", FaceSelfieUrl = "https://storage.trustsim.vn/ekyc/selfie_001.jpg", FaceSimilarityScore = 99.2f, OcrRawData = "{\"name\":\"Trần Phú Quý\",\"id\":\"001085009999\"}", VerificationMethod = "AUTOMATED_AWS_REKOGNITION", VerificationStatus = VerificationStatus.VERIFIED, SubmittedAt = DateTime.UtcNow.AddDays(-10), VerifiedAt = DateTime.UtcNow.AddDays(-10) },
-                new() { Id = Guid.Parse("15000000-0000-0000-0000-000000000002"), UserProfileId = profile8, VerifiedByUserId = null,    FrontIdCardUrl = "https://storage.trustsim.vn/ekyc/front_008.jpg", BackIdCardUrl = "https://storage.trustsim.vn/ekyc/back_008.jpg", FaceSelfieUrl = "https://storage.trustsim.vn/ekyc/selfie_008.jpg", FaceSimilarityScore = 78.5f, OcrRawData = "{\"name\":\"Bùi Thanh Hà\",\"id\":\"001098004444\"}", VerificationMethod = "MANUAL_ADMIN_REVIEW", VerificationStatus = VerificationStatus.PENDING_VERIFICATION, SubmittedAt = DateTime.UtcNow.AddHours(-2) },
-                new() { Id = Guid.Parse("15000000-0000-0000-0000-000000000003"), UserProfileId = profile9, VerifiedByUserId = adminId, FrontIdCardUrl = "https://storage.trustsim.vn/ekyc/front_009.jpg", BackIdCardUrl = "https://storage.trustsim.vn/ekyc/back_009.jpg", FaceSelfieUrl = "https://storage.trustsim.vn/ekyc/selfie_009.jpg", FaceSimilarityScore = 42.0f, OcrRawData = "{\"name\":\"Ngô Việt Cường\"}", VerificationMethod = "AUTOMATED_AWS_REKOGNITION", VerificationStatus = VerificationStatus.REJECTED, SubmittedAt = DateTime.UtcNow.AddDays(-3), VerifiedAt = DateTime.UtcNow.AddDays(-3), RejectionReason = "Ảnh chụp khuôn mặt không khớp với ảnh trên CCCD (Độ tương đồng 42% < 85%)" }
+                new()
+                {
+                    Id = Guid.Parse("15000000-0000-0000-0000-000000000001"),
+                    UserProfileId = profile3,
+                    VerifiedByUserId = adminId,
+                    FrontIdCardUrl = "https://storage.trustsim.vn/ekyc/front_001.jpg",
+                    BackIdCardUrl = "https://storage.trustsim.vn/ekyc/back_001.jpg",
+                    FaceSelfieUrl = "https://storage.trustsim.vn/ekyc/selfie_001.jpg",
+                    FaceSimilarityScore = 99.2f,
+                    OcrRawData = "{\n  \"extractedInfo\": {\n    \"identityNumber\": \"001085009999\",\n    \"fullName\": \"TRẦN PHÚ QUÝ\",\n    \"dateOfBirth\": \"20/10/1985\",\n    \"gender\": \"Nam\",\n    \"nationality\": \"Việt Nam\",\n    \"placeOfOrigin\": \"Hà Nội\",\n    \"placeOfResidence\": \"Hà Nội\",\n    \"expiryDate\": \"20/10/2035\"\n  },\n  \"confidenceScore\": 99.2,\n  \"totalLinesDetected\": 8,\n  \"detectedLines\": [\n    \"CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\",\n    \"CĂN CƯỚC CÔNG DÂN\",\n    \"Số / No.: 001085009999\",\n    \"Họ và tên / Full name:\",\n    \"TRẦN PHÚ QUÝ\",\n    \"Ngày sinh: 20/10/1985\",\n    \"Giới tính: Nam\",\n    \"Quốc tịch: Việt Nam\"\n  ]\n}",
+                    VerificationMethod = "AUTOMATED_AWS_REKOGNITION",
+                    VerificationStatus = VerificationStatus.VERIFIED,
+                    SubmittedAt = DateTime.UtcNow.AddDays(-10),
+                    VerifiedAt = DateTime.UtcNow.AddDays(-10)
+                },
+                new()
+                {
+                    Id = Guid.Parse("15000000-0000-0000-0000-000000000002"),
+                    UserProfileId = profile8,
+                    VerifiedByUserId = null,
+                    FrontIdCardUrl = "https://storage.trustsim.vn/ekyc/front_008.jpg",
+                    BackIdCardUrl = "https://storage.trustsim.vn/ekyc/back_008.jpg",
+                    FaceSelfieUrl = "https://storage.trustsim.vn/ekyc/selfie_008.jpg",
+                    FaceSimilarityScore = 78.5f,
+                    OcrRawData = "{\n  \"extractedInfo\": {\n    \"identityNumber\": \"001098004444\",\n    \"fullName\": \"BÙI THANH HÀ\",\n    \"dateOfBirth\": \"01/12/1998\",\n    \"gender\": \"Nữ\",\n    \"nationality\": \"Việt Nam\",\n    \"placeOfOrigin\": \"Hà Nội\",\n    \"placeOfResidence\": \"Hà Nội\",\n    \"expiryDate\": \"01/12/2038\"\n  },\n  \"confidenceScore\": 78.5,\n  \"totalLinesDetected\": 8,\n  \"detectedLines\": [\n    \"CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\",\n    \"CĂN CƯỚC CÔNG DÂN\",\n    \"Số / No.: 001098004444\",\n    \"Họ và tên / Full name:\",\n    \"BÙI THANH HÀ\",\n    \"Ngày sinh: 01/12/1998\",\n    \"Giới tính: Nữ\",\n    \"Quốc tịch: Việt Nam\"\n  ]\n}",
+                    VerificationMethod = "MANUAL_ADMIN_REVIEW",
+                    VerificationStatus = VerificationStatus.PENDING_VERIFICATION,
+                    SubmittedAt = DateTime.UtcNow.AddHours(-2)
+                },
+                new()
+                {
+                    Id = Guid.Parse("15000000-0000-0000-0000-000000000003"),
+                    UserProfileId = profile9,
+                    VerifiedByUserId = adminId,
+                    FrontIdCardUrl = "https://storage.trustsim.vn/ekyc/front_009.jpg",
+                    BackIdCardUrl = "https://storage.trustsim.vn/ekyc/back_009.jpg",
+                    FaceSelfieUrl = "https://storage.trustsim.vn/ekyc/selfie_009.jpg",
+                    FaceSimilarityScore = 42.0f,
+                    OcrRawData = "{\n  \"extractedInfo\": {\n    \"identityNumber\": \"040095003333\",\n    \"fullName\": \"NGÔ VIỆT CƯỜNG\",\n    \"dateOfBirth\": \"04/04/1995\",\n    \"gender\": \"Nam\",\n    \"nationality\": \"Việt Nam\",\n    \"placeOfOrigin\": \"Nghệ An\",\n    \"placeOfResidence\": \"Nghệ An\",\n    \"expiryDate\": \"04/04/2035\"\n  },\n  \"confidenceScore\": 42.0,\n  \"totalLinesDetected\": 8,\n  \"detectedLines\": [\n    \"CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM\",\n    \"CĂN CƯỚC CÔNG DÂN\",\n    \"Số / No.: 040095003333\",\n    \"Họ và tên / Full name:\",\n    \"NGÔ VIỆT CƯỜNG\",\n    \"Ngày sinh: 04/04/1995\",\n    \"Giới tính: Nam\",\n    \"Quốc tịch: Việt Nam\"\n  ]\n}",
+                    VerificationMethod = "AUTOMATED_AWS_REKOGNITION",
+                    VerificationStatus = VerificationStatus.REJECTED,
+                    SubmittedAt = DateTime.UtcNow.AddDays(-3),
+                    VerifiedAt = DateTime.UtcNow.AddDays(-3),
+                    RejectionReason = "Ảnh chụp khuôn mặt không khớp với ảnh trên CCCD (Độ tương đồng 42% < 85%)"
+                }
             };
             await context.IdentityVerifications.AddRangeAsync(ivs);
             await context.SaveChangesAsync();

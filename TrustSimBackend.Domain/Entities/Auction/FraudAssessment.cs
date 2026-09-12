@@ -9,8 +9,6 @@ namespace TrustSimBackend.Domain.Entities.Auctions
     /// </summary>
     public class FraudAssessment : AuditableEntity
     {
-        /// <summary>Khóa chính của bản ghi đánh giá (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid FraudAssessmentId { get => Id; set => Id = value; }
 
         // --- Foreign Key ---
         /// <summary>ID của người tham gia đấu giá (<see cref="AuctionParticipant"/>) bị đánh giá.</summary>

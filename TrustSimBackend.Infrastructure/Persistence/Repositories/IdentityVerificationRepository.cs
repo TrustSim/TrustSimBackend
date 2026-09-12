@@ -85,7 +85,11 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
 
     public void Update(IdentityVerification verification)
     {
-        _context.IdentityVerifications.Update(verification);
+        var entry = _context.Entry(verification);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.IdentityVerifications.Update(verification);
+        }
     }
 }
 

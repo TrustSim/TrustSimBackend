@@ -8,8 +8,6 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class PhonePrefix : FullAuditableEntity
 {
-    /// <summary>Khóa chính của đầu số (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid PhonePrefixId { get => Id; private set => Id = value; }
 
     /// <summary>Giá trị chuỗi đầu số điện thoại (VD: "090", "0356", "058").</summary>
     public string PrefixValue { get; set; } = string.Empty;

@@ -21,4 +21,9 @@ public interface ICloudStorageService
     /// Xóa tệp tin đã lưu trữ theo URL.
     /// </summary>
     Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Dọn dẹp toàn bộ tệp tạm thời trong thư mục con của uploads (vd: kyc).
+    /// </summary>
+    Task<int> CleanAllTempUploadsAsync(string folder = "kyc", CancellationToken cancellationToken = default);
 }

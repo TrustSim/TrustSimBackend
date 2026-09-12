@@ -21,6 +21,7 @@ public class UserAccountRepository : IUserAccountRepository
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
+            .Include(u => u.UserSecurityProfile)
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
     }
 
@@ -29,6 +30,7 @@ public class UserAccountRepository : IUserAccountRepository
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
+            .Include(u => u.UserSecurityProfile)
             .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
     }
 
@@ -37,6 +39,7 @@ public class UserAccountRepository : IUserAccountRepository
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
+            .Include(u => u.UserSecurityProfile)
             .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
     }
 
@@ -45,6 +48,7 @@ public class UserAccountRepository : IUserAccountRepository
         return await _context.UserAccounts
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
+            .Include(u => u.UserSecurityProfile)
             .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, identifier) || EF.Functions.ILike(u.UserEmail, identifier), cancellationToken);
     }
 
@@ -132,6 +136,10 @@ public class UserAccountRepository : IUserAccountRepository
 
     public void Update(UserAccount userAccount)
     {
-        _context.UserAccounts.Update(userAccount);
+        var entry = _context.Entry(userAccount);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.UserAccounts.Update(userAccount);
+        }
     }
 }

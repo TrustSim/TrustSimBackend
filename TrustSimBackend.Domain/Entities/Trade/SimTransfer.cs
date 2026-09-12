@@ -8,10 +8,6 @@ namespace TrustSimBackend.Domain.Entities.Trade
     /// </summary>
     public class SimTransfer: AuditableEntity
     {
-        /// <summary>
-        /// Khóa chính của giao dịch (alias cho <see cref="BaseEntity.Id"/>).
-        /// </summary>
-        public Guid SimTransferId {get=> Id; private set =>Id=value;}
 
         /// <summary>
         /// Thời gian bắt đầu chuyển nhượng.

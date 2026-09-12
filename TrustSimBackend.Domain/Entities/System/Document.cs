@@ -7,10 +7,6 @@ namespace TrustSimBackend.Domain.Entities.System
     /// </summary>
     public class Document: FullAuditableEntity
     {
-        /// <summary>
-        /// Khóa chính của tài liệu (alias cho <see cref="BaseEntity.Id"/>)
-        /// </summary>
-        public Guid DocumentId {get=>Id; private set => Id = value;}
 
         /// <summary>
         /// Tên của tài liệu

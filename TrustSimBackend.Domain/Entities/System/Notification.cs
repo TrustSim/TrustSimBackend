@@ -5,7 +5,6 @@ namespace TrustSimBackend.Domain.Entities.System
 {
     public class Notification: FullAuditableEntity
     {
-        public Guid NotificationId{get=>Id; private set =>Id= value;}
 
         public string Title {get;set;}= string.Empty;
 

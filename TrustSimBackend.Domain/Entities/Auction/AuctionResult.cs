@@ -10,10 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Auctions
     /// </summary>
     public class AuctionResult: AuditableEntity
     {
-        /// <summary>
-        /// Khóa chính của kết quả đấu giá (alias cho <see cref="BaseEntity.Id"/>).
-        /// </summary>
-        public Guid AuctionResultId { get => Id; private set => Id = value; }
 
         /// <summary>
         /// ID của phiên đấu giá mà kết quả này thuộc về.
@@ -21,7 +17,7 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         public Guid AuctionId {get;set;}
 
         /// <summary>
-        /// ID của người thắng đấu giá (tham chiếu đến <see cref="AuctionParticipant.AuctionParticipantId"/>).
+        /// ID của người thắng đấu giá (tham chiếu đến <see cref="AuctionParticipant.Id"/>).
         /// </summary>
         public Guid WinnerId {get;set;}
 

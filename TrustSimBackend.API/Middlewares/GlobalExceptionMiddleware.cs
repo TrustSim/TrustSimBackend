@@ -40,6 +40,8 @@ public class GlobalExceptionMiddleware
         // ─── Các Exception Nghiệp vụ eKYC / Identity Verification ──────────────
         [typeof(IdentityAlreadyVerifiedException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
         [typeof(DuplicateIdentityNumberException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
+        [typeof(IdentityNumberMismatchException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(IdentityNameMismatchException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(KycFaceMismatchException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(InvalidIdentityDocumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(KycImageQualityException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)

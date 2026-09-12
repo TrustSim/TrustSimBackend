@@ -11,8 +11,6 @@ namespace TrustSimBackend.Domain.Entities.Financial
     /// </summary>
     public class AuctionTransaction : AuditableEntity
     {
-        /// <summary>Khóa chính của giao dịch đấu giá (alias cho <see cref="BaseEntity.Id"/>).</summary>
-        public Guid AuctionTransactionId { get => Id; private set => Id = value; }
 
         // --- Foreign Key trỏ về Ví ---
         /// <summary>ID của ví tiền (<see cref="Wallet"/>) phát sinh giao dịch.</summary>

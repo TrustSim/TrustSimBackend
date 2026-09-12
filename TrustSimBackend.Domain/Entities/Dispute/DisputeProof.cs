@@ -8,10 +8,6 @@ namespace TrustSimBackend.Domain.Entities.Dispute;
 /// </summary>
 public class DisputeProof : BaseEntity
 {
-    /// <summary>
-    /// Khóa chính
-    /// </summary>
-    public Guid DisputeProofId { get; private set; }
     
     /// <summary>
     /// Link ảnh/video bằng chứng

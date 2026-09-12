@@ -10,8 +10,6 @@ namespace TrustSimBackend.Domain.Entities.Identity;
 /// </summary>
 public class UserProfile : FullAuditableEntity
 {
-    /// <summary>Khóa chính của hồ sơ cá nhân (alias cho <see cref="BaseEntity.Id"/>).</summary>
-    public Guid UserProfileId { get => Id; private set => Id = value; }
 
     // --- Foreign Key ---
     /// <summary>ID của tài khoản đăng nhập liên kết 1-1 với hồ sơ này.</summary>
