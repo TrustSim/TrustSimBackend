@@ -1,5 +1,6 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
+using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
@@ -9,19 +10,27 @@ namespace TrustSimBackend.Application.Features.Auction.Queries;
 public class GetAuctionByIdQueryHandler : IRequestHandler<GetAuctionByIdQuery, AuctionDto>
 {
     private readonly IAuctionRepository _auctionRepository;
+    private readonly ICurrentUserService _currentUserService;
 
-    public GetAuctionByIdQueryHandler(IAuctionRepository auctionRepository)
+    public GetAuctionByIdQueryHandler(
+        IAuctionRepository auctionRepository,
+        ICurrentUserService currentUserService)
     {
         _auctionRepository = auctionRepository;
+        _currentUserService = currentUserService;
     }
 
     public async Task<AuctionDto> Handle(GetAuctionByIdQuery request, CancellationToken cancellationToken)
     {
-        var auction = await _auctionRepository.GetByIdAsync(request.Id, cancellationToken);
+        var auction = await _auctionRepository.GetDetailByIdAsync(request.Id, cancellationToken);
         if (auction == null)
         {
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.Id}'.");
         }
+
+        var isUserRegistered = _currentUserService.IsAuthenticated 
+            && _currentUserService.UserId.HasValue 
+            && auction.Participants.Any(p => p.UserAccountId == _currentUserService.UserId.Value);
 
         return new AuctionDto
         {
@@ -42,7 +51,25 @@ public class GetAuctionByIdQueryHandler : IRequestHandler<GetAuctionByIdQuery, A
             SimPhoneNumber = auction.SimNumber?.PhoneNumber ?? string.Empty,
             CarrierName = auction.SimNumber?.PhonePrefix?.SimCarrier?.CarrierName ?? string.Empty,
             TotalParticipants = auction.Participants.Count,
-            TotalBids = auction.Bids.Count
+            TotalBids = auction.Bids.Count,
+
+            // Thông tin quy chế bổ sung
+            MinBidStep = auction.AuctionRule?.MinimumBidIncrement ?? 500_000,
+            DepositAmount = auction.AuctionRule?.DepositAmount ?? 0,
+            ExtensionDurationSeconds = auction.AuctionRule?.ExtensionDurationSeconds ?? 60f,
+            DutchDecreaseAmount = auction.AuctionRule?.DutchDecreaseAmount ?? 0,
+            DutchDecreaseIntervalSeconds = auction.AuctionRule?.DutchDecreaseIntervalSeconds ?? 0,
+
+            // Thông tin SIM bổ sung
+            FormatRhythmName = auction.SimNumber?.FormatRhythm?.FormatRhythmName,
+            Categories = auction.SimNumber?.SimCategoryMappings?
+                .Select(m => m.SimCategory?.CategoryName)
+                .Where(c => !string.IsNullOrEmpty(c))
+                .Select(c => c!)
+                .ToList() ?? new List<string>(),
+
+            // Trạng thái của người dùng
+            IsUserRegistered = isUserRegistered
         };
     }
 }

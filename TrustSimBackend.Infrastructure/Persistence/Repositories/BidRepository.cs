@@ -38,4 +38,9 @@ public class BidRepository : IBidRepository
     {
         await _context.Bids.AddAsync(bid, cancellationToken);
     }
+
+    public async Task<int> CountByAuctionIdAsync(Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Bids.CountAsync(b => b.AuctionId == auctionId, cancellationToken);
+    }
 }
