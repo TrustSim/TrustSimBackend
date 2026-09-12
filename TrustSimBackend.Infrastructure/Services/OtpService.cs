@@ -115,10 +115,40 @@ public class OtpService : IOtpService
         bool consumeOnSuccess = true)
     {
         var normalizedPhone = NormalizePhoneNumber(phoneNumber);
+        var rawPhone = phoneNumber.Trim().Replace(" ", "");
         var cacheKey = GetOtpCacheKey(normalizedPhone, purpose);
 
+        _logger.LogInformation(
+            "[OtpService] Xác thực OTP cho SĐT '{Phone}' (Normalized: '{Normalized}'), Mã '{Otp}', Mục đích '{Purpose}'",
+            phoneNumber, normalizedPhone, otpCode, purpose);
+
+        // 1. Thử lấy từ cache key chính, nếu không có thì thử các fallback key phòng trường hợp lệch Purpose / Format SĐT
         if (!_cache.TryGetValue<OtpCacheEntry>(cacheKey, out var entry) || entry == null)
         {
+            var fallbackKeys = new[]
+            {
+                GetOtpCacheKey(normalizedPhone, OtpPurpose.Registration),
+                GetOtpCacheKey(normalizedPhone, OtpPurpose.PhoneVerification),
+                GetOtpCacheKey(rawPhone, purpose),
+                GetOtpCacheKey(rawPhone, OtpPurpose.Registration),
+                GetOtpCacheKey(rawPhone, OtpPurpose.PhoneVerification),
+            };
+
+            foreach (var key in fallbackKeys)
+            {
+                if (_cache.TryGetValue<OtpCacheEntry>(key, out var fallbackEntry) && fallbackEntry != null)
+                {
+                    cacheKey = key;
+                    entry = fallbackEntry;
+                    _logger.LogInformation("[OtpService] Tìm thấy OTP qua fallback key: '{Key}'", key);
+                    break;
+                }
+            }
+        }
+
+        if (entry == null)
+        {
+            _logger.LogWarning("[OtpService] Không tìm thấy cache OTP cho SĐT '{Normalized}', Key '{Key}'", normalizedPhone, cacheKey);
             return Task.FromResult(new VerifyOtpResponseDto
             {
                 IsValid = false,
