@@ -14,7 +14,17 @@ public interface IOtpService
     Task<SendOtpResponseDto> GenerateAndSendPhoneOtpAsync(string phoneNumber, OtpPurpose purpose, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Kiểm tra xác thực mã OTP do người dùng nhập vào.
+    /// Kiểm tra xác thực mã OTP do người dùng nhập vào (qua SMS).
     /// </summary>
     Task<VerifyOtpResponseDto> VerifyPhoneOtpAsync(string phoneNumber, string otpCode, OtpPurpose purpose, bool consumeOnSuccess = true);
+
+    /// <summary>
+    /// Sinh mã OTP ngẫu nhiên, băm lưu Cache an toàn và gửi qua Email (MailKit).
+    /// </summary>
+    Task<SendOtpResponseDto> GenerateAndSendEmailOtpAsync(string email, string purpose, int expiryMinutes = 5, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Kiểm tra xác thực mã OTP do người dùng nhập vào (qua Email).
+    /// </summary>
+    Task<VerifyOtpResponseDto> VerifyEmailOtpAsync(string email, string otpCode, string purpose, bool consumeOnSuccess = true);
 }

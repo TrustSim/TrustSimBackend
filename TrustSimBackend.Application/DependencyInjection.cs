@@ -30,6 +30,11 @@ public static class DependencyInjection
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
 
+        // 4. Đăng ký Factory & Strategies cho Auction (Strategy & Factory Patterns)
+        services.AddScoped<Features.Auction.Strategies.IAuctionStrategy, Features.Auction.Strategies.EnglishAuctionStrategy>();
+        services.AddScoped<Features.Auction.Strategies.IAuctionStrategy, Features.Auction.Strategies.DutchAuctionStrategy>();
+        services.AddScoped<Features.Auction.Factory.AuctionFactory>();
+
         return services;
     }
 }

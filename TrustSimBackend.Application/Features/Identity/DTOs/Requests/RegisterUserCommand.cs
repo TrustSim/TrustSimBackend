@@ -12,5 +12,7 @@ public record RegisterUserCommand(
     string Password,
     string FullName,
     string PhoneNumber,
-    string IdentityNumber
+    string IdentityNumber,
+    DateTime? DateOfBirth = null,
+    string? Address = null
 ) : IRequest<AuthResponseDto>;

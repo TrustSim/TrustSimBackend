@@ -59,7 +59,12 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            if (ex is ValidationException || ex is BadRequestException || ex is NotFoundException || ex is UnauthorizedException)
+            if (ex is ValidationException vEx)
+            {
+                var details = string.Join(" | ", vEx.Errors.SelectMany(x => x.Value.Select(err => $"{x.Key}: {err}")));
+                _logger.LogWarning("[GlobalExceptionMiddleware] Lỗi ValidationException chi tiết: {Errors}", details);
+            }
+            else if (ex is BadRequestException || ex is NotFoundException || ex is UnauthorizedException)
             {
                 _logger.LogWarning("[GlobalExceptionMiddleware] Lỗi nghiệp vụ ({Type}): {Message}", ex.GetType().Name, ex.Message);
             }

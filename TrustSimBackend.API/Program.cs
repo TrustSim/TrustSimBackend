@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using TrustSimBackend.API.Hubs;
 using TrustSimBackend.API.Middlewares;
+using TrustSimBackend.API.Services;
 using TrustSimBackend.Application;
+using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Infrastructure;
 using TrustSimBackend.Infrastructure.Persistence;
 
@@ -58,7 +61,7 @@ builder.Services.AddCors(options =>
 });
 
 // ─── 3. Cấu hình JWT Authentication Hỗ trợ Cả Header & HttpOnly Cookie ─────────
-var jwtSecretKey = builder.Configuration["JwtSettings:SecretKey"] 
+var jwtSecretKey = builder.Configuration["JwtSettings:SecretKey"]
     ?? "TrustSimSuperSecretKey2026WithSufficientLengthForHMACSHA256!";
 var jwtIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "TrustSimBackend";
 var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "TrustSimClient";
@@ -84,12 +87,21 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // Cơ chế Hybrid Token Extraction: Ưu tiên Header Authorization -> Fallback sang HttpOnly Cookie
+    // Cơ chế Hybrid Token Extraction: Query param (SignalR) -> Header Authorization -> HttpOnly Cookie
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
-            // 1. Kiểm tra Authorization Header (dành cho Mobile App / Postman / Swagger Authorize Modal)
+            // 1. Kiểm tra access_token trong Query String (dành cho kết nối WebSocket SignalR)
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+
+            // 2. Kiểm tra Authorization Header (dành cho Mobile App / Postman / Swagger Authorize Modal)
             var authHeader = context.Request.Headers.Authorization.FirstOrDefault();
             if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
@@ -97,7 +109,7 @@ builder.Services.AddAuthentication(options =>
                 return Task.CompletedTask;
             }
 
-            // 2. Nếu không có Header, trích xuất từ Cookie 'accessToken'
+            // 3. Nếu không có Header, trích xuất từ Cookie 'accessToken'
             if (context.Request.Cookies.TryGetValue("accessToken", out var cookieToken) && !string.IsNullOrWhiteSpace(cookieToken))
             {
                 context.Token = cookieToken;
@@ -109,6 +121,14 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+
+// ─── 3.1. Cấu hình SignalR Hub & Realtime Services ──────────────────────────────
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddScoped<IAuctionRealtimeNotifier, AuctionRealtimeNotifier>();
 
 // ─── 4. Controllers và Swagger với hỗ trợ JWT Bearer, Cookie & XML Comments ──────
 builder.Services.AddControllers()
@@ -150,6 +170,9 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+
+    // Tránh xung đột SchemaId khi có các DTO cùng tên ở các namespace khác nhau
+    c.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
 
     // Nạp XML Documentation để hiển thị ghi chú mô tả API trên Swagger
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
@@ -196,5 +219,6 @@ app.UseMiddleware<UserContextMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<AuctionHub>("/hubs/auction");
 
 app.Run();

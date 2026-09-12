@@ -5,4 +5,4 @@ using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 
-public record ImportCarriersCommand(IFormFile File) : IRequest<ImportResult<SimCarrierDto>>;
+public record ImportCarriersCommand(IFormFile File) : IRequest<ImportResult<Responses.SimCarrierDto>>;

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Identity.Commands;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 
@@ -20,6 +21,25 @@ public class AuthController : BaseApiController
     {
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Đăng ký tài khoản thành công."));
+    }
+
+    /// <summary>
+    /// Gửi mã OTP xác thực tới địa chỉ Email (dùng trước bước đăng ký để xác minh email tồn tại).
+    /// </summary>
+    [HttpPost("send-email-otp")]
+    [ProducesResponseType(typeof(ApiResponse<SendOtpResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SendEmailOtp([FromBody] SendEmailOtpCommand command, CancellationToken cancellationToken)
+    {
+        var result = await Mediator.Send(command, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            return result.CooldownSeconds > 0
+                ? StatusCode(StatusCodes.Status429TooManyRequests, ApiResponse<SendOtpResponseDto>.FailureResult(result.Message))
+                : BadRequest(ApiResponse<SendOtpResponseDto>.FailureResult(result.Message));
+        }
+        return Ok(ApiResponse<SendOtpResponseDto>.SuccessResult(result, result.Message));
     }
 
     /// <summary>

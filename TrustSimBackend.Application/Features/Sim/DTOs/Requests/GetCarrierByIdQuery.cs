@@ -3,4 +3,4 @@ using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 
-public record GetCarrierByIdQuery(Guid Id) : IRequest<SimCarrierDto>;
+public record GetCarrierByIdQuery(Guid Id) : IRequest<Responses.SimCarrierDto>;

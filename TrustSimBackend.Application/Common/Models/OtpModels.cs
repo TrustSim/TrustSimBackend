@@ -31,10 +31,13 @@ public class VerifyOtpResponseDto
     /// <summary>Thông điệp chi tiết.</summary>
     public string Message { get; set; } = string.Empty;
 
-    /// <summary>Số điện thoại đã xác thực thành công.</summary>
+    /// <summary>Số điện thoại đã xác thực thành công (dùng cho phone OTP).</summary>
     public string PhoneNumber { get; set; } = string.Empty;
 
-    /// <summary>Mục đích xác thực.</summary>
+    /// <summary>Email đã xác thực thành công (dùng cho email OTP).</summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>Mục đích xác thực (phone OTP).</summary>
     public OtpPurpose Purpose { get; set; }
 }
 

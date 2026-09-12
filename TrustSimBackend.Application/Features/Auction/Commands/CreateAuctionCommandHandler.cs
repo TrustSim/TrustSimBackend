@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -12,15 +13,18 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
     private readonly IAuctionRepository _auctionRepository;
     private readonly ISimNumberRepository _simRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuctionRealtimeNotifier _realtimeNotifier;
 
     public CreateAuctionCommandHandler(
         IAuctionRepository auctionRepository,
         ISimNumberRepository simRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IAuctionRealtimeNotifier realtimeNotifier)
     {
         _auctionRepository = auctionRepository;
         _simRepository = simRepository;
         _unitOfWork = unitOfWork;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<AuctionDto> Handle(CreateAuctionCommand request, CancellationToken cancellationToken)
@@ -65,7 +69,7 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         _simRepository.Update(sim);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new AuctionDto
+        var dto = new AuctionDto
         {
             Id = auction.Id,
             AuctionCode = auction.AuctionCode,
@@ -83,5 +87,10 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
             SimPhoneNumber = sim.PhoneNumber,
             CarrierName = sim.PhonePrefix?.SimCarrier?.CarrierName ?? string.Empty
         };
+
+        // Bắn sự kiện realtime tới trang danh sách /auctions
+        await _realtimeNotifier.NotifyNewAuctionCreatedAsync(dto, cancellationToken);
+
+        return dto;
     }
 }

@@ -8,4 +8,4 @@ public record UpdateCategoryCommand(
     string CategoryName = "",
     string? Description = null,
     float ValuationMultiplier = 1.0f
-) : IRequest<SimCategoryDto>;
+) : IRequest<Responses.SimCategoryDto>;

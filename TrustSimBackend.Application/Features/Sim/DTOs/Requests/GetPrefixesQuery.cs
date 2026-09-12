@@ -3,4 +3,4 @@ using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 
 namespace TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 
-public record GetPrefixesQuery(Guid? CarrierId = null) : IRequest<IReadOnlyList<PhonePrefixDto>>;
+public record GetPrefixesQuery(Guid? CarrierId = null) : IRequest<IReadOnlyList<Responses.PhonePrefixDto>>;

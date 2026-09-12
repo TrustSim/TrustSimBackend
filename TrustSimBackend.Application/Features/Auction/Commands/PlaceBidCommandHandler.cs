@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
@@ -13,15 +14,18 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
     private readonly IAuctionRepository _auctionRepository;
     private readonly IBidRepository _bidRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IAuctionRealtimeNotifier _realtimeNotifier;
 
     public PlaceBidCommandHandler(
         IAuctionRepository auctionRepository,
         IBidRepository bidRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IAuctionRealtimeNotifier realtimeNotifier)
     {
         _auctionRepository = auctionRepository;
         _bidRepository = bidRepository;
         _unitOfWork = unitOfWork;
+        _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<BidDto> Handle(PlaceBidCommand request, CancellationToken cancellationToken)
@@ -61,11 +65,29 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
         auction.CurrentPrice = request.BidAmount;
         auction.LockVersion++;
 
+        // Kiểm tra cơ chế Anti-Sniping (gia hạn giờ chót)
+        bool wasExtended = false;
+        int extensionSeconds = 30;
+        if (auction.AuctionRule != null && auction.AuctionRule.ExtensionThresholdSeconds > 0)
+        {
+            var remainingSeconds = (auction.EndAt - DateTime.UtcNow).TotalSeconds;
+            if (remainingSeconds > 0 && remainingSeconds <= auction.AuctionRule.ExtensionThresholdSeconds)
+            {
+                extensionSeconds = (int)(auction.AuctionRule.ExtensionDurationSeconds > 0
+                    ? auction.AuctionRule.ExtensionDurationSeconds
+                    : 30);
+                auction.EndAt = auction.EndAt.AddSeconds(extensionSeconds);
+                wasExtended = true;
+            }
+        }
+
         await _bidRepository.AddAsync(bid, cancellationToken);
         _auctionRepository.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new BidDto
+        var totalBids = await _bidRepository.CountByAuctionIdAsync(auction.Id, cancellationToken);
+
+        var bidDto = new BidDto
         {
             Id = bid.Id,
             AuctionId = bid.AuctionId,
@@ -76,5 +98,26 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
             PlacedAt = bid.PlacedAt,
             Status = bid.Status
         };
+
+        // Bắn sự kiện realtime qua SignalR Hub tới tất cả người xem trong phòng
+        await _realtimeNotifier.NotifyNewBidAsync(
+            auction.Id,
+            bidDto,
+            auction.CurrentPrice,
+            totalBids,
+            cancellationToken
+        );
+
+        if (wasExtended)
+        {
+            await _realtimeNotifier.NotifyAuctionExtendedAsync(
+                auction.Id,
+                auction.EndAt,
+                extensionSeconds,
+                cancellationToken
+            );
+        }
+
+        return bidDto;
     }
 }

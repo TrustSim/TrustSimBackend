@@ -8,4 +8,4 @@ public record UpdateFormatRhythmCommand(
     string FormatRhythmName,
     string Value,
     string Description
-) : IRequest<FormatRhythmDto>;
+) : IRequest<Responses.FormatRhythmDto>;

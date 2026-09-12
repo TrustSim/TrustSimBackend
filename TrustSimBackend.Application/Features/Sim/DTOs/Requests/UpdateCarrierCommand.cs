@@ -7,4 +7,4 @@ public record UpdateCarrierCommand(
     Guid Id = default,
     string CarrierName = "",
     string? LogoImg = null
-) : IRequest<SimCarrierDto>;
+) : IRequest<Responses.SimCarrierDto>;

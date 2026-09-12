@@ -22,4 +22,18 @@ public class AuctionDto
     public string CarrierName { get; set; } = string.Empty;
     public int TotalParticipants { get; set; }
     public int TotalBids { get; set; }
+
+    // Thông tin quy chế bổ sung
+    public decimal MinBidStep { get; set; }
+    public decimal DepositAmount { get; set; }
+    public float ExtensionDurationSeconds { get; set; }
+    public decimal DutchDecreaseAmount { get; set; }
+    public float DutchDecreaseIntervalSeconds { get; set; }
+
+    // Thông tin SIM bổ sung
+    public string? FormatRhythmName { get; set; }
+    public List<string> Categories { get; set; } = new();
+
+    // Trạng thái của người dùng hiện tại
+    public bool IsUserRegistered { get; set; }
 }
