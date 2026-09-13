@@ -44,7 +44,15 @@ public class GlobalExceptionMiddleware
         [typeof(IdentityNameMismatchException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(KycFaceMismatchException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(InvalidIdentityDocumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
-        [typeof(KycImageQualityException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
+        [typeof(KycImageQualityException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+
+        // ─── Các Exception Nghiệp vụ Xác thực Quyền Sở hữu SIM ──────────────────
+        [typeof(UserProfileNotVerifiedException)] = ex => (StatusCodes.Status403Forbidden, ex.Message, null),
+        [typeof(UnsupportedCarrierException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(SimCarrierNotFoundException)] = ex => (StatusCodes.Status404NotFound, ex.Message, null),
+        [typeof(SimAlreadyOwnedException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
+        [typeof(SimOwnershipVerificationFailedException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(OtpVerificationFailedException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
     };
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)

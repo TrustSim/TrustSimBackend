@@ -18,5 +18,8 @@ public enum OtpPurpose
     FinancialTransaction = 4,
 
     /// <summary>Xác thực phê duyệt chuyển nhượng SIM</summary>
-    SimTransferApproval = 5
+    SimTransferApproval = 5,
+
+    /// <summary>Xác thực quyền sở hữu SIM số đẹp</summary>
+    SimOwnershipVerification = 6
 }

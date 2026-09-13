@@ -54,6 +54,8 @@ public static class DependencyInjection
         services.AddScoped<IPhonePrefixRepository, PhonePrefixRepository>();
         services.AddScoped<ISimNumberRepository, SimNumberRepository>();
         services.AddScoped<ISimRepository, SimRepository>();
+        services.AddScoped<ISimOwnershipRepository, SimOwnershipRepository>();
+        services.AddScoped<ISimVerificationRepository, SimVerificationRepository>();
         services.AddScoped<ISimMasterDataRepository, SimMasterDataRepository>();
         services.AddScoped<IAuctionRepository, AuctionRepository>();
         services.AddScoped<IBidRepository, BidRepository>();
@@ -67,6 +69,7 @@ public static class DependencyInjection
 
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();
+        services.AddScoped<ITelcoVerificationService, MockTelcoVerificationService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
