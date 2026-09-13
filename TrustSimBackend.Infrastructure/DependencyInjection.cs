@@ -2,10 +2,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Domain.Repositories;
 using TrustSimBackend.Infrastructure.Persistence;
 using TrustSimBackend.Infrastructure.Persistence.Repositories;
 using TrustSimBackend.Infrastructure.Services;
+using TrustSimBackend.Infrastructure.Services.Ai;
 
 namespace TrustSimBackend.Infrastructure;
 
@@ -23,6 +25,7 @@ public static class DependencyInjection
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
         services.Configure<SpeedSmsSettings>(configuration.GetSection(SpeedSmsSettings.SectionName));
         services.Configure<AwsRekognitionSettings>(configuration.GetSection(AwsRekognitionSettings.SectionName));
+        services.Configure<NvidiaSettings>(configuration.GetSection(NvidiaSettings.SectionName));
 
         // ─── 2. DbContext ─────────────────────────────────────────────────────────
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
@@ -32,6 +35,9 @@ public static class DependencyInjection
                 configuration.GetConnectionString("DefaultConnection"),
                 npgsql =>
                 {
+                    // Kích hoạt hỗ trợ pgvector trên PostgreSQL
+                    npgsql.UseVector();
+
                     // Cho phép EF Core retry tự động khi Neon compute cold-start (~300ms)
                     npgsql.EnableRetryOnFailure(
                         maxRetryCount: 3,
@@ -67,6 +73,11 @@ public static class DependencyInjection
         services.AddScoped<IFormatRhythmRepository, FormatRhythmRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
+        // AI & RAG Repositories
+        services.AddScoped<IDocumentChunkRepository, DocumentChunkRepository>();
+        services.AddScoped<ISimValuationRepository, SimValuationRepository>();
+        services.AddScoped<IAiConsultationSessionRepository, AiConsultationSessionRepository>();
+
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();
         services.AddScoped<ITelcoVerificationService, MockTelcoVerificationService>();
@@ -92,6 +103,16 @@ public static class DependencyInjection
         services.AddScoped<IAwsRekognitionService, AwsRekognitionService>();
         services.AddScoped<ICloudStorageService, CloudStorageService>();
         services.AddScoped<IPkiKeyService, PkiKeyService>();
+
+        // ─── 10. AI & RAG Pipeline Services (NVIDIA NIM) ─────────────
+        services.AddScoped<ISimFeatureExtractor, SimFeatureExtractor>();
+        services.AddScoped<ISimValuationMathEngine, SimValuationMathEngine>();
+        services.AddScoped<ITextChunkerService, TextChunkerService>();
+        services.AddHttpClient<IWebCrawlerService, WebCrawlerService>();
+        services.AddHttpClient<INvidiaEmbeddingService, NvidiaEmbeddingService>();
+        services.AddHttpClient<INvidiaLlmService, NvidiaLlmService>();
+        services.AddScoped<IRagRetrievalService, RagRetrievalService>();
+        services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();
 
         return services;
     }

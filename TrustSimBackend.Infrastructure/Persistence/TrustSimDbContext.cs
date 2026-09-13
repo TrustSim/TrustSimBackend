@@ -71,9 +71,19 @@ public class TrustSimDbContext : DbContext, IUnitOfWork
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     #endregion
 
+    #region AI & RAG DbSets
+    public DbSet<TrustSimBackend.Domain.Entities.Ai.DocumentChunk> DocumentChunks => Set<TrustSimBackend.Domain.Entities.Ai.DocumentChunk>();
+    public DbSet<TrustSimBackend.Domain.Entities.Ai.SimValuation> SimValuations => Set<TrustSimBackend.Domain.Entities.Ai.SimValuation>();
+    public DbSet<TrustSimBackend.Domain.Entities.Ai.AiConsultationSession> AiConsultationSessions => Set<TrustSimBackend.Domain.Entities.Ai.AiConsultationSession>();
+    public DbSet<TrustSimBackend.Domain.Entities.Ai.AiConsultationMessage> AiConsultationMessages => Set<TrustSimBackend.Domain.Entities.Ai.AiConsultationMessage>();
+    #endregion
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Kích hoạt extension pgvector trên PostgreSQL
+        modelBuilder.HasPostgresExtension("vector");
 
         // Tự động quét và áp dụng tất cả các file cấu hình Fluent API (IEntityTypeConfiguration) nằm trong Assembly này.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TrustSimDbContext).Assembly);

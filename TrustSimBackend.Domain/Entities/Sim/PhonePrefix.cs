@@ -12,6 +12,11 @@ public class PhonePrefix : FullAuditableEntity
     /// <summary>Giá trị chuỗi đầu số điện thoại (VD: "090", "0356", "058").</summary>
     public string PrefixValue { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Điểm uy tín và độ cổ của đầu số (VD: 098 Viettel = 1.5, 090 Mobi = 1.4, 091 Vina = 1.35, đầu số mới = 1.0).
+    /// </summary>
+    public float PrefixReputationScore { get; set; } = 1.0f;
+
     // --- Foreign Key ---
     /// <summary>ID của nhà mạng sở hữu đầu số này.</summary>
     public Guid SimCarrierId { get; set; }

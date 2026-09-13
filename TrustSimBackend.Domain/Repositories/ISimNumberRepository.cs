@@ -21,6 +21,7 @@ public interface ISimNumberRepository
         int pageSize,
         CancellationToken cancellationToken = default);
     Task<Guid> GetOrCreateDefaultFormatRhythmIdAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SimNumber>> GetAvailableSimsForConsultationAsync(decimal? minPrice, decimal? maxPrice, int limit = 6, CancellationToken cancellationToken = default);
     Task AddAsync(SimNumber simNumber, CancellationToken cancellationToken = default);
     void Update(SimNumber simNumber);
 }

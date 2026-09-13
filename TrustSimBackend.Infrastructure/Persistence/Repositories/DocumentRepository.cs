@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.System;
+using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
@@ -22,6 +23,21 @@ public class DocumentRepository : IDocumentRepository
     public async Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Documents.FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted, cancellationToken);
+    }
+
+    public async Task<Document?> GetByIdWithChunksAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Documents
+            .Include(d => d.Chunks.OrderBy(c => c.ChunkIndex))
+            .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Document>> GetByStatusAsync(DocumentStatus status, CancellationToken cancellationToken = default)
+    {
+        return await _context.Documents
+            .Where(d => d.Status == status && !d.IsDeleted)
+            .OrderByDescending(d => d.CreatedDate)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddAsync(Document document, CancellationToken cancellationToken = default)
