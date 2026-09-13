@@ -11,6 +11,7 @@ public class SimListItemDto
     public string PhoneNumber { get; set; } = string.Empty;
     public SimStatus SimStatus { get; set; }
     public string SimStatusName => SimStatus.ToString();
+    public decimal Price { get; set; } = 0m;
 
     // Nhà mạng & Đầu số
     public string CarrierName { get; set; } = string.Empty;
@@ -19,7 +20,8 @@ public class SimListItemDto
     public string PrefixValue { get; set; } = string.Empty;
 
     // Nhịp định dạng
-    public string FormatRhythmName { get; set; } = string.Empty;
+    public Guid? FormatRhythmId { get; set; }
+    public string? FormatRhythmName { get; set; }
 
     // Danh mục
     public List<string> CategoryNames { get; set; } = new();
@@ -45,6 +47,7 @@ public class SimDetailDto
     public string PhoneNumber { get; set; } = string.Empty;
     public SimStatus SimStatus { get; set; }
     public string SimStatusName => SimStatus.ToString();
+    public decimal Price { get; set; } = 0m;
 
     // Chi tiết Nhà mạng & Đầu số
     public Guid PhonePrefixId { get; set; }
@@ -55,9 +58,9 @@ public class SimDetailDto
     public string CarrierLogo { get; set; } = string.Empty;
 
     // Chi tiết Nhịp định dạng
-    public Guid FormatRhythmId { get; set; }
-    public string FormatRhythmName { get; set; } = string.Empty;
-    public string FormatRhythmValue { get; set; } = string.Empty;
+    public Guid? FormatRhythmId { get; set; }
+    public string? FormatRhythmName { get; set; }
+    public string? FormatRhythmValue { get; set; }
 
     // Chi tiết Danh mục & Hệ số định giá
     public List<SimCategoryDto> Categories { get; set; } = new();

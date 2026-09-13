@@ -2,14 +2,66 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Sim.Commands.OwnershipVerification;
 using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
+using TrustSimBackend.Application.Features.Sim.Queries.GetMySimOwnerships;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
 public class SimsController : BaseApiController
 {
+    /// <summary>
+    /// [API 1: Proof of Possession] Gửi mã xác thực OTP qua SMS tới số SIM người dùng muốn xác thực quyền sở hữu.
+    /// Yêu cầu: Tài khoản phải hoàn thành KYC (UserProfile.VerificationStatus == VERIFIED).
+    /// </summary>
+    [HttpPost("ownership-verification/send-otp")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<SendOtpResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> SendOwnershipOtp(
+        [FromBody] SendSimVerificationOtpRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new SendSimVerificationOtpCommand(request.PhoneNumber, CurrentUserId);
+        var result = await Mediator.Send(command, cancellationToken);
+        return Ok(ApiResponse<SendOtpResponseDto>.SuccessResult(result, result.Message));
+    }
+
+    /// <summary>
+    /// [API 2: Proof of Legal Ownership] Xác thực mã OTP SMS và thực hiện đối soát quyền sở hữu chính chủ với Cổng viễn thông Nhà mạng (Giả lập delay).
+    /// Cập nhật tự động sim_numbers (AVAILABLE, Price=0, FormatRhythmId=null), sim_ownerships (ACTIVE) và sim_verifications (VERIFIED).
+    /// </summary>
+    [HttpPost("ownership-verification/verify")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<SimOwnershipVerificationResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> VerifySimOwnership(
+        [FromBody] VerifySimOwnershipRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new VerifySimOwnershipCommand(request.PhoneNumber, request.OtpCode, CurrentUserId);
+        var result = await Mediator.Send(command, cancellationToken);
+        return Ok(ApiResponse<SimOwnershipVerificationResultDto>.SuccessResult(result, result.Message));
+    }
+
+    /// <summary>
+    /// Lấy danh sách các số SIM đang thuộc quyền sở hữu của người dùng hiện tại kèm trạng thái xác minh.
+    /// </summary>
+    [HttpGet("my-ownerships")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SimOwnershipDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyOwnerships(CancellationToken cancellationToken)
+    {
+        var query = new GetMySimOwnershipsQuery(CurrentUserId);
+        var result = await Mediator.Send(query, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<SimOwnershipDto>>.SuccessResult(result, "Lấy danh sách SIM sở hữu thành công."));
+    }
     /// <summary>
     /// Tìm kiếm và lọc danh sách SIM số đẹp (phân trang, lọc theo nhà mạng, thể loại, đầu số, từ khóa)
     /// </summary>

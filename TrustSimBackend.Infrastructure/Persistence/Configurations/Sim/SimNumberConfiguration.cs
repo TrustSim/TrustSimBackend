@@ -17,6 +17,13 @@ public class SimNumberConfiguration : IEntityTypeConfiguration<SimNumber>
                .HasConversion<string>()
                .HasMaxLength(30);
 
+        builder.Property(x => x.Price)
+               .HasPrecision(18, 2)
+               .HasDefaultValue(0m);
+
+        builder.Property(x => x.FormatRhythmId)
+               .IsRequired(false);
+
         builder.HasOne(x => x.PhonePrefix)
                .WithMany(p => p.SimNumbers)
                .HasForeignKey(x => x.PhonePrefixId)
@@ -25,6 +32,7 @@ public class SimNumberConfiguration : IEntityTypeConfiguration<SimNumber>
         builder.HasOne(x => x.FormatRhythm)
                .WithMany(f => f.SimNumbers)
                .HasForeignKey(x => x.FormatRhythmId)
+               .IsRequired(false)
                .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.PhoneNumber).IsUnique();

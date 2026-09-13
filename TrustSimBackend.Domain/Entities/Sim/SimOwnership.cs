@@ -12,8 +12,8 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 public class SimOwnership : AuditableEntity
 {
 
-    /// <summary>Trạng thái của quyền sở hữu: ACTIVE (đang sở hữu), ENDED (đã chuyển nhượng), DISPUTED, REVOKED.</summary>
-    public OwnershipStatus OwnershipStatus { get; set; } = OwnershipStatus.ACTIVE;
+    /// <summary>Trạng thái của quyền sở hữu: UNVERIFIED (chưa xác minh), ACTIVE (đang sở hữu), ENDED (đã chuyển nhượng), DISPUTED, REVOKED.</summary>
+    public OwnershipStatus OwnershipStatus { get; set; } = OwnershipStatus.UNVERIFIED;
 
     /// <summary>Hình thức nhận quyền sở hữu: INITIAL_VERIFICATION (xác minh chính chủ lần đầu), AUCTION_TRANSFER (trúng đấu giá), ADMIN_ASSIGNMENT.</summary>
     public AcquistionType AcquistionType { get; set; } = AcquistionType.INITIAL_VERIFICATION;

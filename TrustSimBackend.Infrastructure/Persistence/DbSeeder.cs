@@ -126,25 +126,71 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedPhonePrefixesAsync(TrustSimDbContext context)
     {
-        if (await context.PhonePrefixes.AnyAsync()) return;
-
         var vttId = Guid.Parse("c1000000-0000-0000-0000-000000000001");
         var vnpId = Guid.Parse("c1000000-0000-0000-0000-000000000002");
         var mbfId = Guid.Parse("c1000000-0000-0000-0000-000000000003");
+        var vnmId = Guid.Parse("c1000000-0000-0000-0000-000000000004");
+        var rddId = Guid.Parse("c1000000-0000-0000-0000-000000000005");
+        var ictId = Guid.Parse("c1000000-0000-0000-0000-000000000006");
 
         var prefixes = new List<PhonePrefix>
         {
+            // ─── Viettel Telecom (VTT) ──────────────────────────
             new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000001"), PrefixValue = "098", SimCarrierId = vttId },
             new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000002"), PrefixValue = "097", SimCarrierId = vttId },
             new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000003"), PrefixValue = "086", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000008"), PrefixValue = "096", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000009"), PrefixValue = "032", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000010"), PrefixValue = "033", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000011"), PrefixValue = "034", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000012"), PrefixValue = "035", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000013"), PrefixValue = "036", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000014"), PrefixValue = "037", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000015"), PrefixValue = "038", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000016"), PrefixValue = "039", SimCarrierId = vttId },
+
+            // ─── VinaPhone (VNP) ────────────────────────────────
             new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000004"), PrefixValue = "091", SimCarrierId = vnpId },
             new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000005"), PrefixValue = "088", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000017"), PrefixValue = "094", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000018"), PrefixValue = "081", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000019"), PrefixValue = "082", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000020"), PrefixValue = "083", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000021"), PrefixValue = "084", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000022"), PrefixValue = "085", SimCarrierId = vnpId },
+
+            // ─── MobiFone (MBF) ─────────────────────────────────
             new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000006"), PrefixValue = "090", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000007"), PrefixValue = "079", SimCarrierId = mbfId }
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000007"), PrefixValue = "079", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000023"), PrefixValue = "093", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000024"), PrefixValue = "089", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000025"), PrefixValue = "070", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000026"), PrefixValue = "076", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000027"), PrefixValue = "077", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000028"), PrefixValue = "078", SimCarrierId = mbfId },
+
+            // ─── Vietnamobile (VNM) ─────────────────────────────
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000029"), PrefixValue = "092", SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000030"), PrefixValue = "052", SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000031"), PrefixValue = "054", SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000032"), PrefixValue = "056", SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000033"), PrefixValue = "058", SimCarrierId = vnmId },
+
+            // ─── Wintel - Reddi (RDD) ───────────────────────────
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000034"), PrefixValue = "055", SimCarrierId = rddId },
+
+            // ─── ITelecom (ICT) ─────────────────────────────────
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000035"), PrefixValue = "087", SimCarrierId = ictId }
         };
 
-        await context.PhonePrefixes.AddRangeAsync(prefixes);
-        await context.SaveChangesAsync();
+        var existingPrefixValues = await context.PhonePrefixes.Select(p => p.PrefixValue).ToListAsync();
+        var newPrefixes = prefixes.Where(p => !existingPrefixValues.Contains(p.PrefixValue)).ToList();
+
+        if (newPrefixes.Any())
+        {
+            await context.PhonePrefixes.AddRangeAsync(newPrefixes);
+            await context.SaveChangesAsync();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -329,11 +375,11 @@ public static class DbSeeder
         var sims = new List<SimNumber>
         {
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000001"), PhoneNumber = "0988888888", SimStatus = SimStatus.IN_AUCTION, PhonePrefixId = pr098, FormatRhythmId = fBatQuy },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000002"), PhoneNumber = "0909999999", SimStatus = SimStatus.TRANFERING, PhonePrefixId = pr090, FormatRhythmId = fTuQuy },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000002"), PhoneNumber = "0909999999", SimStatus = SimStatus.TRANSFERRED, PhonePrefixId = pr090, FormatRhythmId = fTuQuy },
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000003"), PhoneNumber = "0912345678", SimStatus = SimStatus.IN_AUCTION, PhonePrefixId = pr091, FormatRhythmId = fSanhTien },
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000004"), PhoneNumber = "0888686868", SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr088, FormatRhythmId = fLocPhat },
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), PhoneNumber = "0797979799", SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr079, FormatRhythmId = fThanTai },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), PhoneNumber = "0966668888", SimStatus = SimStatus.TRANFERED,  PhonePrefixId = pr097, FormatRhythmId = fTuQuy },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), PhoneNumber = "0966668888", SimStatus = SimStatus.TRANSFERRED,  PhonePrefixId = pr097, FormatRhythmId = fTuQuy },
         };
         await context.SimNumbers.AddRangeAsync(sims);
 
