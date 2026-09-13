@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TrustSimBackend.Domain.Entities.Ai;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Identity;
@@ -10,7 +11,7 @@ using TrustSimBackend.Domain.Enums;
 namespace TrustSimBackend.Infrastructure.Persistence;
 
 /// <summary>
-/// Nạp dữ liệu ban đầu (Master Data & Test Scenarios) vào Database khi ứng dụng khởi động.
+/// Nạp dữ liệu ban đầu (Master Data, AI SIM Valuation RAG Knowledge & Test Scenarios) vào Database khi ứng dụng khởi động.
 /// Tuân thủ quy chuẩn cây phụ thuộc (Level 0 -> Level 6) và đảm bảo Idempotent (chạy lại không lỗi).
 /// Tất cả GUID sử dụng chuỗi Hexadecimal chuẩn [0-9a-f].
 /// </summary>
@@ -33,16 +34,19 @@ public static class DbSeeder
         // 4. Level 2 & 3: Kho SIM số đẹp, Phân loại danh mục & Quyền sở hữu ban đầu
         await SeedSimsAndOwnershipsAsync(context);
 
-        // 5. Level 4 & 5: Các phiên đấu giá (English, Dutch, End), Quy tắc, Người tham gia, Bids & Gian lận
+        // 5. Level 3 & 4: Tri thức RAG nghiên cứu thị trường & Lịch sử Định giá AI
+        await SeedAiValuationAndRagDocumentsAsync(context);
+
+        // 6. Level 4 & 5: Các phiên đấu giá (English, Dutch, End), Quy tắc, Người tham gia, Bids & Gian lận
         await SeedAuctionsAndBidsAsync(context);
 
-        // 6. Level 4 -> 6: Giao dịch chuyển nhượng, Hợp đồng số, Ký quỹ Escrow, Chữ ký số & Bằng chứng
+        // 7. Level 4 -> 6: Giao dịch chuyển nhượng, Hợp đồng số, Ký quỹ Escrow, Chữ ký số & Bằng chứng
         await SeedTradeAndContractsAsync(context);
 
-        // 7. Level 6: Thông báo người dùng & Nhật ký kiểm toán hệ thống
+        // 8. Level 6: Thông báo người dùng & Nhật ký kiểm toán hệ thống
         await SeedNotificationsAndAuditLogsAsync(context);
 
-        Console.WriteLine("[DbSeeder] ✅ Toàn bộ Seed Data đa kịch bản đã được nạp thành công.");
+        Console.WriteLine("[DbSeeder] ✅ Toàn bộ Seed Data đa kịch bản và AI SIM Valuation đã được nạp thành công.");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -50,48 +54,86 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedMasterCatalogAsync(TrustSimDbContext context)
     {
-        // FormatRhythms (f1000000-...)
-        if (!await context.FormatRhythms.AnyAsync())
+        // 1. FormatRhythms (f1000000-...)
+        var rhythms = new List<FormatRhythm>
         {
-            var rhythms = new List<FormatRhythm>
-            {
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000001"), FormatRhythmName = "Bát quý",    Value = "AAAAAAAA", Description = "8 chữ số giống nhau liên tiếp. VD: 0988 888888" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000002"), FormatRhythmName = "Lục quý",    Value = "AAAAAA",   Description = "6 chữ số giống nhau liên tiếp. VD: 090 999999" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000003"), FormatRhythmName = "Ngũ quý",    Value = "AAAAA",    Description = "5 chữ số giống nhau liên tiếp. VD: 0988 88888" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000004"), FormatRhythmName = "Tứ quý",     Value = "AAAA",     Description = "4 chữ số giống nhau cuối số. VD: 0909 9999" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000005"), FormatRhythmName = "Sảnh tiến",  Value = "ABCDE",    Description = "Chuỗi chữ số tăng dần liên tiếp. VD: 091 2345678" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000006"), FormatRhythmName = "Sảnh lùi",   Value = "EDCBA",    Description = "Chuỗi chữ số giảm dần liên tiếp. VD: 090 9876543" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000007"), FormatRhythmName = "Lặp đôi",    Value = "ABABAB",   Description = "Hai chữ số xen kẽ luân phiên. VD: 0909 090909" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000008"), FormatRhythmName = "Gánh đảo",   Value = "ABBA",     Description = "4 số đối xứng. VD: 0909 1221" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000009"), FormatRhythmName = "Lộc phát",   Value = "68",       Description = "Chứa cặp số 68 hoặc 86 liên quan đến tài lộc" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000010"), FormatRhythmName = "Thần tài",   Value = "79",       Description = "Chứa chuỗi số 79 - biểu tượng may mắn" },
-                new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000011"), FormatRhythmName = "Thường",     Value = "NORMAL",   Description = "Số thông thường không thuộc các nhịp đặc biệt" }
-            };
-            await context.FormatRhythms.AddRangeAsync(rhythms);
-            await context.SaveChangesAsync();
-        }
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000001"), FormatRhythmName = "Bát quý",      Value = "AAAAAAAA",    BasePriceFactor = 1000.0f, Description = "8 chữ số giống nhau liên tiếp. VD: 0988 888888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000002"), FormatRhythmName = "Lục quý",      Value = "AAAAAA",      BasePriceFactor = 500.0f,  Description = "6 chữ số giống nhau liên tiếp. VD: 090 999999" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000003"), FormatRhythmName = "Ngũ quý",      Value = "AAAAA",       BasePriceFactor = 150.0f,  Description = "5 chữ số giống nhau liên tiếp. VD: 0988 88888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000004"), FormatRhythmName = "Tứ quý",       Value = "AAAA",        BasePriceFactor = 50.0f,   Description = "4 chữ số giống nhau cuối số. VD: 0909 9999" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000005"), FormatRhythmName = "Sảnh tiến 5",  Value = "ABCDE",       BasePriceFactor = 35.0f,   Description = "Chuỗi 5 chữ số tăng dần liên tiếp. VD: 091 23456" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000006"), FormatRhythmName = "Sảnh lùi",     Value = "EDCBA",       BasePriceFactor = 5.0f,    Description = "Chuỗi chữ số giảm dần liên tiếp. VD: 090 9876543" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000007"), FormatRhythmName = "Lặp đôi",      Value = "ABABAB",      BasePriceFactor = 3.0f,    Description = "Hai chữ số xen kẽ luân phiên. VD: 0909 090909" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000008"), FormatRhythmName = "Gánh đảo",     Value = "ABBA",        BasePriceFactor = 2.0f,    Description = "4 số đối xứng. VD: 0909 1221" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000009"), FormatRhythmName = "Lộc phát",     Value = "68",          BasePriceFactor = 2.5f,    Description = "Chứa cặp số 68 hoặc 86 liên quan đến tài lộc" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000010"), FormatRhythmName = "Thần tài",     Value = "79",          BasePriceFactor = 2.2f,    Description = "Chứa chuỗi số 79 - biểu tượng may mắn" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000011"), FormatRhythmName = "Thường",       Value = "NORMAL",      BasePriceFactor = 1.0f,    Description = "Số thông thường không thuộc các nhịp đặc biệt" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000012"), FormatRhythmName = "Sảnh tiến 6",  Value = "SANH_TIEN_6", BasePriceFactor = 80.0f,   Description = "Chuỗi 6 chữ số tăng liên tiếp rồng cuốn. VD: 091 456789" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000013"), FormatRhythmName = "Taxi 3 Cặp",    Value = "TAXI_3_CAP",  BasePriceFactor = 28.0f,   Description = "Dạng lặp taxi 3 cặp số. VD: 0908 686868 hoặc 898989" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000014"), FormatRhythmName = "Tam hoa kép",  Value = "TAM_HOA_KEP", BasePriceFactor = 18.0f,   Description = "Hai bộ tam hoa liên tiếp. VD: 0988 666888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000015"), FormatRhythmName = "Taxi 2 Cặp",    Value = "TAXI_2_CAP",  BasePriceFactor = 12.0f,   Description = "Dạng taxi ABC.ABC hoặc AB.AB. VD: 090 789789" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000016"), FormatRhythmName = "Tam hoa",      Value = "TAM_HOA",     BasePriceFactor = 5.0f,    Description = "3 chữ số đuôi giống nhau. VD: 0909 888" }
+        };
 
-        // SimCategories (ca000000-...)
-        if (!await context.SimCategories.AnyAsync())
+        foreach (var r in rhythms)
         {
-            var categories = new List<SimCategory>
+            var existing = await context.FormatRhythms.FirstOrDefaultAsync(x => x.Id == r.Id || x.Value == r.Value);
+            if (existing == null)
             {
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000001"), CategoryCode = "BAT_QUY",    CategoryName = "SIM Bát quý",   Description = "Đẳng cấp siêu VIP 8 số trùng lặp", ValuationMultiplier = 15.0f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000002"), CategoryCode = "LUC_QUY",    CategoryName = "SIM Lục quý",   Description = "6 chữ số giống nhau liên tiếp", ValuationMultiplier = 10.0f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000003"), CategoryCode = "NGU_QUY",    CategoryName = "SIM Ngũ quý",   Description = "5 chữ số giống nhau liên tiếp", ValuationMultiplier = 6.0f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000004"), CategoryCode = "TU_QUY",     CategoryName = "SIM Tứ quý",    Description = "4 chữ số giống nhau đuôi số", ValuationMultiplier = 3.5f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000005"), CategoryCode = "SANH_TIEN",  CategoryName = "SIM Sảnh tiến", Description = "Chuỗi số tiến đều mang ý nghĩa thăng tiến", ValuationMultiplier = 2.5f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000006"), CategoryCode = "THAN_TAI",   CategoryName = "SIM Thần tài",  Description = "Số đuôi 79, 97 mang lại may mắn", ValuationMultiplier = 2.2f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000007"), CategoryCode = "LOC_PHAT",   CategoryName = "SIM Lộc phát",  Description = "Chứa số 68, 86 phát tài phát lộc", ValuationMultiplier = 2.0f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000008"), CategoryCode = "LAP_DOI",    CategoryName = "SIM Lặp đôi",   Description = "Hai cặp số lặp lại nhịp nhàng", ValuationMultiplier = 2.0f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000009"), CategoryCode = "PHONG_THUY", CategoryName = "SIM Phong thủy",Description = "Chứa nhiều chữ số hợp mệnh 8, 6, 9", ValuationMultiplier = 1.8f },
-                new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000010"), CategoryCode = "SIM_THUONG", CategoryName = "SIM Phổ thông", Description = "Số điện thoại thông thường", ValuationMultiplier = 1.0f }
-            };
-            await context.SimCategories.AddRangeAsync(categories);
-            await context.SaveChangesAsync();
+                await context.FormatRhythms.AddAsync(r);
+            }
+            else
+            {
+                existing.FormatRhythmName = r.FormatRhythmName;
+                existing.BasePriceFactor = r.BasePriceFactor;
+                existing.Description = r.Description;
+            }
         }
+        await context.SaveChangesAsync();
 
-        // SimCarriers (c1000000-...)
+        // 2. SimCategories (ca000000-...)
+        var categories = new List<SimCategory>
+        {
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000001"), CategoryCode = "BAT_QUY",        CategoryName = "SIM Bát quý",                   Description = "Đẳng cấp siêu VIP 8 số trùng lặp", ValuationMultiplier = 20.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000002"), CategoryCode = "LUC_QUY",        CategoryName = "SIM Lục quý",                   Description = "6 chữ số giống nhau liên tiếp", ValuationMultiplier = 12.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000003"), CategoryCode = "NGU_QUY",        CategoryName = "SIM Ngũ quý",                   Description = "5 chữ số giống nhau liên tiếp", ValuationMultiplier = 7.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000004"), CategoryCode = "TU_QUY",         CategoryName = "SIM Tứ quý",                    Description = "4 chữ số giống nhau đuôi số", ValuationMultiplier = 4.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000005"), CategoryCode = "SANH_TIEN",      CategoryName = "SIM Sảnh tiến",                 Description = "Chuỗi số tiến đều mang ý nghĩa thăng tiến", ValuationMultiplier = 3.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000006"), CategoryCode = "THAN_TAI",       CategoryName = "SIM Thần tài",                  Description = "Số đuôi 79, 39 mang lại may mắn", ValuationMultiplier = 2.2f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000007"), CategoryCode = "LOC_PHAT",       CategoryName = "SIM Lộc phát",                  Description = "Chứa số 68, 86 phát tài phát lộc", ValuationMultiplier = 2.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000008"), CategoryCode = "LAP_DOI",        CategoryName = "SIM Lặp đôi",                   Description = "Hai cặp số lặp lại nhịp nhàng", ValuationMultiplier = 2.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000009"), CategoryCode = "PHONG_THUY",     CategoryName = "SIM Phong thủy",                Description = "Chứa nhiều chữ số hợp mệnh ngũ hành", ValuationMultiplier = 1.8f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000010"), CategoryCode = "SIM_THUONG",     CategoryName = "SIM Phổ thông",                 Description = "Số điện thoại thông thường", ValuationMultiplier = 1.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000011"), CategoryCode = "LOC_PHAT_KEP",   CategoryName = "SIM Lộc phát kép (6868)",       Description = "Đại lộc phát tài, nhân đôi vượng khí thương trường", ValuationMultiplier = 3.5f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000012"), CategoryCode = "CAT_TUONG_1368", CategoryName = "SIM Sinh tài lộc phát (1368)", Description = "Cát tường đỉnh cao: Sinh tài lộc phát trọn vẹn bốn mùa", ValuationMultiplier = 3.2f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000013"), CategoryCode = "THAN_TAI_KEP",   CategoryName = "SIM Thần tài kép (3979)",       Description = "Thần tài lớn nhỏ tương hỗ, công danh rực rỡ", ValuationMultiplier = 3.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000014"), CategoryCode = "THAN_TAI_LON",   CategoryName = "SIM Thần tài lớn (79)",         Description = "Đuôi 79 phù trợ kinh doanh buôn bán đại thắng", ValuationMultiplier = 2.2f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000015"), CategoryCode = "THAN_TAI_NHO",   CategoryName = "SIM Thần tài nhỏ (39)",         Description = "Đuôi 39 hanh thông may mắn tài lộc", ValuationMultiplier = 1.8f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000016"), CategoryCode = "ONG_DIA_KEP",   CategoryName = "SIM Ông Địa kép (3878)",        Description = "Vượng khí đất đai, đắc lợi cho giới bất động sản", ValuationMultiplier = 2.2f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000017"), CategoryCode = "ONG_DIA",       CategoryName = "SIM Ông Địa (38/78)",           Description = "Đuôi 38 hoặc 78 bảo hộ gia đạo và điền trạch", ValuationMultiplier = 1.6f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000018"), CategoryCode = "SIM_NAM_SINH",   CategoryName = "SIM Năm sinh",                  Description = "Dãy số mang mốc năm sinh thể hiện bản sắc cá nhân", ValuationMultiplier = 1.7f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000019"), CategoryCode = "KHONG_THAT_BAT", CategoryName = "SIM Không 4-7 (Sạch số)",      Description = "Số sạch hoàn toàn không dính 4 và 7, vượng khí thuần khiết", ValuationMultiplier = 1.35f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000020"), CategoryCode = "TAM_HOA",        CategoryName = "SIM Tam hoa",                   Description = "Bộ ba số giống nhau vững chãi như kiềng ba chân", ValuationMultiplier = 1.8f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000021"), CategoryCode = "GANH_DAO",       CategoryName = "SIM Gánh đảo",                  Description = "Cấu trúc gánh đối xứng cân bằng âm dương", ValuationMultiplier = 1.4f }
+        };
+
+        foreach (var c in categories)
+        {
+            var existing = await context.SimCategories.FirstOrDefaultAsync(x => x.Id == c.Id || x.CategoryCode == c.CategoryCode);
+            if (existing == null)
+            {
+                await context.SimCategories.AddAsync(c);
+            }
+            else
+            {
+                existing.CategoryName = c.CategoryName;
+                existing.ValuationMultiplier = c.ValuationMultiplier;
+                existing.Description = c.Description;
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // 3. SimCarriers (c1000000-...)
         if (!await context.SimCarriers.AnyAsync())
         {
             var carriers = new List<SimCarrier>
@@ -107,18 +149,22 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
-        // Documents (d1000000-...)
-        if (!await context.Documents.AnyAsync())
+        // 4. Documents Pháp lý Cơ bản (d1000000-...)
+        var legalDocs = new List<Document>
         {
-            var docs = new List<Document>
+            new() { Id = Guid.Parse("d1000000-0000-0000-0000-000000000001"), DocumentName = "Quy chế Đấu giá Trực tuyến TrustSim", LinkUrl = "https://trustsim.vn/legal/auction-regulation-2026.pdf", DocumentType = DocumentType.GENERAL, Status = DocumentStatus.INDEXED },
+            new() { Id = Guid.Parse("d1000000-0000-0000-0000-000000000002"), DocumentName = "Điều khoản Dịch vụ Ký quỹ Escrow", LinkUrl = "https://trustsim.vn/legal/escrow-terms.pdf", DocumentType = DocumentType.GENERAL, Status = DocumentStatus.INDEXED },
+            new() { Id = Guid.Parse("d1000000-0000-0000-0000-000000000003"), DocumentName = "Chính sách Xác thực eKYC & Ký số PKI", LinkUrl = "https://trustsim.vn/legal/ekyc-pki-policy.pdf", DocumentType = DocumentType.GENERAL, Status = DocumentStatus.INDEXED }
+        };
+
+        foreach (var doc in legalDocs)
+        {
+            if (!await context.Documents.AnyAsync(d => d.Id == doc.Id))
             {
-                new() { Id = Guid.Parse("d1000000-0000-0000-0000-000000000001"), DocumentName = "Quy chế Đấu giá Trực tuyến TrustSim", LinkUrl = "https://trustsim.vn/legal/auction-regulation-2026.pdf" },
-                new() { Id = Guid.Parse("d1000000-0000-0000-0000-000000000002"), DocumentName = "Điều khoản Dịch vụ Ký quỹ Escrow", LinkUrl = "https://trustsim.vn/legal/escrow-terms.pdf" },
-                new() { Id = Guid.Parse("d1000000-0000-0000-0000-000000000003"), DocumentName = "Chính sách Xác thực eKYC & Ký số PKI", LinkUrl = "https://trustsim.vn/legal/ekyc-pki-policy.pdf" }
-            };
-            await context.Documents.AddRangeAsync(docs);
-            await context.SaveChangesAsync();
+                await context.Documents.AddAsync(doc);
+            }
         }
+        await context.SaveChangesAsync();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -136,61 +182,67 @@ public static class DbSeeder
         var prefixes = new List<PhonePrefix>
         {
             // ─── Viettel Telecom (VTT) ──────────────────────────
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000001"), PrefixValue = "098", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000002"), PrefixValue = "097", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000003"), PrefixValue = "086", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000008"), PrefixValue = "096", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000009"), PrefixValue = "032", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000010"), PrefixValue = "033", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000011"), PrefixValue = "034", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000012"), PrefixValue = "035", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000013"), PrefixValue = "036", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000014"), PrefixValue = "037", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000015"), PrefixValue = "038", SimCarrierId = vttId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000016"), PrefixValue = "039", SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000001"), PrefixValue = "098", PrefixReputationScore = 1.50f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000002"), PrefixValue = "097", PrefixReputationScore = 1.45f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000003"), PrefixValue = "086", PrefixReputationScore = 1.25f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000008"), PrefixValue = "096", PrefixReputationScore = 1.40f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000009"), PrefixValue = "032", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000010"), PrefixValue = "033", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000011"), PrefixValue = "034", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000012"), PrefixValue = "035", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000013"), PrefixValue = "036", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000014"), PrefixValue = "037", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000015"), PrefixValue = "038", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000016"), PrefixValue = "039", PrefixReputationScore = 1.10f, SimCarrierId = vttId },
 
             // ─── VinaPhone (VNP) ────────────────────────────────
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000004"), PrefixValue = "091", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000005"), PrefixValue = "088", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000017"), PrefixValue = "094", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000018"), PrefixValue = "081", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000019"), PrefixValue = "082", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000020"), PrefixValue = "083", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000021"), PrefixValue = "084", SimCarrierId = vnpId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000022"), PrefixValue = "085", SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000004"), PrefixValue = "091", PrefixReputationScore = 1.45f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000005"), PrefixValue = "088", PrefixReputationScore = 1.30f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000017"), PrefixValue = "094", PrefixReputationScore = 1.40f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000018"), PrefixValue = "081", PrefixReputationScore = 1.10f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000019"), PrefixValue = "082", PrefixReputationScore = 1.10f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000020"), PrefixValue = "083", PrefixReputationScore = 1.10f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000021"), PrefixValue = "084", PrefixReputationScore = 1.10f, SimCarrierId = vnpId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000022"), PrefixValue = "085", PrefixReputationScore = 1.10f, SimCarrierId = vnpId },
 
             // ─── MobiFone (MBF) ─────────────────────────────────
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000006"), PrefixValue = "090", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000007"), PrefixValue = "079", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000023"), PrefixValue = "093", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000024"), PrefixValue = "089", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000025"), PrefixValue = "070", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000026"), PrefixValue = "076", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000027"), PrefixValue = "077", SimCarrierId = mbfId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000028"), PrefixValue = "078", SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000006"), PrefixValue = "090", PrefixReputationScore = 1.50f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000007"), PrefixValue = "079", PrefixReputationScore = 1.20f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000023"), PrefixValue = "093", PrefixReputationScore = 1.45f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000024"), PrefixValue = "089", PrefixReputationScore = 1.25f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000025"), PrefixValue = "070", PrefixReputationScore = 1.15f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000026"), PrefixValue = "076", PrefixReputationScore = 1.15f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000027"), PrefixValue = "077", PrefixReputationScore = 1.15f, SimCarrierId = mbfId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000028"), PrefixValue = "078", PrefixReputationScore = 1.15f, SimCarrierId = mbfId },
 
             // ─── Vietnamobile (VNM) ─────────────────────────────
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000029"), PrefixValue = "092", SimCarrierId = vnmId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000030"), PrefixValue = "052", SimCarrierId = vnmId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000031"), PrefixValue = "054", SimCarrierId = vnmId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000032"), PrefixValue = "056", SimCarrierId = vnmId },
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000033"), PrefixValue = "058", SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000029"), PrefixValue = "092", PrefixReputationScore = 1.00f, SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000030"), PrefixValue = "052", PrefixReputationScore = 0.95f, SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000031"), PrefixValue = "054", PrefixReputationScore = 0.95f, SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000032"), PrefixValue = "056", PrefixReputationScore = 0.95f, SimCarrierId = vnmId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000033"), PrefixValue = "058", PrefixReputationScore = 0.95f, SimCarrierId = vnmId },
 
             // ─── Wintel - Reddi (RDD) ───────────────────────────
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000034"), PrefixValue = "055", SimCarrierId = rddId },
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000034"), PrefixValue = "055", PrefixReputationScore = 0.95f, SimCarrierId = rddId },
 
             // ─── ITelecom (ICT) ─────────────────────────────────
-            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000035"), PrefixValue = "087", SimCarrierId = ictId }
+            new() { Id = Guid.Parse("cb000000-0000-0000-0000-000000000035"), PrefixValue = "087", PrefixReputationScore = 0.95f, SimCarrierId = ictId }
         };
 
-        var existingPrefixValues = await context.PhonePrefixes.Select(p => p.PrefixValue).ToListAsync();
-        var newPrefixes = prefixes.Where(p => !existingPrefixValues.Contains(p.PrefixValue)).ToList();
-
-        if (newPrefixes.Any())
+        foreach (var p in prefixes)
         {
-            await context.PhonePrefixes.AddRangeAsync(newPrefixes);
-            await context.SaveChangesAsync();
+            var existing = await context.PhonePrefixes.FirstOrDefaultAsync(x => x.PrefixValue == p.PrefixValue);
+            if (existing == null)
+            {
+                await context.PhonePrefixes.AddAsync(p);
+            }
+            else
+            {
+                existing.PrefixReputationScore = p.PrefixReputationScore;
+                existing.SimCarrierId = p.SimCarrierId;
+            }
         }
+        await context.SaveChangesAsync();
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -414,7 +466,318 @@ public static class DbSeeder
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  5. Level 4 & 5: Các phiên đấu giá, Bids & Gian lận
+    //  5. Level 3 & 4: Tri thức RAG & Lịch sử Định giá AI
+    // ─────────────────────────────────────────────────────────────
+    private static async Task SeedAiValuationAndRagDocumentsAsync(TrustSimDbContext context)
+    {
+        // 1. Documents Kho tri thức RAG (d1000000-...)
+        var doc1Id = Guid.Parse("d1000000-0000-0000-0000-000000000004");
+        var doc2Id = Guid.Parse("d1000000-0000-0000-0000-000000000005");
+        var doc3Id = Guid.Parse("d1000000-0000-0000-0000-000000000006");
+
+        var ragDocs = new List<Document>
+        {
+            new()
+            {
+                Id = doc1Id,
+                DocumentName = "Cẩm nang Định giá SIM Số Đẹp & Xu hướng Thị trường Viễn thông 2026",
+                LinkUrl = "https://trustsim.vn/knowledge/market-valuation-guide-2026.md",
+                DocumentType = DocumentType.MARKET_RESEARCH,
+                Status = DocumentStatus.INDEXED,
+                TotalChunks = 4,
+                TotalTokens = 1200,
+                CrawledAt = DateTime.UtcNow.AddDays(-1),
+                RawContent = @"# CẨM NANG ĐỊNH GIÁ SIM SỐ ĐẸP & XU HƯỚNG THỊ TRƯỜNG VIỄN THÔNG 2026
+
+## 1. Phân cấp Đầu số và Uy tín Thương hiệu
+Đầu số viễn thông quyết định 30% đến 45% giá trị của một số SIM.
+- Đầu số cổ Tam Đại Nhà Mạng (Viettel 098/097/096, MobiFone 090/093, VinaPhone 091/094) có hệ số uy tín cao nhất (1.4 - 1.5). Đây là các đầu số biểu tượng của doanh nhân và giới thượng lưu.
+- Đầu số Song Phát / Đại Phát như 088 (Vina Song Phát Đại Phát), 086 (Viettel Phát Lộc), 089 (Mobi Phát Tài) giữ hệ số 1.25 - 1.30.
+- Các đầu số chuyển đổi từ 11 số (03x, 07x, 08x) có tính thanh khoản cao, phù hợp phân khúc tầm trung với hệ số 1.10 - 1.15.
+
+## 2. Ma trận Định giá Dòng SIM Siêu VIP
+- Bát quý (8 số trùng lặp): Mức giá dao động từ 1.0 tỷ đến trên 5.0 tỷ VND. Bát quý 88888888 hoặc 99999999 thuộc nhóm di sản vô giá.
+- Lục quý (6 số trùng lặp cuối): Dao động từ 300 triệu đến 1.5 tỷ VND tùy thuộc vào chữ số (Lục quý 8, 9, 6 cao hơn lục quý 0, 4, 7).
+- Ngũ quý (5 số trùng lặp cuối): Dao động từ 80 triệu đến 350 triệu VND.
+- Tứ quý (4 số trùng lặp cuối): Dao động từ 15 triệu đến 150 triệu VND. Tứ quý kết hợp đầu số cổ luôn đạt mức giá trần.
+
+## 3. Định giá SIM Doanh nhân & Sảnh tiến
+- Sảnh tiến Rồng 6 số (VD: 456789, 123456): Biểu tượng của sự thăng tiến không ngừng, định giá từ 50 triệu đến 250 triệu VND.
+- Sảnh 6789 ('San bằng tất cả'): Dòng số kinh điển của giới kinh doanh, giá trị từ 15 triệu đến 80 triệu VND.
+- Taxi 3 Cặp (ABABAB hoặc ABCABC): Dễ nhớ tuyệt đối cho hotline doanh nghiệp, giá trị từ 20 triệu đến 90 triệu VND.
+
+## 4. Thanh khoản & Biên độ Giá Thị trường
+Giá trị giao dịch thực tế phụ thuộc vào chu kỳ thanh khoản:
+- Mức giá tối thiểu (MinPrice): Giá thanh lý nhanh trong vòng 24h (chiết khấu 15% - 20% so với giá đề xuất).
+- Mức giá đề xuất (SuggestedPrice): Mức giá giao dịch cân bằng tối ưu trên sàn đấu giá TrustSim.
+- Mức giá tối đa (MaxPrice): Mức giá kỳ vọng cao khi gặp đúng khách hàng tìm kiếm số trùng năm sinh, biển số hoặc hợp phong thủy đặc thù."
+            },
+            new()
+            {
+                Id = doc2Id,
+                DocumentName = "Quy chuẩn Phong thủy SIM: Ngũ hành, Cát tinh & Ý nghĩa Dãy số",
+                LinkUrl = "https://trustsim.vn/knowledge/fengshui-rules-and-meanings.md",
+                DocumentType = DocumentType.FENG_SHUI_RULE,
+                Status = DocumentStatus.INDEXED,
+                TotalChunks = 3,
+                TotalTokens = 950,
+                CrawledAt = DateTime.UtcNow.AddDays(-1),
+                RawContent = @"# QUY CHUẨN PHONG THỦY SIM: NGŨ HÀNH, CÁT TINH & Ý NGHĨA DÃY SỐ
+
+## 1. Ý nghĩa Số học và Các Cặp số Cát Tường
+- Cặp 68 / 86 (Lộc Phát - Phát Lộc): Thu hút tài lộc dồi dào, vượng khí kinh doanh. Đuôi 6868 là thế 'Đại Lộc Kép'.
+- Cặp 39 / 79 (Thần Tài Nhỏ / Thần Tài Lớn): Đem lại may mắn, quý nhân phù trợ trong thương trường. Dãy số 3979 kết hợp cả Thần tài lớn nhỏ.
+- Cặp 38 / 78 (Ông Địa Nhỏ / Ông Địa Lớn): Rất thịnh hành trong giới đầu tư bất động sản, xây dựng và tài chính.
+- Cụm 1368 (Sinh Tài Lộc Phát): Chuỗi số phong thủy đỉnh cao mang hàm nghĩa tài lộc sinh sôi bền vững bốn mùa (1+3+6+8 = 18 = Nhất Phát).
+
+## 2. Ngũ hành Bản Mệnh & Quy tắc Tương sinh
+Mỗi con số đại diện cho một hành trong Ngũ hành:
+- Hành Kim: 6, 7 (Hợp người mệnh Thủy và mệnh Kim, khắc mệnh Mộc).
+- Hành Mộc: 3, 4 (Hợp người mệnh Hỏa và mệnh Mộc, khắc mệnh Thổ).
+- Hành Thủy: 0, 1 (Hợp người mệnh Mộc và mệnh Thủy, khắc mệnh Hỏa).
+- Hành Hỏa: 9 (Hợp người mệnh Thổ và mệnh Hỏa, khắc mệnh Kim).
+- Hành Thổ: 2, 5, 8 (Hợp người mệnh Kim và mệnh Thổ, khắc mệnh Thủy).
+Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ giúp kích hoạt tài vận và bình an.
+
+## 3. Các Quy tắc Kiêng kỵ Dân gian
+- Đuôi số 49, 53: Theo quan niệm dân gian là 'hạn 49 chưa qua 53 đã tới', làm giảm 20% - 30% giá trị thương mại của SIM trừ khi là SIM giá rẻ.
+- SIM Không 4 - 7 (Sạch số cát khí): Dòng SIM không chứa bất kỳ chữ số 4 (Tử) và 7 (Thất) nào luôn được định giá cao hơn 30% - 40% so với SIM cùng loại vì tính thanh khiết và may mắn toàn diện."
+            },
+            new()
+            {
+                Id = doc3Id,
+                DocumentName = "Hướng dẫn Phân tích & Định giá SIM Tự động Đa tầng TrustSim",
+                LinkUrl = "https://trustsim.vn/knowledge/trustsim-valuation-methodology.md",
+                DocumentType = DocumentType.PRICING_GUIDELINE,
+                Status = DocumentStatus.INDEXED,
+                TotalChunks = 3,
+                TotalTokens = 850,
+                CrawledAt = DateTime.UtcNow.AddDays(-1),
+                RawContent = @"# HƯỚNG DẪN PHÂN TÍCH & ĐỊNH GIÁ SIM TỰ ĐỘNG ĐA TẦNG TRUSTSIM
+
+## 1. Kiến trúc Định giá 4 Tầng (Hybrid 4-Tier Valuation)
+- Tầng 1 (Feature Extraction): Bóc tách số điện thoại thành các đặc trưng cấu trúc: đầu số, nhịp số (Regex), danh mục phong thủy và yếu tố kiêng kỵ.
+- Tầng 2 (Mathematical Engine): Tính toán mức giá cơ sở P_base dựa trên công thức toán học chuẩn:
+  `P_base = P0 * Factor_Prefix * Factor_Rhythm * Factor_Category * Factor_FengShui`
+  Trong đó P0 = 200,000 VND (Mức giá SIM trắng tiêu chuẩn).
+- Tầng 3 (RAG Market Context): Truy vấn tri thức thị trường thời gian thực từ NeonDB pgvector để điều chỉnh hệ số thị trường (Market Multiplier từ 0.9 đến 1.35).
+- Tầng 4 (LLM Reasoning & Validation): NVIDIA LLM (Nemotron / DeepSeek) tổng hợp toàn bộ dữ liệu, thẩm định khoảng giá Min-Max và sinh bài giải trình chuyên sâu cho khách hàng.
+
+## 2. Quy chuẩn Làm tròn Thương mại (Commercial Rounding)
+Để đảm bảo mức giá hiển thị tự nhiên và dễ giao dịch:
+- Dưới 1 triệu VND: Làm tròn đến 10,000 VND.
+- Từ 1 triệu đến 10 triệu VND: Làm tròn đến 50,000 VND.
+- Từ 10 triệu đến 100 triệu VND: Làm tròn đến 500,000 VND.
+- Trên 100 triệu VND: Làm tròn đến 1,000,000 VND.
+
+## 3. Độ Tin cậy (Confidence Score)
+- Điểm từ 0.90 - 1.00: Áp dụng cho các mẫu số phổ biến, có đầy đủ căn cứ nhịp số, đầu số chuẩn và dữ liệu RAG tương đồng cao.
+- Điểm từ 0.70 - 0.89: Áp dụng cho các mẫu số hỗn hợp hoặc đầu số nhà mạng mới."
+            }
+        };
+
+        foreach (var doc in ragDocs)
+        {
+            var existing = await context.Documents.FirstOrDefaultAsync(d => d.Id == doc.Id);
+            if (existing == null)
+            {
+                await context.Documents.AddAsync(doc);
+            }
+            else
+            {
+                existing.DocumentName = doc.DocumentName;
+                existing.RawContent = doc.RawContent;
+                existing.Status = doc.Status;
+                existing.DocumentType = doc.DocumentType;
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // 2. DocumentChunks (dc000000-...)
+        if (!await context.DocumentChunks.AnyAsync())
+        {
+            var chunks = new List<DocumentChunk>
+            {
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000001"),
+                    DocumentId = doc1Id,
+                    ChunkIndex = 0,
+                    TokenCount = 280,
+                    MetadataJson = "{\"title\":\"Phân cấp Đầu số và Uy tín Nhà mạng\",\"keywords\":[\"098\",\"090\",\"091\",\"088\",\"dau_so_co\"]}",
+                    Content = "Đầu số viễn thông quyết định 30% đến 45% giá trị của một số SIM. Đầu số cổ Tam Đại Nhà Mạng (Viettel 098/097/096, MobiFone 090/093, VinaPhone 091/094) có hệ số uy tín cao nhất (1.4 - 1.5). Đây là các đầu số biểu tượng của doanh nhân và giới thượng lưu. Đầu số Song Phát / Đại Phát như 088 (Vina Song Phát Đại Phát), 086 (Viettel Phát Lộc), 089 (Mobi Phát Tài) giữ hệ số 1.25 - 1.30. Các đầu số chuyển đổi từ 11 số (03x, 07x, 08x) có tính thanh khoản cao, phù hợp phân khúc tầm trung với hệ số 1.10 - 1.15."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000002"),
+                    DocumentId = doc1Id,
+                    ChunkIndex = 1,
+                    TokenCount = 320,
+                    MetadataJson = "{\"title\":\"Ma trận Định giá Dòng SIM Siêu VIP\",\"keywords\":[\"bat_quy\",\"luc_quy\",\"ngu_quy\",\"tu_quy\",\"bang_gia\"]}",
+                    Content = "Bát quý (8 số trùng lặp): Mức giá dao động từ 1.0 tỷ đến trên 5.0 tỷ VND. Bát quý 88888888 hoặc 99999999 thuộc nhóm di sản vô giá. Lục quý (6 số trùng lặp cuối): Dao động từ 300 triệu đến 1.5 tỷ VND tùy thuộc vào chữ số (Lục quý 8, 9, 6 cao hơn lục quý 0, 4, 7). Ngũ quý (5 số trùng lặp cuối): Dao động từ 80 triệu đến 350 triệu VND. Tứ quý (4 số trùng lặp cuối): Dao động từ 15 triệu đến 150 triệu VND. Tứ quý kết hợp đầu số cổ luôn đạt mức giá trần."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000003"),
+                    DocumentId = doc1Id,
+                    ChunkIndex = 2,
+                    TokenCount = 260,
+                    MetadataJson = "{\"title\":\"Định giá SIM Doanh nhân & Sảnh tiến\",\"keywords\":[\"sanh_tien\",\"6789\",\"taxi\",\"tam_hoa_kep\"]}",
+                    Content = "Sảnh tiến Rồng 6 số (VD: 456789, 123456): Biểu tượng của sự thăng tiến không ngừng, định giá từ 50 triệu đến 250 triệu VND. Sảnh 6789 ('San bằng tất cả'): Dòng số kinh điển của giới kinh doanh, giá trị từ 15 triệu đến 80 triệu VND. Taxi 3 Cặp (ABABAB hoặc ABCABC): Dễ nhớ tuyệt đối cho hotline doanh nghiệp, giá trị từ 20 triệu đến 90 triệu VND. Tam hoa kép (AAABBB): Định giá từ 18 triệu đến 60 triệu VND."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000004"),
+                    DocumentId = doc1Id,
+                    ChunkIndex = 3,
+                    TokenCount = 240,
+                    MetadataJson = "{\"title\":\"Thanh khoản & Biên độ Giá Thị trường\",\"keywords\":[\"min_price\",\"max_price\",\"suggested_price\",\"thanh_khoan\"]}",
+                    Content = "Giá trị giao dịch thực tế phụ thuộc vào chu kỳ thanh khoản: Mức giá tối thiểu (MinPrice): Giá thanh lý nhanh trong vòng 24h (chiết khấu 15% - 20% so với giá đề xuất). Mức giá đề xuất (SuggestedPrice): Mức giá giao dịch cân bằng tối ưu trên sàn đấu giá TrustSim. Mức giá tối đa (MaxPrice): Mức giá kỳ vọng cao khi gặp đúng khách hàng tìm kiếm số trùng năm sinh, biển số hoặc hợp phong thủy đặc thù."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000005"),
+                    DocumentId = doc2Id,
+                    ChunkIndex = 0,
+                    TokenCount = 300,
+                    MetadataJson = "{\"title\":\"Ý nghĩa Số học và Cặp số Cát Tường\",\"keywords\":[\"loc_phat\",\"than_tai\",\"ong_dia\",\"1368\"]}",
+                    Content = "Cặp 68 / 86 (Lộc Phát - Phát Lộc): Thu hút tài lộc dồi dào, vượng khí kinh doanh. Đuôi 6868 là thế 'Đại Lộc Kép'. Cặp 39 / 79 (Thần Tài Nhỏ / Thần Tài Lớn): Đem lại may mắn, quý nhân phù trợ trong thương trường. Dãy số 3979 kết hợp cả Thần tài lớn nhỏ. Cặp 38 / 78 (Ông Địa Nhỏ / Ông Địa Lớn): Rất thịnh hành trong giới đầu tư bất động sản, xây dựng và tài chính. Cụm 1368 (Sinh Tài Lộc Phát): Chuỗi số phong thủy đỉnh cao mang hàm nghĩa tài lộc sinh sôi bền vững bốn mùa (1+3+6+8 = 18 = Nhất Phát)."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000006"),
+                    DocumentId = doc2Id,
+                    ChunkIndex = 1,
+                    TokenCount = 290,
+                    MetadataJson = "{\"title\":\"Ngũ hành Bản Mệnh & Quy tắc Tương sinh\",\"keywords\":[\"ngu_hanh\",\"ban_menh\",\"kim_moc_thuy_hoa_tho\"]}",
+                    Content = "Mỗi con số đại diện cho một hành trong Ngũ hành: Hành Kim: 6, 7 (Hợp người mệnh Thủy và mệnh Kim, khắc mệnh Mộc). Hành Mộc: 3, 4 (Hợp người mệnh Hỏa và mệnh Mộc, khắc mệnh Thổ). Hành Thủy: 0, 1 (Hợp người mệnh Mộc và mệnh Thủy, khắc mệnh Hỏa). Hành Hỏa: 9 (Hợp người mệnh Thổ và mệnh Hỏa, khắc mệnh Kim). Hành Thổ: 2, 5, 8 (Hợp người mệnh Kim và mệnh Thổ, khắc mệnh Thủy). Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ giúp kích hoạt tài vận và bình an."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000007"),
+                    DocumentId = doc2Id,
+                    ChunkIndex = 2,
+                    TokenCount = 220,
+                    MetadataJson = "{\"title\":\"Các Quy tắc Kiêng kỵ Dân gian\",\"keywords\":[\"4953\",\"so_sach\",\"khong_that_bat\"]}",
+                    Content = "Đuôi số 49, 53: Theo quan niệm dân gian là 'hạn 49 chưa qua 53 đã tới', làm giảm 20% - 30% giá trị thương mại của SIM trừ khi là SIM giá rẻ. SIM Không 4 - 7 (Sạch số cát khí): Dòng SIM không chứa bất kỳ chữ số 4 (Tử) và 7 (Thất) nào luôn được định giá cao hơn 30% - 40% so với SIM cùng loại vì tính thanh khiết và may mắn toàn diện."
+                },
+                new()
+                {
+                    Id = Guid.Parse("dc000000-0000-0000-0000-000000000008"),
+                    DocumentId = doc3Id,
+                    ChunkIndex = 0,
+                    TokenCount = 310,
+                    MetadataJson = "{\"title\":\"Kiến trúc Định giá 4 Tầng TrustSim\",\"keywords\":[\"hybrid_valuation\",\"rag\",\"llm\",\"cong_thuc_gia\"]}",
+                    Content = "Kiến trúc Định giá 4 Tầng TrustSim: Tầng 1 (Feature Extraction): Bóc tách số điện thoại thành các đặc trưng cấu trúc: đầu số, nhịp số (Regex), danh mục phong thủy và yếu tố kiêng kỵ. Tầng 2 (Mathematical Engine): Tính toán mức giá cơ sở P_base dựa trên công thức toán học chuẩn: P_base = P0 * Factor_Prefix * Factor_Rhythm * Factor_Category * Factor_FengShui trong đó P0 = 200,000 VND. Tầng 3 (RAG Market Context): Truy vấn tri thức thị trường thời gian thực từ NeonDB pgvector để điều chỉnh hệ số thị trường (Market Multiplier). Tầng 4 (LLM Reasoning): NVIDIA LLM tổng hợp toàn bộ dữ liệu, thẩm định khoảng giá Min-Max và sinh bài giải trình chuyên sâu."
+                }
+            };
+            await context.DocumentChunks.AddRangeAsync(chunks);
+            await context.SaveChangesAsync();
+        }
+
+        // 3. SimValuations Mẫu (v1000000-...)
+        if (!await context.SimValuations.AnyAsync())
+        {
+            var sim1Id = Guid.Parse("21000000-0000-0000-0000-000000000001"); // 0988888888
+            var sim2Id = Guid.Parse("21000000-0000-0000-0000-000000000002"); // 0909999999
+            var sim3Id = Guid.Parse("21000000-0000-0000-0000-000000000003"); // 0912345678
+            var sim4Id = Guid.Parse("21000000-0000-0000-0000-000000000004"); // 0888686868
+            var sim5Id = Guid.Parse("21000000-0000-0000-0000-000000000005"); // 0797979799
+
+            var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
+            var sellerDaiPhat = Guid.Parse("11000000-0000-0000-0000-000000000004");
+
+            var valuations = new List<SimValuation>
+            {
+                new()
+                {
+                    Id = Guid.Parse("e1000000-0000-0000-0000-000000000001"),
+                    SimNumberId = sim1Id,
+                    UserAccountId = sellerPhuQuy,
+                    BaselinePrice = 1500000000m,
+                    MarketMultiplier = 1.20f,
+                    SuggestedPrice = 1800000000m,
+                    MinPrice = 1500000000m,
+                    MaxPrice = 2200000000m,
+                    ConfidenceScore = 0.98f,
+                    AiModelName = "deepseek-ai/deepseek-v4-flash-0731",
+                    ValuationReasoning = "SIM 0988888888 là siêu phẩm Bát Quý 8 thuộc đầu số cổ 098 của Viettel Telecom. Số 8 tượng trưng cho Bát Bạch Phát Tài, mang lại quyền uy và vượng khí tột bậc cho chủ nhân.",
+                    FengShuiAnalysis = "Quẻ đại cát, thuộc hành Thổ tương sinh với mệnh Kim và Thổ. Dãy số thuần dương 8 số 8 tạo dòng chảy tài lộc vô tận.",
+                    AppliedToSim = true
+                },
+                new()
+                {
+                    Id = Guid.Parse("e1000000-0000-0000-0000-000000000002"),
+                    SimNumberId = sim2Id,
+                    UserAccountId = sellerPhuQuy,
+                    BaselinePrice = 480000000m,
+                    MarketMultiplier = 1.15f,
+                    SuggestedPrice = 550000000m,
+                    MinPrice = 480000000m,
+                    MaxPrice = 650000000m,
+                    ConfidenceScore = 0.95f,
+                    AiModelName = "deepseek-ai/deepseek-v4-flash-0731",
+                    ValuationReasoning = "SIM 0909999999 là dòng SIM Lục quý 9 đầu gánh 0909 của MobiFone. Số 9 tượng trưng cho Cửu Ngũ Chí Tôn, sự trường thọ và vĩnh cửu.",
+                    FengShuiAnalysis = "Hành Hỏa vượng, tương sinh xuất sắc với người mang mệnh Thổ và mệnh Hỏa.",
+                    AppliedToSim = true
+                },
+                new()
+                {
+                    Id = Guid.Parse("e1000000-0000-0000-0000-000000000003"),
+                    SimNumberId = sim3Id,
+                    UserAccountId = sellerDaiPhat,
+                    BaselinePrice = 85000000m,
+                    MarketMultiplier = 1.25f,
+                    SuggestedPrice = 105000000m,
+                    MinPrice = 85000000m,
+                    MaxPrice = 130000000m,
+                    ConfidenceScore = 0.92f,
+                    AiModelName = "deepseek-ai/deepseek-v4-flash-0731",
+                    ValuationReasoning = "SIM 0912345678 sở hữu chuỗi Sảnh Tiến Rồng 8 số liên tiếp (12345678) kết hợp đầu số cổ 091 của VinaPhone, biểu tượng cho sự nghiệp thăng quan tiến chức.",
+                    FengShuiAnalysis = "Dãy số tiến liên hoàn mang trường năng lượng phát triển mạnh mẽ và liên tục cho gia chủ kinh doanh.",
+                    AppliedToSim = true
+                },
+                new()
+                {
+                    Id = Guid.Parse("e1000000-0000-0000-0000-000000000004"),
+                    SimNumberId = sim4Id,
+                    UserAccountId = sellerDaiPhat,
+                    BaselinePrice = 65000000m,
+                    MarketMultiplier = 1.10f,
+                    SuggestedPrice = 72000000m,
+                    MinPrice = 60000000m,
+                    MaxPrice = 85000000m,
+                    ConfidenceScore = 0.90f,
+                    AiModelName = "deepseek-ai/deepseek-v4-flash-0731",
+                    ValuationReasoning = "SIM 0888686868 mang đầu số Vina Song Phát 0888 kết hợp đuôi Taxi Lộc Phát kép 686868, dòng số hotline đỉnh cao cho doanh nghiệp thương mại.",
+                    FengShuiAnalysis = "Sự phối hợp giữa các chữ số 6 (Lộc) và 8 (Phát) tạo nên thế trận chiêu tài hút lộc không ngừng.",
+                    AppliedToSim = false
+                },
+                new()
+                {
+                    Id = Guid.Parse("e1000000-0000-0000-0000-000000000005"),
+                    SimNumberId = sim5Id,
+                    UserAccountId = sellerPhuQuy,
+                    BaselinePrice = 32000000m,
+                    MarketMultiplier = 1.10f,
+                    SuggestedPrice = 35000000m,
+                    MinPrice = 30000000m,
+                    MaxPrice = 42000000m,
+                    ConfidenceScore = 0.88f,
+                    AiModelName = "deepseek-ai/deepseek-v4-flash-0731",
+                    ValuationReasoning = "SIM 0797979799 thuộc dòng Taxi Thần Tài Lớn 7979799 của MobiFone, mang ý nghĩa Thần tài luôn đồng hành và bảo hộ trong mọi dự án đầu tư.",
+                    FengShuiAnalysis = "Số 7 và 9 mang năng lượng Thần tài phù trợ thịnh vượng, hanh thông trong giao dịch mua bán.",
+                    AppliedToSim = false
+                }
+            };
+
+            await context.SimValuations.AddRangeAsync(valuations);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  6. Level 4 & 5: Các phiên đấu giá, Bids & Gian lận
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedAuctionsAndBidsAsync(TrustSimDbContext context)
     {
@@ -510,7 +873,7 @@ public static class DbSeeder
         var bids = new List<Bid>
         {
             new() { Id = Guid.Parse("34000000-0000-0000-0000-000000000001"), AuctionId = auc1.Id, ParticipantId = ap2.Id, BidAmount = 1050000000m, Status = BidStatus.OUTBIB,  PlacedAt = DateTime.UtcNow.AddHours(-18) },
-            new() { Id = Guid.Parse("34000000-0000-0000-0000-000000000002"), AuctionId = auc1.Id, ParticipantId = ap3.Id, BidAmount = 1100000000m, Status = BidStatus.REJECTED,PlacedAt = DateTime.UtcNow.AddHours(-12), RejectedAt = DateTime.UtcNow.AddHours(-12), RejectedReason = "Rate limit exceeded" },
+            new() { Id = Guid.Parse("34000000-0000-0000-0000-000000000002"), AuctionId = auc1.Id, ParticipantId = ap3.Id, BidAmount = 1100000000m, Status = BidStatus.REJECTED, PlacedAt = DateTime.UtcNow.AddHours(-12), RejectedAt = DateTime.UtcNow.AddHours(-12), RejectedReason = "Rate limit exceeded" },
             new() { Id = Guid.Parse("34000000-0000-0000-0000-000000000003"), AuctionId = auc1.Id, ParticipantId = ap1.Id, BidAmount = 1200000000m, Status = BidStatus.WINNING, PlacedAt = DateTime.UtcNow.AddHours(-6) },
             new() { Id = Guid.Parse("34000000-0000-0000-0000-000000000004"), AuctionId = auc3.Id, ParticipantId = ap5.Id, BidAmount = 210000000m,  Status = BidStatus.WINNING, PlacedAt = DateTime.UtcNow.AddDays(-2) }
         };
@@ -602,7 +965,7 @@ public static class DbSeeder
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  6. Level 4 -> 6: Giao dịch chuyển nhượng, Hợp đồng & Ký quỹ
+    //  7. Level 4 -> 6: Giao dịch chuyển nhượng, Hợp đồng & Ký quỹ
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedTradeAndContractsAsync(TrustSimDbContext context)
     {
@@ -705,7 +1068,7 @@ public static class DbSeeder
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  7. Level 6: Thông báo & Nhật ký kiểm toán hệ thống
+    //  8. Level 6: Thông báo & Nhật ký kiểm toán hệ thống
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedNotificationsAndAuditLogsAsync(TrustSimDbContext context)
     {

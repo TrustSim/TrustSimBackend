@@ -19,6 +19,11 @@ public class FormatRhythm : FullAuditableEntity
     /// <summary>Mô tả chi tiết về cách nhận dạng kiểu định dạng này.</summary>
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Hệ số nhân định giá cơ bản của nhịp số này trong công thức tính giá toán học (VD: 50.0 cho Tứ quý, 500.0 cho Lục quý, 1.0 cho SIM thường).
+    /// </summary>
+    public float BasePriceFactor { get; set; } = 1.0f;
+
     // --- Navigation Property ---
     /// <summary>Danh sách các số SIM có kiểu định dạng số này (quan hệ 1-N).</summary>
     public virtual ICollection<SimNumber> SimNumbers { get; set; } = new List<SimNumber>();

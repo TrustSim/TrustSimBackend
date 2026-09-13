@@ -10,9 +10,15 @@ public class DocumentConfiguration : IEntityTypeConfiguration<Document>
     {
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.DocumentName).IsRequired().HasMaxLength(150);
-        builder.Property(x => x.LinkUrl).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.DocumentName).IsRequired().HasMaxLength(250);
+        builder.Property(x => x.LinkUrl).IsRequired().HasMaxLength(1000);
+        builder.Property(x => x.DocumentType).HasConversion<string>().HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50).IsRequired();
+        builder.Property(x => x.RawContent);
+        builder.Property(x => x.ErrorMessage);
 
         builder.HasIndex(x => x.DocumentName);
+        builder.HasIndex(x => x.DocumentType);
+        builder.HasIndex(x => x.Status);
     }
 }

@@ -121,6 +121,29 @@ public class SimNumberRepository : ISimNumberRepository
         return newRhythm.Id;
     }
 
+    public async Task<IReadOnlyList<SimNumber>> GetAvailableSimsForConsultationAsync(decimal? minPrice, decimal? maxPrice, int limit = 6, CancellationToken cancellationToken = default)
+    {
+        var query = _context.SimNumbers
+            .Include(s => s.PhonePrefix)
+                .ThenInclude(p => p!.SimCarrier)
+            .Include(s => s.FormatRhythm)
+            .Where(s => s.SimStatus == SimStatus.AVAILABLE || s.SimStatus == SimStatus.LISTED);
+
+        if (maxPrice.HasValue && maxPrice.Value > 0)
+        {
+            query = query.Where(s => s.Price <= maxPrice.Value);
+        }
+        if (minPrice.HasValue && minPrice.Value > 0)
+        {
+            query = query.Where(s => s.Price >= minPrice.Value);
+        }
+
+        return await query
+            .OrderByDescending(s => s.Price)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(SimNumber simNumber, CancellationToken cancellationToken = default)
     {
         await _context.SimNumbers.AddAsync(simNumber, cancellationToken);

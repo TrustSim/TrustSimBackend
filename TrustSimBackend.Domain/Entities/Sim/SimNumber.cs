@@ -47,5 +47,8 @@ public class SimNumber : FullAuditableEntity
     /// <summary>Danh sách ánh xạ phân loại danh mục của SIM này (N-N với <see cref="SimCategory"/>).</summary>
     public virtual ICollection<SimCategoryMapping> SimCategoryMappings { get; set; } = new List<SimCategoryMapping>();
 
-    public virtual ICollection<TradeTransaction> TradeTransactions {get;set;}= new List<TradeTransaction>();
+    public virtual ICollection<TradeTransaction> TradeTransactions { get; set; } = new List<TradeTransaction>();
+
+    /// <summary>Lịch sử tất cả các lần định giá bằng AI của số SIM này.</summary>
+    public virtual ICollection<TrustSimBackend.Domain.Entities.Ai.SimValuation> SimValuations { get; set; } = new List<TrustSimBackend.Domain.Entities.Ai.SimValuation>();
 }
