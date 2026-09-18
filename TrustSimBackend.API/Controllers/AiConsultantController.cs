@@ -16,14 +16,14 @@ namespace TrustSimBackend.API.Controllers;
 [Route("api/ai/consultant")]
 public class AiConsultantController : BaseApiController
 {
-    private readonly INvidiaLlmService _nvidiaLlmService;
+    private readonly ISemanticKernelAgentService _agentService;
     private readonly IUnitOfWork _unitOfWork;
 
     public AiConsultantController(
-        INvidiaLlmService nvidiaLlmService,
+        ISemanticKernelAgentService agentService,
         IUnitOfWork unitOfWork)
     {
-        _nvidiaLlmService = nvidiaLlmService;
+        _agentService = agentService;
         _unitOfWork = unitOfWork;
     }
 
@@ -113,7 +113,7 @@ public class AiConsultantController : BaseApiController
 
         try
         {
-            await foreach (var streamEvent in _nvidiaLlmService.StreamConsultationWithAgenticToolsAsync(
+            await foreach (var streamEvent in _agentService.StreamConsultationWithAgenticToolsAsync(
                 request.Message,
                 historyBuilder.ToString(),
                 session.UserBirthYear,

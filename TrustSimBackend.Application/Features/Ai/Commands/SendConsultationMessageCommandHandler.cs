@@ -15,18 +15,18 @@ namespace TrustSimBackend.Application.Features.Ai.Commands;
 public class SendConsultationMessageCommandHandler : IRequestHandler<SendConsultationMessageCommand, ChatConsultationResponseDto>
 {
     private readonly IRagRetrievalService _ragService;
-    private readonly INvidiaLlmService _nvidiaLlmService;
+    private readonly ISemanticKernelAgentService _agentService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<SendConsultationMessageCommandHandler> _logger;
 
     public SendConsultationMessageCommandHandler(
         IRagRetrievalService ragService,
-        INvidiaLlmService nvidiaLlmService,
+        ISemanticKernelAgentService agentService,
         IUnitOfWork unitOfWork,
         ILogger<SendConsultationMessageCommandHandler> logger)
     {
         _ragService = ragService;
-        _nvidiaLlmService = nvidiaLlmService;
+        _agentService = agentService;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -82,8 +82,8 @@ public class SendConsultationMessageCommandHandler : IRequestHandler<SendConsult
             historyBuilder.AppendLine($"[{(msg.SenderRole == ChatSenderRole.USER ? "Khách hàng" : "Chuyên gia AI")}]: {msg.MessageContent}");
         }
 
-        // Gọi NVIDIA LLM với Agentic ReAct Tool Calling (Tự động quyết định gọi tool cần thiết, không dư thừa)
-        var agentResponse = await _nvidiaLlmService.GenerateConsultationWithAgenticToolsAsync(
+        // Gọi Semantic Kernel Agent với Automatic Function Calling
+        var agentResponse = await _agentService.GenerateConsultationWithAgenticToolsAsync(
             req.Message,
             historyBuilder.ToString(),
             session.UserBirthYear,

@@ -16,7 +16,7 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
     private readonly ISimFeatureExtractor _featureExtractor;
     private readonly ISimValuationMathEngine _mathEngine;
     private readonly IRagRetrievalService _ragService;
-    private readonly INvidiaLlmService _nvidiaLlmService;
+    private readonly ISemanticKernelAgentService _agentService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EvaluateSimPriceCommandHandler> _logger;
 
@@ -24,14 +24,14 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
         ISimFeatureExtractor featureExtractor,
         ISimValuationMathEngine mathEngine,
         IRagRetrievalService ragService,
-        INvidiaLlmService nvidiaLlmService,
+        ISemanticKernelAgentService agentService,
         IUnitOfWork unitOfWork,
         ILogger<EvaluateSimPriceCommandHandler> logger)
     {
         _featureExtractor = featureExtractor;
         _mathEngine = mathEngine;
         _ragService = ragService;
-        _nvidiaLlmService = nvidiaLlmService;
+        _agentService = agentService;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -76,8 +76,8 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
         var ragQuery = $"Thị trường định giá SIM số đẹp {features.CarrierName} đầu số {features.Prefix} thế số {features.DetectedRhythmName} {features.SelectedRhythmValue} lộc phát thần tài";
         var ragChunks = await _ragService.RetrieveRelevantChunksAsync(ragQuery, topK: 3, minSimilarity: 0.35, cancellationToken);
 
-        // ─── TẦNG 4: Tổng hợp, So sánh thế số & Giải trình bằng NVIDIA LLM ───
-        var llmResult = await _nvidiaLlmService.GenerateValuationReasoningAsync(features, mathResult, ragChunks, cancellationToken);
+        // ─── TẦNG 4: Tổng hợp, So sánh thế số & Giải trình bằng Google Gemini qua Semantic Kernel ───
+        var llmResult = await _agentService.GenerateValuationReasoningAsync(features, mathResult, ragChunks, cancellationToken);
 
         // Lưu lại bản ghi SimValuation vào cơ sở dữ liệu nếu có simNumber
         var referencedChunkIdsJson = ragChunks.Count > 0
@@ -97,7 +97,7 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
             ValuationReasoning = llmResult.ValuationReasoning,
             FengShuiAnalysis = llmResult.FengShuiSummary,
             ReferencedChunkIds = referencedChunkIdsJson,
-            AiModelName = "meta/llama-3.3-70b-instruct",
+            AiModelName = string.IsNullOrEmpty(llmResult.EngineSource) ? "gemini-3.1-flash-lite" : llmResult.EngineSource,
             AppliedToSim = false
         };
 
@@ -116,6 +116,10 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
             SuggestedPrice = valuation.SuggestedPrice,
             MinPrice = valuation.MinPrice,
             MaxPrice = valuation.MaxPrice,
+            TotalPoints = llmResult.TotalPoints > 0 ? llmResult.TotalPoints : features.TotalPoints,
+            PrefixGroup = features.PrefixGroup,
+            MiddleGroup = features.MiddleGroup,
+            TailGroup = features.TailGroup,
             ConfidenceScore = valuation.ConfidenceScore,
             BaselinePrice = valuation.BaselinePrice,
             MarketMultiplier = valuation.MarketMultiplier,
@@ -127,7 +131,7 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
             FengShuiAnalysis = valuation.FengShuiAnalysis,
             AlternativeRhythmsComparison = features.AlternativeRhythmsComparison,
             ReferencedDocuments = ragChunks.Select(c => c.DocumentName).Distinct().ToList(),
-            AiModelName = string.IsNullOrEmpty(llmResult.EngineSource) ? "deepseek-ai/deepseek-v4-flash-0731" : llmResult.EngineSource,
+            AiModelName = string.IsNullOrEmpty(llmResult.EngineSource) ? "gemini-3.1-flash-lite" : llmResult.EngineSource,
             EngineSource = llmResult.EngineSource,
             ExecutionTimeMs = llmResult.ExecutionTimeMs,
             AppliedToSim = valuation.AppliedToSim,

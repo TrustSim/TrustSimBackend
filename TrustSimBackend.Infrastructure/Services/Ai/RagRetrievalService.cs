@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Pgvector;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Domain.Repositories;
@@ -7,12 +8,12 @@ namespace TrustSimBackend.Infrastructure.Services.Ai;
 
 public class RagRetrievalService : IRagRetrievalService
 {
-    private readonly INvidiaEmbeddingService _embeddingService;
+    private readonly IGeminiEmbeddingService _embeddingService;
     private readonly IDocumentChunkRepository _chunkRepository;
     private readonly ILogger<RagRetrievalService> _logger;
 
     public RagRetrievalService(
-        INvidiaEmbeddingService embeddingService,
+        IGeminiEmbeddingService embeddingService,
         IDocumentChunkRepository chunkRepository,
         ILogger<RagRetrievalService> logger)
     {
@@ -24,7 +25,7 @@ public class RagRetrievalService : IRagRetrievalService
     public async Task<IReadOnlyList<DocumentChunkSearchResult>> RetrieveRelevantChunksAsync(
         string query,
         int topK = 3,
-        double minSimilarity = 0.4,
+        double minSimilarity = 0.3,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -36,8 +37,13 @@ public class RagRetrievalService : IRagRetrievalService
         {
             _logger.LogInformation("Sinh vector truy vấn cho RAG: '{Query}'", query);
             var queryEmbedding = await _embeddingService.GetEmbeddingAsync(query, cancellationToken);
+            if (!queryEmbedding.HasValue)
+            {
+                return Array.Empty<DocumentChunkSearchResult>();
+            }
 
-            var matches = await _chunkRepository.SearchSimilarChunksAsync(queryEmbedding, topK, minSimilarity, cancellationToken);
+            var pgVector = new Vector(queryEmbedding.Value.ToArray());
+            var matches = await _chunkRepository.SearchSimilarChunksAsync(pgVector, topK, minSimilarity, cancellationToken);
 
             var results = matches.Select(m => new DocumentChunkSearchResult
             {

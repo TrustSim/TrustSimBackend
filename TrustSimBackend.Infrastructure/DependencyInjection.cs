@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.SemanticKernel;
+using TrustSimBackend.Application.Ai.Plugins;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Domain.Repositories;
@@ -25,7 +28,7 @@ public static class DependencyInjection
         services.Configure<EmailSettings>(configuration.GetSection(EmailSettings.SectionName));
         services.Configure<SpeedSmsSettings>(configuration.GetSection(SpeedSmsSettings.SectionName));
         services.Configure<AwsRekognitionSettings>(configuration.GetSection(AwsRekognitionSettings.SectionName));
-        services.Configure<NvidiaSettings>(configuration.GetSection(NvidiaSettings.SectionName));
+        services.Configure<GeminiSettings>(configuration.GetSection(GeminiSettings.SectionName));
 
         // ─── 2. DbContext ─────────────────────────────────────────────────────────
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
@@ -105,7 +108,7 @@ public static class DependencyInjection
         services.AddScoped<ICloudStorageService, CloudStorageService>();
         services.AddScoped<IPkiKeyService, PkiKeyService>();
 
-        // ─── 10. AI & RAG Pipeline Services (NVIDIA NIM) ─────────────
+        // ─── 10. AI & RAG Pipeline Services (Semantic Kernel & Gemini) ───────────
         services.AddScoped<ISimFeatureExtractor, SimFeatureExtractor>();
         services.AddScoped<ISimValuationMathEngine, SimValuationMathEngine>();
         services.AddScoped<ITextChunkerService, TextChunkerService>();
@@ -113,14 +116,56 @@ public static class DependencyInjection
         {
             client.Timeout = TimeSpan.FromSeconds(25);
         });
-        services.AddHttpClient<INvidiaEmbeddingService, NvidiaEmbeddingService>(client =>
+
+        // 6 Native Semantic Kernel Plugins
+        services.AddScoped<SimInventoryPlugin>();
+        services.AddScoped<FengShuiKnowledgePlugin>();
+        services.AddScoped<SimCadencePlugin>();
+        services.AddScoped<AuctionPlugin>();
+        services.AddScoped<TradeAndEscrowPlugin>();
+        services.AddScoped<UserWalletPlugin>();
+
+        // Semantic Kernel Core Registration
+        services.AddTransient<Kernel>(sp =>
         {
-            client.Timeout = TimeSpan.FromSeconds(25);
+            var geminiOptions = sp.GetRequiredService<IOptions<GeminiSettings>>().Value;
+            var builder = Kernel.CreateBuilder();
+
+            if (!string.IsNullOrWhiteSpace(geminiOptions.ApiKey))
+            {
+                var endpointUri = !string.IsNullOrWhiteSpace(geminiOptions.BaseUrl)
+                    ? new Uri(geminiOptions.BaseUrl)
+                    : new Uri("https://generativelanguage.googleapis.com/v1beta/openai/");
+
+                var chatModel = !string.IsNullOrWhiteSpace(geminiOptions.ChatModel)
+                    ? geminiOptions.ChatModel
+                    : "gemini-1.5-flash";
+
+#pragma warning disable SKEXP0010
+                builder.AddOpenAIChatCompletion(
+                    modelId: chatModel,
+                    apiKey: geminiOptions.ApiKey,
+                    endpoint: endpointUri
+                );
+#pragma warning restore SKEXP0010
+            }
+
+            // Đăng ký 6 Native Plugins vào Kernel
+            builder.Plugins.AddFromObject(sp.GetRequiredService<SimInventoryPlugin>(), "SimInventoryPlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<FengShuiKnowledgePlugin>(), "FengShuiKnowledgePlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<SimCadencePlugin>(), "SimCadencePlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<AuctionPlugin>(), "AuctionPlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<TradeAndEscrowPlugin>(), "TradeAndEscrowPlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<UserWalletPlugin>(), "UserWalletPlugin");
+
+            return builder.Build();
         });
-        services.AddHttpClient<INvidiaLlmService, NvidiaLlmService>(client =>
+
+        services.AddHttpClient<IGeminiEmbeddingService, GeminiEmbeddingService>(client =>
         {
-            client.Timeout = TimeSpan.FromSeconds(25);
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
+        services.AddScoped<ISemanticKernelAgentService, SemanticKernelAgentService>();
         services.AddScoped<IRagRetrievalService, RagRetrievalService>();
         services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();
 

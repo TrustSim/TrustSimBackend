@@ -124,6 +124,17 @@ public class SimFeatureExtractor : ISimFeatureExtractor
             }
         }
 
+        if (clean.Length == 10)
+        {
+            result.PrefixGroup = $"{clean.Substring(0, 3)} ({result.CarrierName})";
+            result.MiddleGroup = clean.Substring(3, 3);
+            result.TailGroup = clean.Substring(6, 4);
+
+            int sumDigits = clean.Sum(c => c - '0');
+            int pts = sumDigits % 10;
+            result.TotalPoints = pts == 0 ? 10 : pts;
+        }
+
         // Khảo sát đa nhịp ngắt và chọn nhịp tối ưu bộc lộ tổ hợp giá trị cực đại
         EvaluateMultiRhythmCadence(clean, result);
 

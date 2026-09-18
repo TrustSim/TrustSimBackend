@@ -35,6 +35,9 @@ public interface IUnitOfWork
     // Lưu các thay đổi vào DB và trả về số dòng bị ảnh hưởng
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
+    // Xóa theo dõi các Entity trong ChangeTracker khi gặp lỗi
+    void ClearChangeTracker();
+
     // Quản lý Transaction
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);
     Task CommitTransactionAsync(CancellationToken cancellationToken = default);

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Pgvector;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Domain.Entities.Ai;
 using TrustSimBackend.Domain.Enums;
@@ -12,7 +13,7 @@ public class DocumentIngestionService : IDocumentIngestionService
     private readonly IDocumentChunkRepository _chunkRepository;
     private readonly IWebCrawlerService _crawlerService;
     private readonly ITextChunkerService _chunkerService;
-    private readonly INvidiaEmbeddingService _embeddingService;
+    private readonly IGeminiEmbeddingService _embeddingService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DocumentIngestionService> _logger;
 
@@ -21,7 +22,7 @@ public class DocumentIngestionService : IDocumentIngestionService
         IDocumentChunkRepository chunkRepository,
         IWebCrawlerService crawlerService,
         ITextChunkerService chunkerService,
-        INvidiaEmbeddingService embeddingService,
+        IGeminiEmbeddingService embeddingService,
         IUnitOfWork unitOfWork,
         ILogger<DocumentIngestionService> logger)
     {
@@ -87,7 +88,7 @@ public class DocumentIngestionService : IDocumentIngestionService
             for (int i = 0; i < chunkItems.Count; i++)
             {
                 var item = chunkItems[i];
-                var vec = i < vectors.Count ? vectors[i] : null;
+                var vec = i < vectors.Count ? new Vector(vectors[i].ToArray()) : null;
 
                 totalTokens += item.TokenCount;
 
@@ -123,10 +124,7 @@ public class DocumentIngestionService : IDocumentIngestionService
 
             try
             {
-                if (_unitOfWork is Microsoft.EntityFrameworkCore.DbContext dbContext)
-                {
-                    dbContext.ChangeTracker.Clear();
-                }
+                _unitOfWork.ClearChangeTracker();
 
                 var failedDoc = await _documentRepository.GetByIdAsync(documentId, CancellationToken.None);
                 if (failedDoc != null)
@@ -191,7 +189,7 @@ public class DocumentIngestionService : IDocumentIngestionService
             for (int i = 0; i < chunkItems.Count; i++)
             {
                 var item = chunkItems[i];
-                var vec = i < vectors.Count ? vectors[i] : null;
+                var vec = i < vectors.Count ? new Vector(vectors[i].ToArray()) : null;
 
                 totalTokens += item.TokenCount;
 
@@ -225,10 +223,7 @@ public class DocumentIngestionService : IDocumentIngestionService
 
             try
             {
-                if (_unitOfWork is Microsoft.EntityFrameworkCore.DbContext dbContext)
-                {
-                    dbContext.ChangeTracker.Clear();
-                }
+                _unitOfWork.ClearChangeTracker();
 
                 var failedDoc = await _documentRepository.GetByIdAsync(documentId, CancellationToken.None);
                 if (failedDoc != null)
