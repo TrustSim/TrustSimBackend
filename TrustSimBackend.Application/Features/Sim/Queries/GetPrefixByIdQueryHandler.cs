@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetPrefixByIdQueryHandler : IRequestHandler<GetPrefixByIdQuery, PhonePrefixDto>
 {
-    private readonly IPhonePrefixRepository _prefixRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetPrefixByIdQueryHandler(IPhonePrefixRepository prefixRepository)
+    public GetPrefixByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _prefixRepository = prefixRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PhonePrefixDto> Handle(GetPrefixByIdQuery request, CancellationToken cancellationToken)
     {
-        var p = await _prefixRepository.GetByIdAsync(request.Id, cancellationToken);
+        var p = await _unitOfWork.PhonePrefixes.GetByIdAsync(request.Id, cancellationToken);
         if (p == null) throw new NotFoundException($"Không tìm thấy đầu số với ID '{request.Id}'.");
 
         return new PhonePrefixDto

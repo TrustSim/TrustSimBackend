@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.Trade.Queries;
 
 public class AdminExportTradesQueryHandler : IRequestHandler<AdminExportTradesQuery, byte[]>
 {
-    private readonly ITradeTransactionRepository _tradeRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public AdminExportTradesQueryHandler(ITradeTransactionRepository tradeRepository, IExcelService excelService)
+    public AdminExportTradesQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _tradeRepository = tradeRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(AdminExportTradesQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _tradeRepository.GetPagedAsync(
+        var (items, _) = await _unitOfWork.TradeTransactions.GetPagedAsync(
             request.Status,
             pageIndex: 1,
             pageSize: 100000,

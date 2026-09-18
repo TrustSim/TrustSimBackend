@@ -13,17 +13,10 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 /// </summary>
 public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawCommand, WalletTransactionDto>
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateWithdrawCommandHandler(
-        IWalletRepository walletRepository,
-        IWalletTransactionRepository walletTransactionRepository,
-        IUnitOfWork unitOfWork)
+    public CreateWithdrawCommandHandler(IUnitOfWork unitOfWork)
     {
-        _walletRepository = walletRepository;
-        _walletTransactionRepository = walletTransactionRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -34,7 +27,7 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
             throw new BadRequestException("Số tiền rút phải lớn hơn 0 VNĐ.");
         }
 
-        var wallet = await _walletRepository.GetByUserIdAsync(request.UserId, cancellationToken);
+        var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
         if (wallet == null)
         {
             throw new NotFoundException($"Không tìm thấy ví tiền của người dùng với ID '{request.UserId}'.");
@@ -57,7 +50,7 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
         wallet.LockVersion++;
 
         var transactionCode = $"WD{DateTime.UtcNow:yyMMdd}{Random.Shared.Next(100000, 999999)}";
-        while (await _walletTransactionRepository.ExistsByTransactionCodeAsync(transactionCode, cancellationToken))
+        while (await _unitOfWork.WalletTransactions.ExistsByTransactionCodeAsync(transactionCode, cancellationToken))
         {
             transactionCode = $"WD{DateTime.UtcNow:yyMMdd}{Random.Shared.Next(100000, 999999)}";
         }
@@ -88,8 +81,8 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
             CompletedAt = now
         };
 
-        _walletRepository.Update(wallet);
-        await _walletTransactionRepository.AddAsync(transaction, cancellationToken);
+        _unitOfWork.Wallets.Update(wallet);
+        await _unitOfWork.WalletTransactions.AddAsync(transaction, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new WalletTransactionDto

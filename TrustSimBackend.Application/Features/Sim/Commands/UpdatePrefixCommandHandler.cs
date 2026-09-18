@@ -8,33 +8,26 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class UpdatePrefixCommandHandler : IRequestHandler<UpdatePrefixCommand, PhonePrefixDto>
 {
-    private readonly IPhonePrefixRepository _prefixRepository;
-    private readonly ISimCarrierRepository _carrierRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdatePrefixCommandHandler(
-        IPhonePrefixRepository prefixRepository,
-        ISimCarrierRepository carrierRepository,
-        IUnitOfWork unitOfWork)
+    public UpdatePrefixCommandHandler(IUnitOfWork unitOfWork)
     {
-        _prefixRepository = prefixRepository;
-        _carrierRepository = carrierRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<PhonePrefixDto> Handle(UpdatePrefixCommand request, CancellationToken cancellationToken)
     {
-        var prefix = await _prefixRepository.GetByIdAsync(request.Id, cancellationToken);
+        var prefix = await _unitOfWork.PhonePrefixes.GetByIdAsync(request.Id, cancellationToken);
         if (prefix == null) throw new NotFoundException($"Không tìm thấy đầu số với ID '{request.Id}'.");
 
-        var carrier = await _carrierRepository.GetByIdAsync(request.SimCarrierId, cancellationToken);
+        var carrier = await _unitOfWork.SimCarriers.GetByIdAsync(request.SimCarrierId, cancellationToken);
         if (carrier == null) throw new NotFoundException($"Không tìm thấy nhà mạng với ID '{request.SimCarrierId}'.");
 
         prefix.PrefixValue = request.PrefixValue.Trim();
         prefix.SimCarrierId = request.SimCarrierId;
         prefix.UpdatedDate = DateTime.UtcNow;
 
-        _prefixRepository.Update(prefix);
+        _unitOfWork.PhonePrefixes.Update(prefix);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new PhonePrefixDto

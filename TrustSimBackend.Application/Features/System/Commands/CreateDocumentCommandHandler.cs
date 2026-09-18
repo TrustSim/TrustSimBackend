@@ -8,12 +8,10 @@ namespace TrustSimBackend.Application.Features.System.Commands;
 
 public class CreateDocumentCommandHandler : IRequestHandler<CreateDocumentCommand, DocumentDto>
 {
-    private readonly IDocumentRepository _documentRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateDocumentCommandHandler(IDocumentRepository documentRepository, IUnitOfWork unitOfWork)
+    public CreateDocumentCommandHandler(IUnitOfWork unitOfWork)
     {
-        _documentRepository = documentRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -26,7 +24,7 @@ public class CreateDocumentCommandHandler : IRequestHandler<CreateDocumentComman
             LinkUrl = request.LinkUrl.Trim()
         };
 
-        await _documentRepository.AddAsync(doc, cancellationToken);
+        await _unitOfWork.Documents.AddAsync(doc, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new DocumentDto

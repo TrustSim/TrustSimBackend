@@ -2,14 +2,15 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Sim.Commands.OwnershipVerification;
 using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
-using TrustSimBackend.Application.Features.Sim.Queries.GetMySimOwnerships;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
 
+/// <summary>
+/// Quản lý toàn diện tài nguyên Số SIM, đăng ký sở hữu, đối soát viễn thông và kho SIM hệ thống.
+/// </summary>
 public class SimsController : BaseApiController
 {
     /// <summary>
@@ -62,10 +63,75 @@ public class SimsController : BaseApiController
         var result = await Mediator.Send(query, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<SimOwnershipDto>>.SuccessResult(result, "Lấy danh sách SIM sở hữu thành công."));
     }
+
     /// <summary>
-    /// Tìm kiếm và lọc danh sách SIM số đẹp (phân trang, lọc theo nhà mạng, thể loại, đầu số, từ khóa)
+    /// Đăng ký số SIM mới vào hệ thống (Dành cho Người bán).
+    /// Người dùng phải đăng nhập. Hệ thống sẽ tự động gán quyền sở hữu ban đầu và tạo yêu cầu xác minh.
+    /// </summary>
+    [HttpPost("register")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<SimDetailDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RegisterSim(
+        [FromBody] RegisterSimCommand command,
+        CancellationToken cancellationToken)
+    {
+        command.UserAccountId = CurrentUserId;
+        var result = await Mediator.Send(command, cancellationToken);
+        return Ok(ApiResponse<SimDetailDto>.SuccessResult(result, "Đăng ký SIM vào hệ thống thành công. SIM đang ở trạng thái chờ xác minh."));
+    }
+
+    /// <summary>
+    /// Lấy danh sách kho SIM thuộc sở hữu của Người dùng hiện tại (Có phân trang và tìm kiếm).
+    /// </summary>
+    [HttpGet("my-sims")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<SimListItemDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMySims(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] SimStatus? status = null,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetMySimsQuery(pageIndex, pageSize, status, search)
+        {
+            UserAccountId = CurrentUserId
+        };
+
+        var result = await Mediator.Send(query, cancellationToken);
+        return Ok(ApiResponse<PagedResult<SimListItemDto>>.SuccessResult(result, "Lấy danh sách SIM của bạn thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Lấy danh sách toàn bộ kho SIM hệ thống (Có phân trang và lọc đa tiêu chí theo Nhà mạng, Danh mục, Trạng thái).
+    /// </summary>
+    [HttpGet("admin")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<SimListItemDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAdminSims(
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] SimStatus? status = null,
+        [FromQuery] Guid? carrierId = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new GetAdminSimsQuery(pageIndex, pageSize, status, carrierId, categoryId, search);
+        var result = await Mediator.Send(query, cancellationToken);
+        return Ok(ApiResponse<PagedResult<SimListItemDto>>.SuccessResult(result, "Lấy danh sách kho SIM hệ thống thành công."));
+    }
+
+    /// <summary>
+    /// Tìm kiếm và lọc danh sách SIM số đẹp trên sàn (phân trang, lọc theo nhà mạng, thể loại, đầu số, từ khóa).
     /// </summary>
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<SimNumberDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSims(
         [FromQuery] string? keyword,
@@ -82,15 +148,16 @@ public class SimsController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy thông tin chi tiết một số SIM
+    /// Xem thông tin chi tiết một số SIM theo ID (Nhà mạng, Đầu số, Danh mục, Nhịp định dạng, Người sở hữu).
     /// </summary>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<SimNumberDto>), StatusCodes.Status200OK)]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<SimDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetById([FromRoute] Guid id)
+    public async Task<IActionResult> GetById([FromRoute] Guid id, CancellationToken cancellationToken)
     {
-        var result = await Mediator.Send(new GetSimByIdQuery(id));
-        return Ok(ApiResponse<SimNumberDto>.SuccessResult(result, "Lấy thông tin chi tiết số SIM thành công."));
+        var result = await Mediator.Send(new GetSimDetailQuery(id), cancellationToken);
+        return Ok(ApiResponse<SimDetailDto>.SuccessResult(result, "Lấy thông tin chi tiết số SIM thành công."));
     }
 
     /// <summary>
@@ -174,4 +241,3 @@ public class SimsController : BaseApiController
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Sim_Import_Template.xlsx");
     }
 }
-

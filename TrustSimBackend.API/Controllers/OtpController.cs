@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Identity.Commands;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
+using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 

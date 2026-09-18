@@ -7,18 +7,18 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class ExportCategoriesQueryHandler : IRequestHandler<ExportCategoriesQuery, byte[]>
 {
-    private readonly ISimCategoryRepository _categoryRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportCategoriesQueryHandler(ISimCategoryRepository categoryRepository, IExcelService excelService)
+    public ExportCategoriesQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _categoryRepository = categoryRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportCategoriesQuery request, CancellationToken cancellationToken)
     {
-        var categories = await _categoryRepository.GetAllAsync(cancellationToken);
+        var categories = await _unitOfWork.SimCategories.GetAllAsync(cancellationToken);
         var rows = categories.Select(c => new CategoryExcelRow
         {
             CategoryName = c.CategoryName,

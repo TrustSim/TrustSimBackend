@@ -9,20 +9,20 @@ namespace TrustSimBackend.Application.Features.Auction.Queries;
 
 public class GetAuctionByIdQueryHandler : IRequestHandler<GetAuctionByIdQuery, AuctionDto>
 {
-    private readonly IAuctionRepository _auctionRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
 
     public GetAuctionByIdQueryHandler(
-        IAuctionRepository auctionRepository,
+        IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService)
     {
-        _auctionRepository = auctionRepository;
+        _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
     }
 
     public async Task<AuctionDto> Handle(GetAuctionByIdQuery request, CancellationToken cancellationToken)
     {
-        var auction = await _auctionRepository.GetDetailByIdAsync(request.Id, cancellationToken);
+        var auction = await _unitOfWork.Auctions.GetDetailByIdAsync(request.Id, cancellationToken);
         if (auction == null)
         {
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.Id}'.");

@@ -13,13 +13,16 @@ public class ImportCategoriesCommandHandler : IRequestHandler<ImportCategoriesCo
 {
     private readonly IBulkDataService _bulkDataService;
     private readonly IExcelService _excelService;
-    private readonly ISimCategoryRepository _categoryRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public ImportCategoriesCommandHandler(IBulkDataService bulkDataService, IExcelService excelService, ISimCategoryRepository categoryRepository)
+    public ImportCategoriesCommandHandler(
+        IBulkDataService bulkDataService,
+        IExcelService excelService,
+        IUnitOfWork unitOfWork)
     {
         _bulkDataService = bulkDataService;
         _excelService = excelService;
-        _categoryRepository = categoryRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ImportResult<SimCategoryDto>> Handle(ImportCategoriesCommand request, CancellationToken cancellationToken)
@@ -44,7 +47,7 @@ public class ImportCategoriesCommandHandler : IRequestHandler<ImportCategoriesCo
             }
 
             var code = r.CategoryCode.Trim().ToUpper();
-            if (await _categoryRepository.ExistsByCodeAsync(code, cancellationToken: cancellationToken))
+            if (await _unitOfWork.SimCategories.ExistsByCodeAsync(code, cancellationToken: cancellationToken))
             {
                 result.Errors.Add(new ImportRowError { RowIndex = idx, FieldName = "CategoryCode", ErrorMessage = $"Mã thể loại '{code}' đã tồn tại." });
                 result.FailedCount++;

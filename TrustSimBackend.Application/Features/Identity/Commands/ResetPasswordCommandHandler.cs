@@ -12,24 +12,21 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand, bool>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
-    private readonly IPasswordHasher _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPasswordHasher _passwordHasher;
 
     public ResetPasswordCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IPasswordHasher passwordHasher,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPasswordHasher passwordHasher)
     {
-        _userAccountRepository = userAccountRepository;
-        _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<bool> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _userAccountRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+        var user = await _unitOfWork.Users.GetByEmailAsync(normalizedEmail, cancellationToken);
 
         if (user == null)
         {
@@ -37,7 +34,7 @@ public class ResetPasswordCommandHandler : IRequestHandler<ResetPasswordCommand,
         }
 
         user.PassWordHash = _passwordHasher.HashPassword(request.NewPassword);
-        _userAccountRepository.Update(user);
+        _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

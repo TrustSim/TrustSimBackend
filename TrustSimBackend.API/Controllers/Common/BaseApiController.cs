@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 
 namespace TrustSimBackend.API.Controllers.Common;
 
@@ -38,4 +39,21 @@ public abstract class BaseApiController : ControllerBase
     /// Kiểm tra người dùng có quyền Tư vấn viên (CONSULTANT) không.
     /// </summary>
     protected bool IsConsultant => CurrentUser.Role == "CONSULTANT" || User.IsInRole("CONSULTANT");
+
+    /// <summary>
+    /// Bọc dữ liệu trả về theo format ApiResponse chuẩn HTTP 200 OK.
+    /// </summary>
+    protected IActionResult HandleResult<T>(T result, string message = "Thao tác thành công.")
+    {
+        return Ok(ApiResponse<T>.SuccessResult(result, message));
+    }
+
+    /// <summary>
+    /// Bọc kết quả phân trang theo format ApiResponse&lt;PagedResult&lt;T&gt;&gt; chuẩn HTTP 200 OK.
+    /// </summary>
+    protected IActionResult HandlePagedResult<T>(PagedResult<T> result, string message = "Lấy dữ liệu danh sách thành công.")
+    {
+        return Ok(ApiResponse<PagedResult<T>>.SuccessResult(result, message));
+    }
 }
+

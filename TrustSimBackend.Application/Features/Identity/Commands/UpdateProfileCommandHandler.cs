@@ -12,20 +12,16 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand, UserProfileDto>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateProfileCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IUnitOfWork unitOfWork)
+    public UpdateProfileCommandHandler(IUnitOfWork unitOfWork)
     {
-        _userAccountRepository = userAccountRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<UserProfileDto> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userAccountRepository.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
         {
             throw new NotFoundException(nameof(UserAccount), request.UserId);
@@ -35,13 +31,13 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
         var normalizedIdentity = request.IdentityNumber.Trim();
 
         // 1. Kiểm tra SĐT có bị trùng với tài khoản khác không
-        if (await _userAccountRepository.ExistsByPhoneNumberAsync(normalizedPhone, request.UserId, cancellationToken))
+        if (await _unitOfWork.Users.ExistsByPhoneNumberAsync(normalizedPhone, request.UserId, cancellationToken))
         {
             throw new BadRequestException($"Số điện thoại '{normalizedPhone}' đã được sử dụng bởi người dùng khác.");
         }
 
         // 2. Kiểm tra CCCD có bị trùng với tài khoản khác không
-        if (await _userAccountRepository.ExistsByIdentityNumberAsync(normalizedIdentity, request.UserId, cancellationToken))
+        if (await _unitOfWork.Users.ExistsByIdentityNumberAsync(normalizedIdentity, request.UserId, cancellationToken))
         {
             throw new BadRequestException($"Số CCCD/CMND '{normalizedIdentity}' đã được sử dụng bởi người dùng khác.");
         }
@@ -67,7 +63,7 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
             user.UserProfile.DateOfBirth = DateTime.SpecifyKind(request.DateOfBirth.Value, DateTimeKind.Utc);
         }
 
-        _userAccountRepository.Update(user);
+        _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // 5. Trả về DTO sau khi cập nhật

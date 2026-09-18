@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 
 public class AdminExportUsersQueryHandler : IRequestHandler<AdminExportUsersQuery, byte[]>
 {
-    private readonly IUserAccountRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public AdminExportUsersQueryHandler(IUserAccountRepository userRepository, IExcelService excelService)
+    public AdminExportUsersQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(AdminExportUsersQuery request, CancellationToken cancellationToken)
     {
-        var (users, _) = await _userRepository.GetPagedAsync(
+        var (users, _) = await _unitOfWork.Users.GetPagedAsync(
             request.Keyword,
             request.Role,
             request.IsActive,

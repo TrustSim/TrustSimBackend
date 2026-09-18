@@ -7,18 +7,16 @@ namespace TrustSimBackend.Application.Features.System.Commands;
 
 public class MarkNotificationAsReadCommandHandler : IRequestHandler<MarkNotificationAsReadCommand, bool>
 {
-    private readonly INotificationRepository _notificationRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public MarkNotificationAsReadCommandHandler(INotificationRepository notificationRepository, IUnitOfWork unitOfWork)
+    public MarkNotificationAsReadCommandHandler(IUnitOfWork unitOfWork)
     {
-        _notificationRepository = notificationRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(MarkNotificationAsReadCommand request, CancellationToken cancellationToken)
     {
-        var notification = await _notificationRepository.GetByIdAsync(request.NotificationId, cancellationToken);
+        var notification = await _unitOfWork.Notifications.GetByIdAsync(request.NotificationId, cancellationToken);
         if (notification == null)
         {
             throw new NotFoundException($"Không tìm thấy thông báo với ID '{request.NotificationId}'.");
@@ -30,7 +28,7 @@ public class MarkNotificationAsReadCommandHandler : IRequestHandler<MarkNotifica
         }
 
         notification.IsRead = true;
-        _notificationRepository.Update(notification);
+        _unitOfWork.Notifications.Update(notification);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

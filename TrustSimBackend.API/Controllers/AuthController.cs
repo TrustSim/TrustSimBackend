@@ -69,16 +69,47 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Đăng xuất khỏi hệ thống (Thu hồi Refresh Token và xóa HttpOnly Cookies)
+    /// Đăng xuất khỏi phiên làm việc hiện tại (Thu hồi Refresh Token, đưa Access Token vào Blacklist và xóa HttpOnly Cookies).
+    /// Toàn bộ thông tin Access Token, Refresh Token và IP được tự động trích xuất từ Headers, Cookies và HttpContext.
     /// </summary>
     [HttpPost("logout")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Logout([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] LogoutCommand? command)
+    public async Task<IActionResult> Logout()
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var cmd = (command ?? new LogoutCommand()) with { IpAddress = ipAddress };
+        var accessToken = Request.Headers.Authorization.FirstOrDefault();
+        if (!string.IsNullOrEmpty(accessToken) && accessToken.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            accessToken = accessToken["Bearer ".Length..].Trim();
+        }
+        else if (Request.Cookies.TryGetValue("accessToken", out var cookieToken))
+        {
+            accessToken = cookieToken;
+        }
+
+        string? refreshToken = null;
+        if (Request.Cookies.TryGetValue("refreshToken", out var cookieRefreshToken))
+        {
+            refreshToken = cookieRefreshToken;
+        }
+
+        var cmd = new LogoutCommand(refreshToken, accessToken, ipAddress);
         var result = await Mediator.Send(cmd);
         return Ok(ApiResponse<bool>.SuccessResult(result, "Đăng xuất thành công."));
+    }
+
+    /// <summary>
+    /// Đăng xuất khỏi tất cả các thiết bị và thu hồi toàn bộ Access / Refresh Token của tài khoản
+    /// </summary>
+    [HttpPost("revoke-all")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RevokeAllSessions()
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var result = await Mediator.Send(new RevokeAllSessionsCommand(CurrentUserId, ipAddress));
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Đã đăng xuất và hủy bỏ toàn bộ các phiên hoạt động thành công."));
     }
 
     /// <summary>

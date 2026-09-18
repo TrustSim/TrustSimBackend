@@ -11,16 +11,16 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 /// </summary>
 public class GetKycVerificationDetailQueryHandler : IRequestHandler<GetKycVerificationDetailQuery, IdentityVerificationDetailDto>
 {
-    private readonly IIdentityVerificationRepository _kycRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetKycVerificationDetailQueryHandler(IIdentityVerificationRepository kycRepository)
+    public GetKycVerificationDetailQueryHandler(IUnitOfWork unitOfWork)
     {
-        _kycRepository = kycRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IdentityVerificationDetailDto> Handle(GetKycVerificationDetailQuery request, CancellationToken cancellationToken)
     {
-        var v = await _kycRepository.GetDetailByIdAsync(request.VerificationId, cancellationToken);
+        var v = await _unitOfWork.IdentityVerifications.GetDetailByIdAsync(request.VerificationId, cancellationToken);
         if (v == null)
         {
             throw new NotFoundException($"Không tìm thấy hồ sơ xác minh KYC với ID '{request.VerificationId}'.");

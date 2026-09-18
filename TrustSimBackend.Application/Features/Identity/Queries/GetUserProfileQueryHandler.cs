@@ -12,16 +12,16 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 /// </summary>
 public class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQuery, UserProfileDto>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetUserProfileQueryHandler(IUserAccountRepository userAccountRepository)
+    public GetUserProfileQueryHandler(IUnitOfWork unitOfWork)
     {
-        _userAccountRepository = userAccountRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<UserProfileDto> Handle(GetUserProfileQuery request, CancellationToken cancellationToken)
     {
-        var user = await _userAccountRepository.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
 
         if (user == null)
         {

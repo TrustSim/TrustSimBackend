@@ -9,16 +9,16 @@ namespace TrustSimBackend.Application.Features.Trade.Queries;
 
 public class GetTradeTransactionByIdQueryHandler : IRequestHandler<GetTradeTransactionByIdQuery, TradeTransactionDto>
 {
-    private readonly ITradeTransactionRepository _tradeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetTradeTransactionByIdQueryHandler(ITradeTransactionRepository tradeRepository)
+    public GetTradeTransactionByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _tradeRepository = tradeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<TradeTransactionDto> Handle(GetTradeTransactionByIdQuery request, CancellationToken cancellationToken)
     {
-        var trade = await _tradeRepository.GetByIdAsync(request.Id, cancellationToken);
+        var trade = await _unitOfWork.TradeTransactions.GetByIdAsync(request.Id, cancellationToken);
         if (trade == null)
         {
             throw new NotFoundException($"Không tìm thấy giao dịch với ID '{request.Id}'.");

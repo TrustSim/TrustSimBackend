@@ -8,18 +8,16 @@ namespace TrustSimBackend.Application.Features.System.Commands;
 
 public class UpdateDocumentCommandHandler : IRequestHandler<UpdateDocumentCommand, DocumentDto>
 {
-    private readonly IDocumentRepository _documentRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateDocumentCommandHandler(IDocumentRepository documentRepository, IUnitOfWork unitOfWork)
+    public UpdateDocumentCommandHandler(IUnitOfWork unitOfWork)
     {
-        _documentRepository = documentRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<DocumentDto> Handle(UpdateDocumentCommand request, CancellationToken cancellationToken)
     {
-        var doc = await _documentRepository.GetByIdAsync(request.Id, cancellationToken);
+        var doc = await _unitOfWork.Documents.GetByIdAsync(request.Id, cancellationToken);
         if (doc == null)
         {
             throw new NotFoundException($"Không tìm thấy văn bản với ID '{request.Id}'.");
@@ -28,7 +26,7 @@ public class UpdateDocumentCommandHandler : IRequestHandler<UpdateDocumentComman
         doc.DocumentName = request.DocumentName.Trim();
         doc.LinkUrl = request.LinkUrl.Trim();
 
-        _documentRepository.Update(doc);
+        _unitOfWork.Documents.Update(doc);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new DocumentDto

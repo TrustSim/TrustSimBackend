@@ -54,25 +54,20 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedMasterCatalogAsync(TrustSimDbContext context)
     {
-        // 1. FormatRhythms (f1000000-...)
+        // 1. FormatRhythms (f1000000-...) - Danh mục các mẫu ngắt nhịp số (Cadence Partition Templates)
         var rhythms = new List<FormatRhythm>
         {
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000001"), FormatRhythmName = "Bát quý",      Value = "AAAAAAAA",    BasePriceFactor = 1000.0f, Description = "8 chữ số giống nhau liên tiếp. VD: 0988 888888" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000002"), FormatRhythmName = "Lục quý",      Value = "AAAAAA",      BasePriceFactor = 500.0f,  Description = "6 chữ số giống nhau liên tiếp. VD: 090 999999" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000003"), FormatRhythmName = "Ngũ quý",      Value = "AAAAA",       BasePriceFactor = 150.0f,  Description = "5 chữ số giống nhau liên tiếp. VD: 0988 88888" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000004"), FormatRhythmName = "Tứ quý",       Value = "AAAA",        BasePriceFactor = 50.0f,   Description = "4 chữ số giống nhau cuối số. VD: 0909 9999" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000005"), FormatRhythmName = "Sảnh tiến 5",  Value = "ABCDE",       BasePriceFactor = 35.0f,   Description = "Chuỗi 5 chữ số tăng dần liên tiếp. VD: 091 23456" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000006"), FormatRhythmName = "Sảnh lùi",     Value = "EDCBA",       BasePriceFactor = 5.0f,    Description = "Chuỗi chữ số giảm dần liên tiếp. VD: 090 9876543" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000007"), FormatRhythmName = "Lặp đôi",      Value = "ABABAB",      BasePriceFactor = 3.0f,    Description = "Hai chữ số xen kẽ luân phiên. VD: 0909 090909" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000008"), FormatRhythmName = "Gánh đảo",     Value = "ABBA",        BasePriceFactor = 2.0f,    Description = "4 số đối xứng. VD: 0909 1221" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000009"), FormatRhythmName = "Lộc phát",     Value = "68",          BasePriceFactor = 2.5f,    Description = "Chứa cặp số 68 hoặc 86 liên quan đến tài lộc" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000010"), FormatRhythmName = "Thần tài",     Value = "79",          BasePriceFactor = 2.2f,    Description = "Chứa chuỗi số 79 - biểu tượng may mắn" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000011"), FormatRhythmName = "Thường",       Value = "NORMAL",      BasePriceFactor = 1.0f,    Description = "Số thông thường không thuộc các nhịp đặc biệt" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000012"), FormatRhythmName = "Sảnh tiến 6",  Value = "SANH_TIEN_6", BasePriceFactor = 80.0f,   Description = "Chuỗi 6 chữ số tăng liên tiếp rồng cuốn. VD: 091 456789" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000013"), FormatRhythmName = "Taxi 3 Cặp",    Value = "TAXI_3_CAP",  BasePriceFactor = 28.0f,   Description = "Dạng lặp taxi 3 cặp số. VD: 0908 686868 hoặc 898989" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000014"), FormatRhythmName = "Tam hoa kép",  Value = "TAM_HOA_KEP", BasePriceFactor = 18.0f,   Description = "Hai bộ tam hoa liên tiếp. VD: 0988 666888" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000015"), FormatRhythmName = "Taxi 2 Cặp",    Value = "TAXI_2_CAP",  BasePriceFactor = 12.0f,   Description = "Dạng taxi ABC.ABC hoặc AB.AB. VD: 090 789789" },
-            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000016"), FormatRhythmName = "Tam hoa",      Value = "TAM_HOA",     BasePriceFactor = 5.0f,    Description = "3 chữ số đuôi giống nhau. VD: 0909 888" }
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000001"), FormatRhythmName = "Nhịp đều 5 cặp (Đại Taxi / Lặp 5)", Value = "2.2.2.2.2", BasePriceFactor = 1.30f, Description = "Ngắt 5 block 2 số (09.xx.xx.xx.xx) làm nổi bật 4 cặp thế số hoặc lặp đôi liên tiếp. VD: 09.86.86.86.86" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000002"), FormatRhythmName = "Nhịp cụm đôi 4-4 (Đôi Bát Tứ)",   Value = "2.4.4",     BasePriceFactor = 1.25f, Description = "Ngắt 09.xxxx.xxxx làm nổi bật 2 cụm tứ quý hoặc 2 cụm sảnh 4. VD: 09.6666.8888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000003"), FormatRhythmName = "Nhịp Bát quý / Sảnh dài",         Value = "2.8",       BasePriceFactor = 1.35f, Description = "Ngắt 09.xxxxxxxx phô diễn toàn bộ 8 số VIP liên tiếp phía sau. VD: 09.88888888, 09.12345678" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000004"), FormatRhythmName = "Nhịp Lục quý đuôi",             Value = "4.6",       BasePriceFactor = 1.25f, Description = "Ngắt 09xx.xxxxxx làm nổi bật trọn vẹn cụm lục quý 6 số đuôi. VD: 0909.999999" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000005"), FormatRhythmName = "Nhịp Tam hoa kép",                 Value = "4.3.3",     BasePriceFactor = 1.20f, Description = "Ngắt 09xx.xxx.xxx làm nổi bật 2 bộ tam hoa liên tiếp. VD: 0988.666.888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000006"), FormatRhythmName = "Nhịp 3 cặp + Tứ quý đuôi",        Value = "2.2.2.4",   BasePriceFactor = 1.20f, Description = "Ngắt 09.xx.xx.xxxx làm nổi bật tứ quý đuôi. VD: 09.12.34.8888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000007"), FormatRhythmName = "Nhịp kẹp Tứ quý giữa",          Value = "3.4.3",     BasePriceFactor = 1.15f, Description = "Ngắt 09x.xxxx.xxx làm nổi bật cụm 4 số ở giữa. VD: 098.8888.686" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000008"), FormatRhythmName = "Nhịp Gánh đôi cân xứng",         Value = "3.2.2.3",   BasePriceFactor = 1.10f, Description = "Ngắt 09x.xx.xx.xxx cấu trúc gánh đối xứng. VD: 098.68.68.098" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000009"), FormatRhythmName = "Nhịp Song long / Cân bằng",       Value = "5.5",       BasePriceFactor = 1.15f, Description = "Ngắt 09xxx.xxxxx chia đều 2 nửa cân bằng. VD: 09888.88888" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000010"), FormatRhythmName = "Nhịp chuẩn viễn thông",          Value = "3.3.4",     BasePriceFactor = 1.00f, Description = "Định dạng ngắt mặc định tiêu chuẩn 09x.xxx.xxxx" },
+            new() { Id = Guid.Parse("f1000000-0000-0000-0000-000000000011"), FormatRhythmName = "Nhịp Phổ thông",                 Value = "NORMAL",    BasePriceFactor = 1.00f, Description = "Số thông thường không thuộc các thế nhịp đặc thù" }
         };
 
         foreach (var r in rhythms)
@@ -91,7 +86,7 @@ public static class DbSeeder
         }
         await context.SaveChangesAsync();
 
-        // 2. SimCategories (ca000000-...)
+        // 2. SimCategories (ca000000-...) - Danh mục tổ hợp số & ý nghĩa phong thủy
         var categories = new List<SimCategory>
         {
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000001"), CategoryCode = "BAT_QUY",        CategoryName = "SIM Bát quý",                   Description = "Đẳng cấp siêu VIP 8 số trùng lặp", ValuationMultiplier = 20.0f },
@@ -105,7 +100,7 @@ public static class DbSeeder
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000009"), CategoryCode = "PHONG_THUY",     CategoryName = "SIM Phong thủy",                Description = "Chứa nhiều chữ số hợp mệnh ngũ hành", ValuationMultiplier = 1.8f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000010"), CategoryCode = "SIM_THUONG",     CategoryName = "SIM Phổ thông",                 Description = "Số điện thoại thông thường", ValuationMultiplier = 1.0f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000011"), CategoryCode = "LOC_PHAT_KEP",   CategoryName = "SIM Lộc phát kép (6868)",       Description = "Đại lộc phát tài, nhân đôi vượng khí thương trường", ValuationMultiplier = 3.5f },
-            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000012"), CategoryCode = "CAT_TUONG_1368", CategoryName = "SIM Sinh tài lộc phát (1368)", Description = "Cát tường đỉnh cao: Sinh tài lộc phát trọn vẹn bốn mùa", ValuationMultiplier = 3.2f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000012"), CategoryCode = "CAT_TUONG_1368", CategoryName = "SIM Sinh tài lộc phát (1368)", Description = "Cát tường đỉnh cao: Sinh tài lộc phát trọn vẹn bốn mùa", ValuationMultiplier = 3.5f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000013"), CategoryCode = "THAN_TAI_KEP",   CategoryName = "SIM Thần tài kép (3979)",       Description = "Thần tài lớn nhỏ tương hỗ, công danh rực rỡ", ValuationMultiplier = 3.0f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000014"), CategoryCode = "THAN_TAI_LON",   CategoryName = "SIM Thần tài lớn (79)",         Description = "Đuôi 79 phù trợ kinh doanh buôn bán đại thắng", ValuationMultiplier = 2.2f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000015"), CategoryCode = "THAN_TAI_NHO",   CategoryName = "SIM Thần tài nhỏ (39)",         Description = "Đuôi 39 hanh thông may mắn tài lộc", ValuationMultiplier = 1.8f },
@@ -114,7 +109,11 @@ public static class DbSeeder
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000018"), CategoryCode = "SIM_NAM_SINH",   CategoryName = "SIM Năm sinh",                  Description = "Dãy số mang mốc năm sinh thể hiện bản sắc cá nhân", ValuationMultiplier = 1.7f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000019"), CategoryCode = "KHONG_THAT_BAT", CategoryName = "SIM Không 4-7 (Sạch số)",      Description = "Số sạch hoàn toàn không dính 4 và 7, vượng khí thuần khiết", ValuationMultiplier = 1.35f },
             new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000020"), CategoryCode = "TAM_HOA",        CategoryName = "SIM Tam hoa",                   Description = "Bộ ba số giống nhau vững chãi như kiềng ba chân", ValuationMultiplier = 1.8f },
-            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000021"), CategoryCode = "GANH_DAO",       CategoryName = "SIM Gánh đảo",                  Description = "Cấu trúc gánh đối xứng cân bằng âm dương", ValuationMultiplier = 1.4f }
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000021"), CategoryCode = "GANH_DAO",       CategoryName = "SIM Gánh đảo",                  Description = "Cấu trúc gánh đối xứng cân bằng âm dương", ValuationMultiplier = 1.4f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000022"), CategoryCode = "DAI_TAXI_86",     CategoryName = "SIM Đại Taxi Lộc Phát (86)",    Description = "Cực phẩm 4 cặp 86 liên tiếp, đại phú đại quý tột đỉnh", ValuationMultiplier = 10.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000023"), CategoryCode = "DAI_TAXI_68",     CategoryName = "SIM Đại Taxi Phát Lộc (68)",    Description = "Cực phẩm 4 cặp 68 liên tiếp, vượng khí kinh doanh ngút trời", ValuationMultiplier = 9.0f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000024"), CategoryCode = "LOC_PHAT_86",     CategoryName = "SIM Phát Lộc (86)",             Description = "Cặp số 86 tượng trưng cho sự phát triển tài lộc", ValuationMultiplier = 2.2f },
+            new() { Id = Guid.Parse("ca000000-0000-0000-0000-000000000025"), CategoryCode = "LOC_PHAT_68",     CategoryName = "SIM Lộc Phát (68)",             Description = "Cặp số 68 tượng trưng cho lộc tài hưng vượng", ValuationMultiplier = 2.0f }
         };
 
         foreach (var c in categories)
@@ -408,40 +407,54 @@ public static class DbSeeder
         var pr079 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "079"))?.Id ?? defaultPrefix;
 
         var defaultRhythm = await context.FormatRhythms.Select(r => r.Id).FirstOrDefaultAsync();
-        var fBatQuy = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "AAAAAAAA"))?.Id ?? defaultRhythm;
-        var fTuQuy = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "AAAA"))?.Id ?? defaultRhythm;
-        var fSanhTien = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "ABCDE"))?.Id ?? defaultRhythm;
-        var fLocPhat = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "68"))?.Id ?? defaultRhythm;
-        var fThanTai = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "79"))?.Id ?? defaultRhythm;
+        var f22222 = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "2.2.2.2.2"))?.Id ?? defaultRhythm;
+        var f244 = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "2.4.4"))?.Id ?? defaultRhythm;
+        var f28 = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "2.8"))?.Id ?? defaultRhythm;
+        var f46 = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "4.6"))?.Id ?? defaultRhythm;
+        var f334 = (await context.FormatRhythms.FirstOrDefaultAsync(r => r.Value == "3.3.4"))?.Id ?? defaultRhythm;
 
         var defaultCategory = await context.SimCategories.Select(c => c.Id).FirstOrDefaultAsync();
         var caBatQuy = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "BAT_QUY"))?.Id ?? defaultCategory;
+        var caLucQuy = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "LUC_QUY"))?.Id ?? defaultCategory;
         var caTuQuy = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "TU_QUY"))?.Id ?? defaultCategory;
         var caSanhTien = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "SANH_TIEN"))?.Id ?? defaultCategory;
+        var caDaiTaxi86 = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "DAI_TAXI_86"))?.Id ?? defaultCategory;
+        var caLocPhatKep = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "LOC_PHAT_KEP"))?.Id ?? defaultCategory;
+        var caLocPhat86 = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "LOC_PHAT_86"))?.Id ?? defaultCategory;
         var caThanTai = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "THAN_TAI"))?.Id ?? defaultCategory;
-        var caLocPhat = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "LOC_PHAT"))?.Id ?? defaultCategory;
+        var caThanTaiLon = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "THAN_TAI_LON"))?.Id ?? defaultCategory;
+        var caKhongThatBat = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "KHONG_THAT_BAT"))?.Id ?? defaultCategory;
 
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
         var sellerDaiPhat = Guid.Parse("11000000-0000-0000-0000-000000000004");
 
         var sims = new List<SimNumber>
         {
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000001"), PhoneNumber = "0988888888", SimStatus = SimStatus.IN_AUCTION, PhonePrefixId = pr098, FormatRhythmId = fBatQuy },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000002"), PhoneNumber = "0909999999", SimStatus = SimStatus.TRANSFERRED, PhonePrefixId = pr090, FormatRhythmId = fTuQuy },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000003"), PhoneNumber = "0912345678", SimStatus = SimStatus.IN_AUCTION, PhonePrefixId = pr091, FormatRhythmId = fSanhTien },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000004"), PhoneNumber = "0888686868", SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr088, FormatRhythmId = fLocPhat },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), PhoneNumber = "0797979799", SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr079, FormatRhythmId = fThanTai },
-            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), PhoneNumber = "0966668888", SimStatus = SimStatus.TRANSFERRED,  PhonePrefixId = pr097, FormatRhythmId = fTuQuy },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000001"), PhoneNumber = "0988888888", Price = 1800000000m, SimStatus = SimStatus.IN_AUCTION, PhonePrefixId = pr098, FormatRhythmId = f28 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000002"), PhoneNumber = "0909999999", Price = 550000000m,  SimStatus = SimStatus.TRANSFERRED, PhonePrefixId = pr090, FormatRhythmId = f46 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000003"), PhoneNumber = "0912345678", Price = 105000000m,  SimStatus = SimStatus.IN_AUCTION, PhonePrefixId = pr091, FormatRhythmId = f28 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000004"), PhoneNumber = "0888686868", Price = 72000000m,   SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr088, FormatRhythmId = f22222 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), PhoneNumber = "0797979799", Price = 35000000m,   SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr079, FormatRhythmId = f22222 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), PhoneNumber = "0966668888", Price = 120000000m,  SimStatus = SimStatus.TRANSFERRED, PhonePrefixId = pr097, FormatRhythmId = f244 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000007"), PhoneNumber = "0986868686", Price = 2200000000m, SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr098, FormatRhythmId = f22222 },
         };
         await context.SimNumbers.AddRangeAsync(sims);
 
         var mappings = new List<SimCategoryMapping>
         {
-            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000001"), SimNumberId = sims[0].Id, SimCategoryId = caBatQuy,   ScoreContribution = 15.0f },
-            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000002"), SimNumberId = sims[1].Id, SimCategoryId = caTuQuy,    ScoreContribution = 3.5f },
-            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000003"), SimNumberId = sims[2].Id, SimCategoryId = caSanhTien, ScoreContribution = 2.5f },
-            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000004"), SimNumberId = sims[3].Id, SimCategoryId = caLocPhat,  ScoreContribution = 2.0f },
-            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000005"), SimNumberId = sims[4].Id, SimCategoryId = caThanTai,  ScoreContribution = 2.2f }
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000001"), SimNumberId = sims[0].Id, SimCategoryId = caBatQuy,        ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000002"), SimNumberId = sims[0].Id, SimCategoryId = caKhongThatBat,   ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000003"), SimNumberId = sims[1].Id, SimCategoryId = caLucQuy,        ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000004"), SimNumberId = sims[1].Id, SimCategoryId = caKhongThatBat,   ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000005"), SimNumberId = sims[2].Id, SimCategoryId = caSanhTien,      ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000006"), SimNumberId = sims[3].Id, SimCategoryId = caLocPhatKep,    ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000007"), SimNumberId = sims[3].Id, SimCategoryId = caKhongThatBat,   ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000008"), SimNumberId = sims[4].Id, SimCategoryId = caThanTaiLon,    ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000009"), SimNumberId = sims[5].Id, SimCategoryId = caTuQuy,         ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000010"), SimNumberId = sims[5].Id, SimCategoryId = caKhongThatBat,   ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000011"), SimNumberId = sims[6].Id, SimCategoryId = caDaiTaxi86,     ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000012"), SimNumberId = sims[6].Id, SimCategoryId = caLocPhat86,     ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000013"), SimNumberId = sims[6].Id, SimCategoryId = caKhongThatBat,   ScoreContribution = 1.0f },
         };
         await context.SimCategoryMappings.AddRangeAsync(mappings);
 
@@ -450,7 +463,8 @@ public static class DbSeeder
             new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000001"), UserAccountId = sellerPhuQuy, SimNumberId = sims[0].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
             new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000002"), UserAccountId = sellerPhuQuy, SimNumberId = sims[1].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
             new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000003"), UserAccountId = sellerDaiPhat,SimNumberId = sims[2].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
-            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000004"), UserAccountId = sellerDaiPhat,SimNumberId = sims[3].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION }
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000004"), UserAccountId = sellerDaiPhat,SimNumberId = sims[3].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000005"), UserAccountId = sellerPhuQuy, SimNumberId = sims[6].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION }
         };
         await context.SimOwnerships.AddRangeAsync(ownerships);
 
@@ -458,7 +472,8 @@ public static class DbSeeder
         {
             new() { Id = Guid.Parse("24000000-0000-0000-0000-000000000001"), SimOwnershipId = ownerships[0].Id, VerificationStatus = VerificationStatus.VERIFIED, RequestedAt = DateTime.UtcNow.AddDays(-29), VerifiedAt = DateTime.UtcNow.AddDays(-29) },
             new() { Id = Guid.Parse("24000000-0000-0000-0000-000000000002"), SimOwnershipId = ownerships[1].Id, VerificationStatus = VerificationStatus.VERIFIED, RequestedAt = DateTime.UtcNow.AddDays(-29), VerifiedAt = DateTime.UtcNow.AddDays(-29) },
-            new() { Id = Guid.Parse("24000000-0000-0000-0000-000000000003"), SimOwnershipId = ownerships[2].Id, VerificationStatus = VerificationStatus.VERIFIED, RequestedAt = DateTime.UtcNow.AddDays(-19), VerifiedAt = DateTime.UtcNow.AddDays(-19) }
+            new() { Id = Guid.Parse("24000000-0000-0000-0000-000000000003"), SimOwnershipId = ownerships[2].Id, VerificationStatus = VerificationStatus.VERIFIED, RequestedAt = DateTime.UtcNow.AddDays(-19), VerifiedAt = DateTime.UtcNow.AddDays(-19) },
+            new() { Id = Guid.Parse("24000000-0000-0000-0000-000000000004"), SimOwnershipId = ownerships[4].Id, VerificationStatus = VerificationStatus.VERIFIED, RequestedAt = DateTime.UtcNow.AddDays(-10), VerifiedAt = DateTime.UtcNow.AddDays(-10) }
         };
         await context.SimVerifications.AddRangeAsync(verifications);
 
@@ -683,6 +698,7 @@ Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ gi�
             var sim3Id = Guid.Parse("21000000-0000-0000-0000-000000000003"); // 0912345678
             var sim4Id = Guid.Parse("21000000-0000-0000-0000-000000000004"); // 0888686868
             var sim5Id = Guid.Parse("21000000-0000-0000-0000-000000000005"); // 0797979799
+            var sim6Id = Guid.Parse("21000000-0000-0000-0000-000000000007"); // 0986868686
 
             var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
             var sellerDaiPhat = Guid.Parse("11000000-0000-0000-0000-000000000004");
@@ -768,6 +784,22 @@ Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ gi�
                     ValuationReasoning = "SIM 0797979799 thuộc dòng Taxi Thần Tài Lớn 7979799 của MobiFone, mang ý nghĩa Thần tài luôn đồng hành và bảo hộ trong mọi dự án đầu tư.",
                     FengShuiAnalysis = "Số 7 và 9 mang năng lượng Thần tài phù trợ thịnh vượng, hanh thông trong giao dịch mua bán.",
                     AppliedToSim = false
+                },
+                new()
+                {
+                    Id = Guid.Parse("e1000000-0000-0000-0000-000000000006"),
+                    SimNumberId = sim6Id,
+                    UserAccountId = sellerPhuQuy,
+                    BaselinePrice = 1850000000m,
+                    MarketMultiplier = 1.189f,
+                    SuggestedPrice = 2200000000m,
+                    MinPrice = 1900000000m,
+                    MaxPrice = 2500000000m,
+                    ConfidenceScore = 0.99f,
+                    AiModelName = "deepseek-ai/deepseek-v4-flash-0731",
+                    ValuationReasoning = "SIM 0986868686 đạt đẳng cấp Siêu VIP Đại Taxi 4 cặp Lộc Phát 86 liên tiếp, thuộc đầu số cổ 098 Viettel Telecom. Khi áp dụng nhịp tối ưu 2.2.2.2.2 (09.86.86.86.86), số điện thoại bộc lộ trọn vẹn 4 thế Phát Lộc kép, hoàn toàn sạch số 4 và 7 (Không Thất Bát). So với nhịp mặc định 3.3.4 (098.686.8686 làm đứt đoạn cặp 86), nhịp 2.2.2.2.2 giúp nâng tầm giá trị SIM vượt trội lên mức 2.2 tỷ VND.",
+                    FengShuiAnalysis = "Sự lặp lại hoàn hảo của 4 cặp số 86 (Bát Lộc) trên nền đầu số cổ 098 tạo nên thế phong thủy Đắc Lộc Sinh Tiền vĩnh cửu. Dãy số tương sinh vượng khí tối đa cho gia chủ kinh doanh.",
+                    AppliedToSim = true
                 }
             };
 

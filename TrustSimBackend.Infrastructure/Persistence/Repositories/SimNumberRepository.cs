@@ -121,7 +121,14 @@ public class SimNumberRepository : ISimNumberRepository
         return newRhythm.Id;
     }
 
-    public async Task<IReadOnlyList<SimNumber>> GetAvailableSimsForConsultationAsync(decimal? minPrice, decimal? maxPrice, int limit = 6, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<SimNumber>> GetAvailableSimsForConsultationAsync(
+        decimal? minPrice,
+        decimal? maxPrice,
+        string? carrier = null,
+        string? prefix = null,
+        string? keyword = null,
+        int limit = 6,
+        CancellationToken cancellationToken = default)
     {
         var query = _context.SimNumbers
             .Include(s => s.PhonePrefix)
@@ -136,6 +143,25 @@ public class SimNumberRepository : ISimNumberRepository
         if (minPrice.HasValue && minPrice.Value > 0)
         {
             query = query.Where(s => s.Price >= minPrice.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(carrier))
+        {
+            var cleanCarrier = carrier.Trim();
+            query = query.Where(s => s.PhonePrefix != null && s.PhonePrefix.SimCarrier != null &&
+                (s.PhonePrefix.SimCarrier.CarrierName.Contains(cleanCarrier) || s.PhonePrefix.SimCarrier.CarrierCode.Contains(cleanCarrier)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(prefix))
+        {
+            var cleanPrefix = prefix.Trim();
+            query = query.Where(s => (s.PhonePrefix != null && s.PhonePrefix.PrefixValue == cleanPrefix) || s.PhoneNumber.StartsWith(cleanPrefix));
+        }
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var cleanKeyword = keyword.Trim();
+            query = query.Where(s => s.PhoneNumber.Contains(cleanKeyword));
         }
 
         return await query

@@ -47,8 +47,7 @@ public static class DependencyInjection
         });
 
         // ─── 3. UnitOfWork ───────────────────────────────────────────
-        // Chuyển tiếp IUnitOfWork về cùng 1 instance TrustSimDbContext trong request (tránh tạo 2 DbContext riêng)
-        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<TrustSimDbContext>());
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // ─── 4. Repositories ─────────────────────────────────────────
         services.AddScoped<IUserAccountRepository, UserAccountRepository>();
@@ -57,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IWalletTransactionRepository, WalletTransactionRepository>();
         services.AddScoped<ISimCarrierRepository, SimCarrierRepository>();
         services.AddScoped<ISimCategoryRepository, SimCategoryRepository>();
+        services.AddScoped<ISimCategoryMappingRepository, SimCategoryMappingRepository>();
         services.AddScoped<IPhonePrefixRepository, PhonePrefixRepository>();
         services.AddScoped<ISimNumberRepository, SimNumberRepository>();
         services.AddScoped<ISimRepository, SimRepository>();
@@ -86,6 +86,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<ICookieService, CookieService>();
         services.AddScoped<ISePayService, SePayService>();
+        services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 
         // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
         services.AddScoped<IBulkDataService, BulkDataService>();
@@ -108,9 +109,18 @@ public static class DependencyInjection
         services.AddScoped<ISimFeatureExtractor, SimFeatureExtractor>();
         services.AddScoped<ISimValuationMathEngine, SimValuationMathEngine>();
         services.AddScoped<ITextChunkerService, TextChunkerService>();
-        services.AddHttpClient<IWebCrawlerService, WebCrawlerService>();
-        services.AddHttpClient<INvidiaEmbeddingService, NvidiaEmbeddingService>();
-        services.AddHttpClient<INvidiaLlmService, NvidiaLlmService>();
+        services.AddHttpClient<IWebCrawlerService, WebCrawlerService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(25);
+        });
+        services.AddHttpClient<INvidiaEmbeddingService, NvidiaEmbeddingService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(25);
+        });
+        services.AddHttpClient<INvidiaLlmService, NvidiaLlmService>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(25);
+        });
         services.AddScoped<IRagRetrievalService, RagRetrievalService>();
         services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();
 

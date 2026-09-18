@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.Dispute.Queries;
 
 public class AdminExportDisputesQueryHandler : IRequestHandler<AdminExportDisputesQuery, byte[]>
 {
-    private readonly IDisputeTicketRepository _disputeRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public AdminExportDisputesQueryHandler(IDisputeTicketRepository disputeRepository, IExcelService excelService)
+    public AdminExportDisputesQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _disputeRepository = disputeRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(AdminExportDisputesQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _disputeRepository.GetPagedAsync(
+        var (items, _) = await _unitOfWork.DisputeTickets.GetPagedAsync(
             null,
             request.Status,
             pageIndex: 1,

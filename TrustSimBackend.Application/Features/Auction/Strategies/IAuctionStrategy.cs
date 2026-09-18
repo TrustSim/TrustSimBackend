@@ -1,4 +1,4 @@
-using TrustSimBackend.Application.Features.Auction.Commands.CreateAuction;
+using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
 

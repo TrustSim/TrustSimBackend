@@ -10,29 +10,22 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class CreateSimCommandHandler : IRequestHandler<CreateSimCommand, SimNumberDto>
 {
-    private readonly ISimNumberRepository _simRepository;
-    private readonly IPhonePrefixRepository _prefixRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateSimCommandHandler(
-        ISimNumberRepository simRepository,
-        IPhonePrefixRepository prefixRepository,
-        IUnitOfWork unitOfWork)
+    public CreateSimCommandHandler(IUnitOfWork unitOfWork)
     {
-        _simRepository = simRepository;
-        _prefixRepository = prefixRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<SimNumberDto> Handle(CreateSimCommand request, CancellationToken cancellationToken)
     {
         var cleanNumber = request.PhoneNumber.Trim();
-        if (await _simRepository.ExistsByPhoneNumberAsync(cleanNumber, cancellationToken: cancellationToken))
+        if (await _unitOfWork.SimNumbers.ExistsByPhoneNumberAsync(cleanNumber, cancellationToken: cancellationToken))
         {
             throw new BadRequestException($"Số SIM '{cleanNumber}' đã tồn tại trong hệ thống.");
         }
 
-        var prefix = await _prefixRepository.GetByIdAsync(request.PhonePrefixId, cancellationToken);
+        var prefix = await _unitOfWork.PhonePrefixes.GetByIdAsync(request.PhonePrefixId, cancellationToken);
         if (prefix == null)
         {
             throw new NotFoundException($"Không tìm thấy đầu số với ID '{request.PhonePrefixId}'.");
@@ -40,7 +33,7 @@ public class CreateSimCommandHandler : IRequestHandler<CreateSimCommand, SimNumb
 
         var rhythmId = request.FormatRhythmId.HasValue && request.FormatRhythmId.Value != Guid.Empty
             ? request.FormatRhythmId.Value
-            : await _simRepository.GetOrCreateDefaultFormatRhythmIdAsync(cancellationToken);
+            : await _unitOfWork.SimNumbers.GetOrCreateDefaultFormatRhythmIdAsync(cancellationToken);
 
         var sim = new SimNumber
         {
@@ -64,7 +57,7 @@ public class CreateSimCommandHandler : IRequestHandler<CreateSimCommand, SimNumb
             }
         }
 
-        await _simRepository.AddAsync(sim, cancellationToken);
+        await _unitOfWork.SimNumbers.AddAsync(sim, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new SimNumberDto

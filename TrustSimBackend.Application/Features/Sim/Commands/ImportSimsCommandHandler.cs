@@ -15,29 +15,17 @@ public class ImportSimsCommandHandler : IRequestHandler<ImportSimsCommand, Impor
     private readonly IBulkDataService _bulkDataService;
     private readonly IExcelService _excelService;
     private readonly ICsvService _csvService;
-    private readonly ISimNumberRepository _simRepository;
-    private readonly IPhonePrefixRepository _prefixRepository;
-    private readonly ISimCategoryRepository _categoryRepository;
-    private readonly IFormatRhythmRepository _rhythmRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public ImportSimsCommandHandler(
         IBulkDataService bulkDataService,
         IExcelService excelService,
         ICsvService csvService,
-        ISimNumberRepository simRepository,
-        IPhonePrefixRepository prefixRepository,
-        ISimCategoryRepository categoryRepository,
-        IFormatRhythmRepository rhythmRepository,
         IUnitOfWork unitOfWork)
     {
         _bulkDataService = bulkDataService;
         _excelService = excelService;
         _csvService = csvService;
-        _simRepository = simRepository;
-        _prefixRepository = prefixRepository;
-        _categoryRepository = categoryRepository;
-        _rhythmRepository = rhythmRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -76,11 +64,11 @@ public class ImportSimsCommandHandler : IRequestHandler<ImportSimsCommand, Impor
         }
 
         // Đọc Master Data vào In-Memory Dictionary để mapping cực nhanh
-        var allPrefixes = await _prefixRepository.GetAllAsync(null, cancellationToken);
-        var allCategories = await _categoryRepository.GetAllAsync(cancellationToken);
-        var allRhythms = await _rhythmRepository.GetAllAsync(cancellationToken);
+        var allPrefixes = await _unitOfWork.PhonePrefixes.GetAllAsync(null, cancellationToken);
+        var allCategories = await _unitOfWork.SimCategories.GetAllAsync(cancellationToken);
+        var allRhythms = await _unitOfWork.FormatRhythms.GetAllAsync(cancellationToken);
         var defaultRhythm = allRhythms.FirstOrDefault(r => r.FormatRhythmName == "Mặc định") ?? allRhythms.FirstOrDefault();
-        var defaultRhythmId = defaultRhythm?.Id ?? await _simRepository.GetOrCreateDefaultFormatRhythmIdAsync(cancellationToken);
+        var defaultRhythmId = defaultRhythm?.Id ?? await _unitOfWork.SimNumbers.GetOrCreateDefaultFormatRhythmIdAsync(cancellationToken);
 
         var existingSimsSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -125,7 +113,7 @@ public class ImportSimsCommandHandler : IRequestHandler<ImportSimsCommand, Impor
                 cleanPhone = "0" + cleanPhone;
             }
 
-            if (existingSimsSet.Contains(cleanPhone) || await _simRepository.ExistsByPhoneNumberAsync(cleanPhone, cancellationToken: cancellationToken))
+            if (existingSimsSet.Contains(cleanPhone) || await _unitOfWork.SimNumbers.ExistsByPhoneNumberAsync(cleanPhone, cancellationToken: cancellationToken))
             {
                 result.Errors.Add(new ImportRowError
                 {

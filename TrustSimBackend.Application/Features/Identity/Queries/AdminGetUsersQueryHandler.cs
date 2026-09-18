@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 
 public class AdminGetUsersQueryHandler : IRequestHandler<AdminGetUsersQuery, PagedResult<AdminUserDetailDto>>
 {
-    private readonly IUserAccountRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AdminGetUsersQueryHandler(IUserAccountRepository userRepository)
+    public AdminGetUsersQueryHandler(IUnitOfWork unitOfWork)
     {
-        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<AdminUserDetailDto>> Handle(AdminGetUsersQuery request, CancellationToken cancellationToken)
     {
-        var (users, totalCount) = await _userRepository.GetPagedAsync(
+        var (users, totalCount) = await _unitOfWork.Users.GetPagedAsync(
             request.Keyword,
             request.Role,
             request.IsActive,

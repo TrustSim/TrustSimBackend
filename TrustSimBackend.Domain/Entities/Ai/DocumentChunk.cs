@@ -18,7 +18,7 @@ public class DocumentChunk : FullAuditableEntity
     /// <summary>Nội dung văn bản thô của đoạn trích.</summary>
     public string Content { get; set; } = string.Empty;
 
-    /// <summary>Vector nhúng ngữ nghĩa (1024 chiều) sinh ra từ NVIDIA Embedding API (nv-embedqa-e5-v5).</summary>
+    /// <summary>Vector nhúng ngữ nghĩa (2048 chiều) sinh ra từ NVIDIA Embedding API (nvidia/nemotron-3-embed-1b).</summary>
     public Vector? Embedding { get; set; }
 
     /// <summary>Số lượng token ước tính của đoạn trích.</summary>

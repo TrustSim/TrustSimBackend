@@ -11,26 +11,20 @@ namespace TrustSimBackend.Application.Features.Auction.Commands;
 
 public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
 {
-    private readonly IAuctionRepository _auctionRepository;
-    private readonly IBidRepository _bidRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
 
     public PlaceBidCommandHandler(
-        IAuctionRepository auctionRepository,
-        IBidRepository bidRepository,
         IUnitOfWork unitOfWork,
         IAuctionRealtimeNotifier realtimeNotifier)
     {
-        _auctionRepository = auctionRepository;
-        _bidRepository = bidRepository;
         _unitOfWork = unitOfWork;
         _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<BidDto> Handle(PlaceBidCommand request, CancellationToken cancellationToken)
     {
-        var auction = await _auctionRepository.GetByIdAsync(request.AuctionId, cancellationToken);
+        var auction = await _unitOfWork.Auctions.GetByIdAsync(request.AuctionId, cancellationToken);
         if (auction == null)
         {
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.AuctionId}'.");
@@ -46,7 +40,7 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
             throw new BadRequestException($"Giá trả ({request.BidAmount:N0} VNĐ) phải cao hơn giá hiện tại ({auction.CurrentPrice:N0} VNĐ).");
         }
 
-        var participant = await _auctionRepository.GetParticipantAsync(request.AuctionId, request.UserId, cancellationToken);
+        var participant = await _unitOfWork.Auctions.GetParticipantAsync(request.AuctionId, request.UserId, cancellationToken);
         if (participant == null)
         {
             throw new BadRequestException("Bạn chưa đăng ký tham gia phiên đấu giá này.");
@@ -81,11 +75,11 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
             }
         }
 
-        await _bidRepository.AddAsync(bid, cancellationToken);
-        _auctionRepository.Update(auction);
+        await _unitOfWork.Bids.AddAsync(bid, cancellationToken);
+        _unitOfWork.Auctions.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var totalBids = await _bidRepository.CountByAuctionIdAsync(auction.Id, cancellationToken);
+        var totalBids = await _unitOfWork.Bids.CountByAuctionIdAsync(auction.Id, cancellationToken);
 
         var bidDto = new BidDto
         {

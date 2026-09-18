@@ -16,11 +16,11 @@ public class NvidiaSettings
     /// <summary>Tên mô hình LLM chính (mặc định: meta/llama-3.3-70b-instruct)</summary>
     public string LlmModel { get; set; } = "meta/llama-3.3-70b-instruct";
 
-    /// <summary>Tên mô hình Embedding chính (mặc định: nvidia/nv-embedqa-e5-v5)</summary>
-    public string EmbeddingModel { get; set; } = "nvidia/nv-embedqa-e5-v5";
+    /// <summary>Tên mô hình Embedding chính (mặc định: nvidia/nemotron-3-embed-1b)</summary>
+    public string EmbeddingModel { get; set; } = "nvidia/nemotron-3-embed-1b";
 
-    /// <summary>Số chiều của vector embedding (mặc định: 1024)</summary>
-    public int EmbeddingDimension { get; set; } = 1024;
+    /// <summary>Số chiều của vector embedding (mặc định: 2048)</summary>
+    public int EmbeddingDimension { get; set; } = 2048;
 
     /// <summary>Thời gian timeout tối đa cho mỗi request AI (giây)</summary>
     public int TimeoutSeconds { get; set; } = 60;

@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class ExportDocumentsQueryHandler : IRequestHandler<ExportDocumentsQuery, byte[]>
 {
-    private readonly IDocumentRepository _documentRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportDocumentsQueryHandler(IDocumentRepository documentRepository, IExcelService excelService)
+    public ExportDocumentsQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _documentRepository = documentRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportDocumentsQuery request, CancellationToken cancellationToken)
     {
-        var docs = await _documentRepository.GetAllAsync(request.ActiveOnly ?? false, cancellationToken);
+        var docs = await _unitOfWork.Documents.GetAllAsync(request.ActiveOnly ?? false, cancellationToken);
         var rows = docs.Select(d => new DocumentExcelExportRow
         {
             DocumentName = d.DocumentName,

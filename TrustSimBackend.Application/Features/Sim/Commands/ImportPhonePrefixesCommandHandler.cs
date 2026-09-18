@@ -13,19 +13,16 @@ public class ImportPhonePrefixesCommandHandler : IRequestHandler<ImportPhonePref
 {
     private readonly IBulkDataService _bulkDataService;
     private readonly IExcelService _excelService;
-    private readonly IPhonePrefixRepository _prefixRepository;
-    private readonly ISimCarrierRepository _carrierRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public ImportPhonePrefixesCommandHandler(
         IBulkDataService bulkDataService,
         IExcelService excelService,
-        IPhonePrefixRepository prefixRepository,
-        ISimCarrierRepository carrierRepository)
+        IUnitOfWork unitOfWork)
     {
         _bulkDataService = bulkDataService;
         _excelService = excelService;
-        _prefixRepository = prefixRepository;
-        _carrierRepository = carrierRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ImportResult<PhonePrefixDto>> Handle(ImportPhonePrefixesCommand request, CancellationToken cancellationToken)
@@ -35,7 +32,7 @@ public class ImportPhonePrefixesCommandHandler : IRequestHandler<ImportPhonePref
         var rows = await _excelService.ReadExcelAsync<PrefixExcelRow>(stream, cancellationToken: cancellationToken);
 
         var result = new ImportResult<PhonePrefixDto> { TotalRows = rows.Count };
-        var carriers = await _carrierRepository.GetAllAsync(cancellationToken);
+        var carriers = await _unitOfWork.SimCarriers.GetAllAsync(cancellationToken);
         var carrierMap = carriers.ToDictionary(c => c.CarrierCode.ToUpper(), c => c.Id);
 
         var entities = new List<PhonePrefix>();
@@ -62,7 +59,7 @@ public class ImportPhonePrefixesCommandHandler : IRequestHandler<ImportPhonePref
                 continue;
             }
 
-            if (await _prefixRepository.ExistsByValueAsync(prefix, cancellationToken: cancellationToken))
+            if (await _unitOfWork.PhonePrefixes.ExistsByValueAsync(prefix, cancellationToken: cancellationToken))
             {
                 result.Errors.Add(new ImportRowError { RowIndex = idx, FieldName = "PrefixValue", ErrorMessage = $"Đầu số '{prefix}' đã tồn tại." });
                 result.FailedCount++;

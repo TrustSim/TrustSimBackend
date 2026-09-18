@@ -12,26 +12,23 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 
 public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserCommand, AdminUserDetailDto>
 {
-    private readonly IUserAccountRepository _userRepository;
-    private readonly IPasswordHasher _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPasswordHasher _passwordHasher;
 
     public AdminCreateUserCommandHandler(
-        IUserAccountRepository userRepository,
-        IPasswordHasher passwordHasher,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPasswordHasher passwordHasher)
     {
-        _userRepository = userRepository;
-        _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<AdminUserDetailDto> Handle(AdminCreateUserCommand request, CancellationToken cancellationToken)
     {
-        var existing = await _userRepository.GetByUserNameAsync(request.UserName, cancellationToken);
+        var existing = await _unitOfWork.Users.GetByUserNameAsync(request.UserName, cancellationToken);
         if (existing != null) throw new BadRequestException($"Tên đăng nhập '{request.UserName}' đã được sử dụng.");
 
-        var existingEmail = await _userRepository.GetByEmailAsync(request.Email, cancellationToken);
+        var existingEmail = await _unitOfWork.Users.GetByEmailAsync(request.Email, cancellationToken);
         if (existingEmail != null) throw new BadRequestException($"Email '{request.Email}' đã được sử dụng.");
 
         var userId = Guid.NewGuid();
@@ -69,7 +66,7 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
             }
         };
 
-        await _userRepository.AddAsync(newUser, cancellationToken);
+        await _unitOfWork.Users.AddAsync(newUser, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AdminUserDetailDto

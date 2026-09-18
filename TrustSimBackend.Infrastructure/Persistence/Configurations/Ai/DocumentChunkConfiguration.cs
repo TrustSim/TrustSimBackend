@@ -15,9 +15,9 @@ public class DocumentChunkConfiguration : IEntityTypeConfiguration<DocumentChunk
         builder.Property(x => x.TokenCount).IsRequired();
         builder.Property(x => x.MetadataJson).HasColumnType("jsonb");
 
-        // Cấu hình kiểu dữ liệu vector 1024 chiều từ pgvector
+        // Cấu hình kiểu dữ liệu vector 2048 chiều từ pgvector (khớp với nvidia/nemotron-3-embed-1b)
         builder.Property(x => x.Embedding)
-            .HasColumnType("vector(1024)");
+            .HasColumnType("vector(2048)");
 
         // Quan hệ với Document
         builder.HasOne(x => x.Document)

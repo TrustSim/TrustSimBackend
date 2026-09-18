@@ -11,16 +11,16 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 /// </summary>
 public class GetPendingKycQueryHandler : IRequestHandler<GetPendingKycQuery, PagedResult<IdentityVerificationDto>>
 {
-    private readonly IIdentityVerificationRepository _kycRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetPendingKycQueryHandler(IIdentityVerificationRepository kycRepository)
+    public GetPendingKycQueryHandler(IUnitOfWork unitOfWork)
     {
-        _kycRepository = kycRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<IdentityVerificationDto>> Handle(GetPendingKycQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _kycRepository.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.IdentityVerifications.GetPagedAsync(
             request.Status,
             request.PageIndex,
             request.PageSize,

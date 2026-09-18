@@ -7,16 +7,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetFormatRhythmsQueryHandler : IRequestHandler<GetFormatRhythmsQuery, IReadOnlyList<FormatRhythmDto>>
 {
-    private readonly IFormatRhythmRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetFormatRhythmsQueryHandler(IFormatRhythmRepository repository)
+    public GetFormatRhythmsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<FormatRhythmDto>> Handle(GetFormatRhythmsQuery request, CancellationToken cancellationToken)
     {
-        var list = await _repository.GetAllAsync(cancellationToken);
+        var list = await _unitOfWork.FormatRhythms.GetAllAsync(cancellationToken);
         return list.Select(r => new FormatRhythmDto
         {
             Id = r.Id,

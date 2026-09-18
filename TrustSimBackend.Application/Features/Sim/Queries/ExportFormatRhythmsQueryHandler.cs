@@ -7,18 +7,18 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class ExportFormatRhythmsQueryHandler : IRequestHandler<ExportFormatRhythmsQuery, byte[]>
 {
-    private readonly IFormatRhythmRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportFormatRhythmsQueryHandler(IFormatRhythmRepository repository, IExcelService excelService)
+    public ExportFormatRhythmsQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _repository = repository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportFormatRhythmsQuery request, CancellationToken cancellationToken)
     {
-        var list = await _repository.GetAllAsync(cancellationToken);
+        var list = await _unitOfWork.FormatRhythms.GetAllAsync(cancellationToken);
         var rows = list.Select(r => new FormatRhythmExcelRow
         {
             FormatRhythmName = r.FormatRhythmName,

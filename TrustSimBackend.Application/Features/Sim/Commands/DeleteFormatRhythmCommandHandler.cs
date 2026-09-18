@@ -7,24 +7,22 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class DeleteFormatRhythmCommandHandler : IRequestHandler<DeleteFormatRhythmCommand, bool>
 {
-    private readonly IFormatRhythmRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteFormatRhythmCommandHandler(IFormatRhythmRepository repository, IUnitOfWork unitOfWork)
+    public DeleteFormatRhythmCommandHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(DeleteFormatRhythmCommand request, CancellationToken cancellationToken)
     {
-        var rhythm = await _repository.GetByIdAsync(request.Id, cancellationToken);
+        var rhythm = await _unitOfWork.FormatRhythms.GetByIdAsync(request.Id, cancellationToken);
         if (rhythm == null)
         {
             throw new NotFoundException($"Không tìm thấy định dạng nhịp số với ID '{request.Id}'.");
         }
 
-        await _repository.DeleteAsync(rhythm, cancellationToken);
+        await _unitOfWork.FormatRhythms.DeleteAsync(rhythm, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }

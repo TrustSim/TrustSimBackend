@@ -9,16 +9,16 @@ namespace TrustSimBackend.Application.Features.Trade.Queries;
 
 public class AdminGetAllTradesQueryHandler : IRequestHandler<AdminGetAllTradesQuery, PagedResult<TradeTransactionDto>>
 {
-    private readonly ITradeTransactionRepository _tradeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AdminGetAllTradesQueryHandler(ITradeTransactionRepository tradeRepository)
+    public AdminGetAllTradesQueryHandler(IUnitOfWork unitOfWork)
     {
-        _tradeRepository = tradeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<TradeTransactionDto>> Handle(AdminGetAllTradesQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _tradeRepository.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.TradeTransactions.GetPagedAsync(
             request.Status,
             request.PageIndex,
             request.PageSize,

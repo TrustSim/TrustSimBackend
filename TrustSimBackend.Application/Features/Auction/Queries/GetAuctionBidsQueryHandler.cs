@@ -7,16 +7,16 @@ namespace TrustSimBackend.Application.Features.Auction.Queries;
 
 public class GetAuctionBidsQueryHandler : IRequestHandler<GetAuctionBidsQuery, IReadOnlyList<BidDto>>
 {
-    private readonly IBidRepository _bidRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetAuctionBidsQueryHandler(IBidRepository bidRepository)
+    public GetAuctionBidsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _bidRepository = bidRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<BidDto>> Handle(GetAuctionBidsQuery request, CancellationToken cancellationToken)
     {
-        var bids = await _bidRepository.GetBidsByAuctionIdAsync(request.AuctionId, request.Top, cancellationToken);
+        var bids = await _unitOfWork.Bids.GetBidsByAuctionIdAsync(request.AuctionId, request.Top, cancellationToken);
         return bids.Select(b => new BidDto
         {
             Id = b.Id,

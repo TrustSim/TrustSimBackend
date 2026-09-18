@@ -11,17 +11,10 @@ namespace TrustSimBackend.Application.Features.Trade.Commands;
 
 public class CreateTradeTransactionCommandHandler : IRequestHandler<CreateTradeTransactionCommand, TradeTransactionDto>
 {
-    private readonly ITradeTransactionRepository _tradeRepository;
-    private readonly ISimNumberRepository _simRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateTradeTransactionCommandHandler(
-        ITradeTransactionRepository tradeRepository,
-        ISimNumberRepository simRepository,
-        IUnitOfWork unitOfWork)
+    public CreateTradeTransactionCommandHandler(IUnitOfWork unitOfWork)
     {
-        _tradeRepository = tradeRepository;
-        _simRepository = simRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -32,7 +25,7 @@ public class CreateTradeTransactionCommandHandler : IRequestHandler<CreateTradeT
             throw new BadRequestException("Người mua và người bán không được trùng nhau.");
         }
 
-        var sim = await _simRepository.GetByIdAsync(request.SimNumberId, cancellationToken);
+        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(request.SimNumberId, cancellationToken);
         if (sim == null)
         {
             throw new NotFoundException($"Không tìm thấy số SIM với ID '{request.SimNumberId}'.");
@@ -65,8 +58,8 @@ public class CreateTradeTransactionCommandHandler : IRequestHandler<CreateTradeT
 
         sim.SimStatus = SimStatus.LISTED;
 
-        await _tradeRepository.AddAsync(trade, cancellationToken);
-        _simRepository.Update(sim);
+        await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
+        _unitOfWork.SimNumbers.Update(sim);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new TradeTransactionDto

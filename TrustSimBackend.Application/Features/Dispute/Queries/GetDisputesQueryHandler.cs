@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Dispute.Queries;
 
 public class GetDisputesQueryHandler : IRequestHandler<GetDisputesQuery, PagedResult<DisputeTicketDto>>
 {
-    private readonly IDisputeTicketRepository _disputeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetDisputesQueryHandler(IDisputeTicketRepository disputeRepository)
+    public GetDisputesQueryHandler(IUnitOfWork unitOfWork)
     {
-        _disputeRepository = disputeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<DisputeTicketDto>> Handle(GetDisputesQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _disputeRepository.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.DisputeTickets.GetPagedAsync(
             request.UserId,
             request.Status,
             request.PageIndex,

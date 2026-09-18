@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Application.Features.Auction.Factory;
 using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
@@ -10,26 +11,23 @@ namespace TrustSimBackend.Application.Features.Auction.Commands;
 
 public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand, AuctionDto>
 {
-    private readonly IAuctionRepository _auctionRepository;
-    private readonly ISimNumberRepository _simRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AuctionFactory _auctionFactory;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
 
     public CreateAuctionCommandHandler(
-        IAuctionRepository auctionRepository,
-        ISimNumberRepository simRepository,
         IUnitOfWork unitOfWork,
+        AuctionFactory auctionFactory,
         IAuctionRealtimeNotifier realtimeNotifier)
     {
-        _auctionRepository = auctionRepository;
-        _simRepository = simRepository;
         _unitOfWork = unitOfWork;
+        _auctionFactory = auctionFactory;
         _realtimeNotifier = realtimeNotifier;
     }
 
     public async Task<AuctionDto> Handle(CreateAuctionCommand request, CancellationToken cancellationToken)
     {
-        var sim = await _simRepository.GetByIdAsync(request.SimNumberId, cancellationToken);
+        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(request.SimNumberId, cancellationToken);
         if (sim == null)
         {
             throw new NotFoundException($"Không tìm thấy số SIM với ID '{request.SimNumberId}'.");
@@ -41,32 +39,16 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         }
 
         var auctionCode = $"AUC-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
-        while (await _auctionRepository.ExistsByCodeAsync(auctionCode, cancellationToken))
+        while (await _unitOfWork.Auctions.ExistsByCodeAsync(auctionCode, cancellationToken))
         {
             auctionCode = $"AUC-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
         }
 
-        var auction = new Domain.Entities.Auctions.Auction
-        {
-            Id = Guid.NewGuid(),
-            AuctionCode = auctionCode,
-            AuthorId = request.AuthorId,
-            SimNumberId = request.SimNumberId,
-            AuctionType = request.AuctionType,
-            AuctionStatus = AuctionStatus.SCHEDULE,
-            StartingPrice = request.StartingPrice,
-            CurrentPrice = request.StartingPrice,
-            ReservePrice = request.ReservePrice,
-            StartAt = request.StartAt,
-            EndAt = request.EndAt,
-            RegistrationStartAt = request.RegistrationStartAt,
-            RegistrationEndAt = request.RegistrationEndAt
-        };
-
+        var auction = _auctionFactory.Create(request, auctionCode, request.AuthorId);
         sim.SimStatus = SimStatus.IN_AUCTION;
 
-        await _auctionRepository.AddAsync(auction, cancellationToken);
-        _simRepository.Update(sim);
+        await _unitOfWork.Auctions.AddAsync(auction, cancellationToken);
+        _unitOfWork.SimNumbers.Update(sim);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var dto = new AuctionDto

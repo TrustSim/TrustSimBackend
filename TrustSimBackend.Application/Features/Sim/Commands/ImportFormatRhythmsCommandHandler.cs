@@ -13,13 +13,16 @@ public class ImportFormatRhythmsCommandHandler : IRequestHandler<ImportFormatRhy
 {
     private readonly IBulkDataService _bulkDataService;
     private readonly IExcelService _excelService;
-    private readonly IFormatRhythmRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public ImportFormatRhythmsCommandHandler(IBulkDataService bulkDataService, IExcelService excelService, IFormatRhythmRepository repository)
+    public ImportFormatRhythmsCommandHandler(
+        IBulkDataService bulkDataService,
+        IExcelService excelService,
+        IUnitOfWork unitOfWork)
     {
         _bulkDataService = bulkDataService;
         _excelService = excelService;
-        _repository = repository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ImportResult<FormatRhythmDto>> Handle(ImportFormatRhythmsCommand request, CancellationToken cancellationToken)
@@ -44,7 +47,7 @@ public class ImportFormatRhythmsCommandHandler : IRequestHandler<ImportFormatRhy
             }
 
             var name = r.FormatRhythmName.Trim();
-            if (await _repository.ExistsByNameAsync(name, cancellationToken: cancellationToken))
+            if (await _unitOfWork.FormatRhythms.ExistsByNameAsync(name, cancellationToken: cancellationToken))
             {
                 result.Errors.Add(new ImportRowError { RowIndex = idx, FieldName = "FormatRhythmName", ErrorMessage = $"Tên nhịp số '{name}' đã tồn tại." });
                 result.FailedCount++;

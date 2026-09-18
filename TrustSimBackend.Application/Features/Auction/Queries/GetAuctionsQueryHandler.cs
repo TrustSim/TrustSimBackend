@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Auction.Queries;
 
 public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedResult<AuctionDto>>
 {
-    private readonly IAuctionRepository _auctionRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetAuctionsQueryHandler(IAuctionRepository auctionRepository)
+    public GetAuctionsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _auctionRepository = auctionRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<AuctionDto>> Handle(GetAuctionsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _auctionRepository.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.Auctions.GetPagedAsync(
             request.Keyword,
             request.Status,
             request.Type,

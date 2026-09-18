@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class GetDocumentByIdQueryHandler : IRequestHandler<GetDocumentByIdQuery, DocumentDto>
 {
-    private readonly IDocumentRepository _documentRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetDocumentByIdQueryHandler(IDocumentRepository documentRepository)
+    public GetDocumentByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _documentRepository = documentRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<DocumentDto> Handle(GetDocumentByIdQuery request, CancellationToken cancellationToken)
     {
-        var doc = await _documentRepository.GetByIdAsync(request.Id, cancellationToken);
+        var doc = await _unitOfWork.Documents.GetByIdAsync(request.Id, cancellationToken);
         if (doc == null)
         {
             throw new NotFoundException($"Không tìm thấy văn bản với ID '{request.Id}'.");

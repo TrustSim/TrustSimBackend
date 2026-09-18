@@ -7,16 +7,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetCarriersQueryHandler : IRequestHandler<GetCarriersQuery, IReadOnlyList<SimCarrierDto>>
 {
-    private readonly ISimCarrierRepository _carrierRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetCarriersQueryHandler(ISimCarrierRepository carrierRepository)
+    public GetCarriersQueryHandler(IUnitOfWork unitOfWork)
     {
-        _carrierRepository = carrierRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<SimCarrierDto>> Handle(GetCarriersQuery request, CancellationToken cancellationToken)
     {
-        var carriers = await _carrierRepository.GetAllAsync(cancellationToken);
+        var carriers = await _unitOfWork.SimCarriers.GetAllAsync(cancellationToken);
         return carriers.Select(c => new SimCarrierDto
         {
             Id = c.Id,

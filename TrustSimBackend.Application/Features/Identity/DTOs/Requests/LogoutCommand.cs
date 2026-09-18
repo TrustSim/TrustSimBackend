@@ -7,5 +7,7 @@ namespace TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 /// </summary>
 public record LogoutCommand(
     string? RefreshToken = null,
+    string? AccessToken = null,
     string? IpAddress = null
 ) : IRequest<bool>;
+

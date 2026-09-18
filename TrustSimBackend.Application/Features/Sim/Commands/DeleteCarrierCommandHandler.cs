@@ -7,18 +7,16 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class DeleteCarrierCommandHandler : IRequestHandler<DeleteCarrierCommand, bool>
 {
-    private readonly ISimCarrierRepository _carrierRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteCarrierCommandHandler(ISimCarrierRepository carrierRepository, IUnitOfWork unitOfWork)
+    public DeleteCarrierCommandHandler(IUnitOfWork unitOfWork)
     {
-        _carrierRepository = carrierRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(DeleteCarrierCommand request, CancellationToken cancellationToken)
     {
-        var carrier = await _carrierRepository.GetByIdAsync(request.Id, cancellationToken);
+        var carrier = await _unitOfWork.SimCarriers.GetByIdAsync(request.Id, cancellationToken);
         if (carrier == null)
         {
             throw new NotFoundException($"Không tìm thấy nhà mạng với ID '{request.Id}'.");
@@ -27,7 +25,7 @@ public class DeleteCarrierCommandHandler : IRequestHandler<DeleteCarrierCommand,
         carrier.IsDeleted = true;
         carrier.DeletedDate = DateTime.UtcNow;
 
-        _carrierRepository.Update(carrier);
+        _unitOfWork.SimCarriers.Update(carrier);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

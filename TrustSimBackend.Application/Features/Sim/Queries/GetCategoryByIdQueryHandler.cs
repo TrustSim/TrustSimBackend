@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetCategoryByIdQueryHandler : IRequestHandler<GetCategoryByIdQuery, SimCategoryDto>
 {
-    private readonly ISimCategoryRepository _categoryRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetCategoryByIdQueryHandler(ISimCategoryRepository categoryRepository)
+    public GetCategoryByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _categoryRepository = categoryRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<SimCategoryDto> Handle(GetCategoryByIdQuery request, CancellationToken cancellationToken)
     {
-        var category = await _categoryRepository.GetByIdAsync(request.Id, cancellationToken);
+        var category = await _unitOfWork.SimCategories.GetByIdAsync(request.Id, cancellationToken);
         if (category == null)
         {
             throw new NotFoundException($"Không tìm thấy thể loại SIM với ID '{request.Id}'.");

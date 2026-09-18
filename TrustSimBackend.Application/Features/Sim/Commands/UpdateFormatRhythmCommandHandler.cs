@@ -8,24 +8,22 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class UpdateFormatRhythmCommandHandler : IRequestHandler<UpdateFormatRhythmCommand, FormatRhythmDto>
 {
-    private readonly IFormatRhythmRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateFormatRhythmCommandHandler(IFormatRhythmRepository repository, IUnitOfWork unitOfWork)
+    public UpdateFormatRhythmCommandHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<FormatRhythmDto> Handle(UpdateFormatRhythmCommand request, CancellationToken cancellationToken)
     {
-        var rhythm = await _repository.GetByIdAsync(request.Id, cancellationToken);
+        var rhythm = await _unitOfWork.FormatRhythms.GetByIdAsync(request.Id, cancellationToken);
         if (rhythm == null)
         {
             throw new NotFoundException($"Không tìm thấy định dạng nhịp số với ID '{request.Id}'.");
         }
 
-        if (await _repository.ExistsByNameAsync(request.FormatRhythmName, request.Id, cancellationToken))
+        if (await _unitOfWork.FormatRhythms.ExistsByNameAsync(request.FormatRhythmName, request.Id, cancellationToken))
         {
             throw new BadRequestException($"Tên định dạng nhịp số '{request.FormatRhythmName}' đã tồn tại.");
         }
@@ -35,7 +33,7 @@ public class UpdateFormatRhythmCommandHandler : IRequestHandler<UpdateFormatRhyt
         rhythm.Description = request.Description.Trim();
         rhythm.UpdatedDate = DateTime.UtcNow;
 
-        await _repository.UpdateAsync(rhythm, cancellationToken);
+        await _unitOfWork.FormatRhythms.UpdateAsync(rhythm, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new FormatRhythmDto

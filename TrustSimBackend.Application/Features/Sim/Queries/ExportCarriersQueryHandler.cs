@@ -7,18 +7,18 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class ExportCarriersQueryHandler : IRequestHandler<ExportCarriersQuery, byte[]>
 {
-    private readonly ISimCarrierRepository _carrierRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportCarriersQueryHandler(ISimCarrierRepository carrierRepository, IExcelService excelService)
+    public ExportCarriersQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _carrierRepository = carrierRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportCarriersQuery request, CancellationToken cancellationToken)
     {
-        var carriers = await _carrierRepository.GetAllAsync(cancellationToken);
+        var carriers = await _unitOfWork.SimCarriers.GetAllAsync(cancellationToken);
         var rows = carriers.Select(c => new CarrierExcelRow
         {
             CarrierName = c.CarrierName,

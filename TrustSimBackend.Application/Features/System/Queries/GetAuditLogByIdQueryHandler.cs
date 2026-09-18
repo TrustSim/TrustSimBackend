@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class GetAuditLogByIdQueryHandler : IRequestHandler<GetAuditLogByIdQuery, AuditLogDto>
 {
-    private readonly IAuditLogRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetAuditLogByIdQueryHandler(IAuditLogRepository repository)
+    public GetAuditLogByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AuditLogDto> Handle(GetAuditLogByIdQuery request, CancellationToken cancellationToken)
     {
-        var log = await _repository.GetByIdAsync(request.Id, cancellationToken);
+        var log = await _unitOfWork.AuditLogs.GetByIdAsync(request.Id, cancellationToken);
         if (log == null) throw new NotFoundException($"Không tìm thấy nhật ký kiểm toán với ID '{request.Id}'.");
 
         return new AuditLogDto

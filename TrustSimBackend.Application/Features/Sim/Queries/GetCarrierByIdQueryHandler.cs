@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetCarrierByIdQueryHandler : IRequestHandler<GetCarrierByIdQuery, SimCarrierDto>
 {
-    private readonly ISimCarrierRepository _carrierRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetCarrierByIdQueryHandler(ISimCarrierRepository carrierRepository)
+    public GetCarrierByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _carrierRepository = carrierRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<SimCarrierDto> Handle(GetCarrierByIdQuery request, CancellationToken cancellationToken)
     {
-        var carrier = await _carrierRepository.GetByIdAsync(request.Id, cancellationToken);
+        var carrier = await _unitOfWork.SimCarriers.GetByIdAsync(request.Id, cancellationToken);
         if (carrier == null)
         {
             throw new NotFoundException($"Không tìm thấy nhà mạng với ID '{request.Id}'.");

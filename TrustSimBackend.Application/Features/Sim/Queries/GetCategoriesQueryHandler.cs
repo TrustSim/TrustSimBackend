@@ -7,16 +7,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetCategoriesQueryHandler : IRequestHandler<GetCategoriesQuery, IReadOnlyList<SimCategoryDto>>
 {
-    private readonly ISimCategoryRepository _categoryRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetCategoriesQueryHandler(ISimCategoryRepository categoryRepository)
+    public GetCategoriesQueryHandler(IUnitOfWork unitOfWork)
     {
-        _categoryRepository = categoryRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<SimCategoryDto>> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
     {
-        var categories = await _categoryRepository.GetAllAsync(cancellationToken);
+        var categories = await _unitOfWork.SimCategories.GetAllAsync(cancellationToken);
         return categories.Select(c => new SimCategoryDto
         {
             Id = c.Id,

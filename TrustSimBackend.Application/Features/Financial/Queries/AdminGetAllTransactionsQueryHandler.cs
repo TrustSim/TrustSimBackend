@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Financial.Queries;
 
 public class AdminGetAllTransactionsQueryHandler : IRequestHandler<AdminGetAllTransactionsQuery, PagedResult<WalletTransactionDto>>
 {
-    private readonly IWalletTransactionRepository _transactionRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AdminGetAllTransactionsQueryHandler(IWalletTransactionRepository transactionRepository)
+    public AdminGetAllTransactionsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _transactionRepository = transactionRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<WalletTransactionDto>> Handle(AdminGetAllTransactionsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _transactionRepository.GetPagedAllAsync(
+        var (items, totalCount) = await _unitOfWork.WalletTransactions.GetPagedAllAsync(
             request.Type,
             request.Status,
             request.PageIndex,
