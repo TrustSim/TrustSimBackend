@@ -21,23 +21,17 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, AuthResponseDto>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly ICookieService _cookieService;
 
     public RegisterUserCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
         IJwtTokenGenerator jwtTokenGenerator,
         ICookieService cookieService)
     {
-        _userAccountRepository = userAccountRepository;
-        _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
@@ -52,25 +46,25 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         var normalizedIdentity = request.IdentityNumber.Trim();
 
         // 1. Kiểm tra Username đã tồn tại chưa
-        if (await _userAccountRepository.ExistsByUserNameAsync(normalizedUserName, cancellationToken))
+        if (await _unitOfWork.Users.ExistsByUserNameAsync(normalizedUserName, cancellationToken))
         {
             throw new BadRequestException($"Tên đăng nhập '{normalizedUserName}' đã được sử dụng.");
         }
 
         // 2. Kiểm tra Email đã tồn tại chưa
-        if (await _userAccountRepository.ExistsByEmailAsync(normalizedEmail, cancellationToken))
+        if (await _unitOfWork.Users.ExistsByEmailAsync(normalizedEmail, cancellationToken))
         {
             throw new BadRequestException($"Email '{normalizedEmail}' đã được sử dụng.");
         }
 
         // 3. Kiểm tra Số điện thoại đã tồn tại chưa
-        if (await _userAccountRepository.ExistsByPhoneNumberAsync(normalizedPhone, cancellationToken: cancellationToken))
+        if (await _unitOfWork.Users.ExistsByPhoneNumberAsync(normalizedPhone, cancellationToken: cancellationToken))
         {
             throw new BadRequestException($"Số điện thoại '{normalizedPhone}' đã được đăng ký bởi tài khoản khác.");
         }
 
         // 4. Kiểm tra CCCD đã tồn tại chưa
-        if (await _userAccountRepository.ExistsByIdentityNumberAsync(normalizedIdentity, cancellationToken: cancellationToken))
+        if (await _unitOfWork.Users.ExistsByIdentityNumberAsync(normalizedIdentity, cancellationToken: cancellationToken))
         {
             throw new BadRequestException($"Số CCCD/CMND '{normalizedIdentity}' đã được đăng ký bởi tài khoản khác.");
         }
@@ -119,7 +113,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
         userAccount.Wallet = wallet;
 
         // 9. Lưu UserAccount xuống DB
-        await _userAccountRepository.AddAsync(userAccount, cancellationToken);
+        await _unitOfWork.Users.AddAsync(userAccount, cancellationToken);
 
         // 10. Tạo Access Token và Refresh Token
         var tokenResult = _jwtTokenGenerator.GenerateTokens(userAccount, userProfile);
@@ -135,7 +129,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, A
             IsUsed = false,
             IsRevoked = false
         };
-        await _refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
+        await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, cancellationToken);
 
         // 12. Commit Transaction
         await _unitOfWork.SaveChangesAsync(cancellationToken);

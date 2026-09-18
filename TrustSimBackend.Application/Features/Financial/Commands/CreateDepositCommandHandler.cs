@@ -14,19 +14,13 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 /// </summary>
 public class CreateDepositCommandHandler : IRequestHandler<CreateDepositCommand, DepositResponseDto>
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISePayService _sePayService;
 
     public CreateDepositCommandHandler(
-        IWalletRepository walletRepository,
-        IWalletTransactionRepository walletTransactionRepository,
         IUnitOfWork unitOfWork,
         ISePayService sePayService)
     {
-        _walletRepository = walletRepository;
-        _walletTransactionRepository = walletTransactionRepository;
         _unitOfWork = unitOfWork;
         _sePayService = sePayService;
     }
@@ -34,7 +28,7 @@ public class CreateDepositCommandHandler : IRequestHandler<CreateDepositCommand,
     public async Task<DepositResponseDto> Handle(CreateDepositCommand request, CancellationToken cancellationToken)
     {
         // 1. Tìm ví của người dùng
-        var wallet = await _walletRepository.GetByUserIdAsync(request.UserId, cancellationToken);
+        var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
         if (wallet == null)
         {
             throw new NotFoundException($"Không tìm thấy ví tiền của người dùng với ID '{request.UserId}'.");
@@ -47,7 +41,7 @@ public class CreateDepositCommandHandler : IRequestHandler<CreateDepositCommand,
 
         // 2. Sinh mã giao dịch duy nhất
         var transactionCode = _sePayService.GenerateTransactionCode();
-        while (await _walletTransactionRepository.ExistsByTransactionCodeAsync(transactionCode, cancellationToken))
+        while (await _unitOfWork.WalletTransactions.ExistsByTransactionCodeAsync(transactionCode, cancellationToken))
         {
             transactionCode = _sePayService.GenerateTransactionCode();
         }
@@ -73,7 +67,7 @@ public class CreateDepositCommandHandler : IRequestHandler<CreateDepositCommand,
             BalanceAfter = wallet.AvailableBalance
         };
 
-        await _walletTransactionRepository.AddAsync(transaction, cancellationToken);
+        await _unitOfWork.WalletTransactions.AddAsync(transaction, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // 5. Trả về kết quả DTO

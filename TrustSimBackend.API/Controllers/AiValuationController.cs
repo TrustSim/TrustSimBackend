@@ -2,10 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Ai.Commands.ApplyValuationPrice;
-using TrustSimBackend.Application.Features.Ai.Commands.EvaluateSimPrice;
-using TrustSimBackend.Application.Features.Ai.DTOs;
-using TrustSimBackend.Application.Features.Ai.Queries.GetSimValuationHistory;
+using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
+using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 

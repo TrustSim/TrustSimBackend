@@ -8,18 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class UpdateCarrierCommandHandler : IRequestHandler<UpdateCarrierCommand, SimCarrierDto>
 {
-    private readonly ISimCarrierRepository _carrierRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateCarrierCommandHandler(ISimCarrierRepository carrierRepository, IUnitOfWork unitOfWork)
+    public UpdateCarrierCommandHandler(IUnitOfWork unitOfWork)
     {
-        _carrierRepository = carrierRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<SimCarrierDto> Handle(UpdateCarrierCommand request, CancellationToken cancellationToken)
     {
-        var carrier = await _carrierRepository.GetByIdAsync(request.Id, cancellationToken);
+        var carrier = await _unitOfWork.SimCarriers.GetByIdAsync(request.Id, cancellationToken);
         if (carrier == null)
         {
             throw new NotFoundException($"Không tìm thấy nhà mạng với ID '{request.Id}'.");
@@ -31,7 +29,7 @@ public class UpdateCarrierCommandHandler : IRequestHandler<UpdateCarrierCommand,
             carrier.LogoImg = request.LogoImg.Trim();
         }
 
-        _carrierRepository.Update(carrier);
+        _unitOfWork.SimCarriers.Update(carrier);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new SimCarrierDto

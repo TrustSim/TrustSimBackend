@@ -13,23 +13,16 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class SubmitKycCommandHandler : IRequestHandler<SubmitKycCommand, IdentityVerificationDto>
 {
-    private readonly IIdentityVerificationRepository _kycRepository;
-    private readonly IUserAccountRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public SubmitKycCommandHandler(
-        IIdentityVerificationRepository kycRepository,
-        IUserAccountRepository userRepository,
-        IUnitOfWork unitOfWork)
+    public SubmitKycCommandHandler(IUnitOfWork unitOfWork)
     {
-        _kycRepository = kycRepository;
-        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<IdentityVerificationDto> Handle(SubmitKycCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null || user.UserProfile == null)
         {
             throw new NotFoundException($"Không tìm thấy hồ sơ người dùng với ID '{request.UserId}'.");
@@ -50,8 +43,8 @@ public class SubmitKycCommandHandler : IRequestHandler<SubmitKycCommand, Identit
             SubmittedAt = DateTime.UtcNow
         };
 
-        _userRepository.Update(user);
-        await _kycRepository.AddAsync(verification, cancellationToken);
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.IdentityVerifications.AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new IdentityVerificationDto

@@ -2,7 +2,7 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using TrustSimBackend.Application.Features.Auction.Commands.ActivateAuction;
+using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 

@@ -10,18 +10,16 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 
 public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserCommand, AdminUserDetailDto>
 {
-    private readonly IUserAccountRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public AdminUpdateUserCommandHandler(IUserAccountRepository userRepository, IUnitOfWork unitOfWork)
+    public AdminUpdateUserCommandHandler(IUnitOfWork unitOfWork)
     {
-        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<AdminUserDetailDto> Handle(AdminUpdateUserCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.Id, cancellationToken);
         if (user == null) throw new NotFoundException($"Không tìm thấy tài khoản người dùng với ID '{request.Id}'.");
 
         user.UserEmail = request.Email.Trim().ToLower();
@@ -55,7 +53,7 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
             user.UserProfile.UpdatedDate = DateTime.UtcNow;
         }
 
-        _userRepository.Update(user);
+        _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AdminUserDetailDto

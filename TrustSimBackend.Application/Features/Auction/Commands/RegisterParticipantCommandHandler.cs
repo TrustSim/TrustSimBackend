@@ -10,29 +10,22 @@ namespace TrustSimBackend.Application.Features.Auction.Commands;
 
 public class RegisterParticipantCommandHandler : IRequestHandler<RegisterParticipantCommand, bool>
 {
-    private readonly IAuctionRepository _auctionRepository;
-    private readonly IWalletRepository _walletRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public RegisterParticipantCommandHandler(
-        IAuctionRepository auctionRepository,
-        IWalletRepository walletRepository,
-        IUnitOfWork unitOfWork)
+    public RegisterParticipantCommandHandler(IUnitOfWork unitOfWork)
     {
-        _auctionRepository = auctionRepository;
-        _walletRepository = walletRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(RegisterParticipantCommand request, CancellationToken cancellationToken)
     {
-        var auction = await _auctionRepository.GetByIdAsync(request.AuctionId, cancellationToken);
+        var auction = await _unitOfWork.Auctions.GetByIdAsync(request.AuctionId, cancellationToken);
         if (auction == null)
         {
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.AuctionId}'.");
         }
 
-        var existing = await _auctionRepository.GetParticipantAsync(request.AuctionId, request.UserId, cancellationToken);
+        var existing = await _unitOfWork.Auctions.GetParticipantAsync(request.AuctionId, request.UserId, cancellationToken);
         if (existing != null)
         {
             throw new BadRequestException("Bạn đã đăng ký tham gia phiên đấu giá này rồi.");
@@ -43,7 +36,7 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
 
         if (depositRequired > 0)
         {
-            var wallet = await _walletRepository.GetByUserIdAsync(request.UserId, cancellationToken);
+            var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
             if (wallet == null)
             {
                 throw new NotFoundException("Không tìm thấy ví tiền của người dùng. Vui lòng liên hệ bộ phận hỗ trợ.");
@@ -80,7 +73,7 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
             };
 
             wallet.AuctionTransactions.Add(auctionTransaction);
-            _walletRepository.Update(wallet);
+            _unitOfWork.Wallets.Update(wallet);
         }
 
         var participant = new AuctionParticipant
@@ -106,10 +99,9 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
             participant.Deposits.Add(deposit);
         }
 
-        await _auctionRepository.AddParticipantAsync(participant, cancellationToken);
+        await _unitOfWork.Auctions.AddParticipantAsync(participant, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 }
-

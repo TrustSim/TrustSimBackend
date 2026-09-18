@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.Financial.Queries;
 
 public class AdminExportTransactionsQueryHandler : IRequestHandler<AdminExportTransactionsQuery, byte[]>
 {
-    private readonly IWalletTransactionRepository _transactionRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public AdminExportTransactionsQueryHandler(IWalletTransactionRepository transactionRepository, IExcelService excelService)
+    public AdminExportTransactionsQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _transactionRepository = transactionRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(AdminExportTransactionsQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _transactionRepository.GetPagedAllAsync(
+        var (items, _) = await _unitOfWork.WalletTransactions.GetPagedAllAsync(
             request.Type,
             request.Status,
             pageIndex: 1,

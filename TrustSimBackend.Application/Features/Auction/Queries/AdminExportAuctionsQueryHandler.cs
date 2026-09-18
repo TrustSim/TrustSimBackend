@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.Auction.Queries;
 
 public class AdminExportAuctionsQueryHandler : IRequestHandler<AdminExportAuctionsQuery, byte[]>
 {
-    private readonly IAuctionRepository _auctionRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public AdminExportAuctionsQueryHandler(IAuctionRepository auctionRepository, IExcelService excelService)
+    public AdminExportAuctionsQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _auctionRepository = auctionRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(AdminExportAuctionsQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _auctionRepository.GetPagedAsync(
+        var (items, _) = await _unitOfWork.Auctions.GetPagedAsync(
             request.Keyword,
             request.Status,
             request.Type,

@@ -9,19 +9,17 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryCommand, SimCategoryDto>
 {
-    private readonly ISimCategoryRepository _categoryRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateCategoryCommandHandler(ISimCategoryRepository categoryRepository, IUnitOfWork unitOfWork)
+    public CreateCategoryCommandHandler(IUnitOfWork unitOfWork)
     {
-        _categoryRepository = categoryRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<SimCategoryDto> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {
         var normalizedCode = request.CategoryCode.Trim().ToUpperInvariant();
-        if (await _categoryRepository.ExistsByCodeAsync(normalizedCode, cancellationToken: cancellationToken))
+        if (await _unitOfWork.SimCategories.ExistsByCodeAsync(normalizedCode, cancellationToken: cancellationToken))
         {
             throw new BadRequestException($"Mã thể loại SIM '{normalizedCode}' đã tồn tại trong hệ thống.");
         }
@@ -35,7 +33,7 @@ public class CreateCategoryCommandHandler : IRequestHandler<CreateCategoryComman
             ValuationMultiplier = request.ValuationMultiplier > 0 ? request.ValuationMultiplier : 1.0f
         };
 
-        await _categoryRepository.AddAsync(category, cancellationToken);
+        await _unitOfWork.SimCategories.AddAsync(category, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new SimCategoryDto

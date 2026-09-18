@@ -11,21 +11,21 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordCommand, string>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
 
     public ForgotPasswordCommandHandler(
-        IUserAccountRepository userAccountRepository,
+        IUnitOfWork unitOfWork,
         IEmailService emailService)
     {
-        _userAccountRepository = userAccountRepository;
+        _unitOfWork = unitOfWork;
         _emailService = emailService;
     }
 
     public async Task<string> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _userAccountRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+        var user = await _unitOfWork.Users.GetByEmailAsync(normalizedEmail, cancellationToken);
 
         if (user == null)
         {

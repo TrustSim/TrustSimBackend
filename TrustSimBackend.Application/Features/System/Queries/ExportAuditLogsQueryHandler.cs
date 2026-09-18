@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class ExportAuditLogsQueryHandler : IRequestHandler<ExportAuditLogsQuery, byte[]>
 {
-    private readonly IAuditLogRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportAuditLogsQueryHandler(IAuditLogRepository repository, IExcelService excelService)
+    public ExportAuditLogsQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _repository = repository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _repository.GetPagedAsync(
+        var (items, _) = await _unitOfWork.AuditLogs.GetPagedAsync(
             request.EntityName,
             null,
             null,

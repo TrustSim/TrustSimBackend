@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetSimsQueryHandler : IRequestHandler<GetSimsQuery, PagedResult<SimNumberDto>>
 {
-    private readonly ISimNumberRepository _simRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetSimsQueryHandler(ISimNumberRepository simRepository)
+    public GetSimsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _simRepository = simRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<SimNumberDto>> Handle(GetSimsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _simRepository.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.SimNumbers.GetPagedAsync(
             request.Keyword,
             request.CarrierId,
             request.CategoryId,

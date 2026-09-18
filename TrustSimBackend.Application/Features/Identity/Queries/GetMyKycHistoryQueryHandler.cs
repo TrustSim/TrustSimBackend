@@ -10,16 +10,16 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 /// </summary>
 public class GetMyKycHistoryQueryHandler : IRequestHandler<GetMyKycHistoryQuery, IReadOnlyList<IdentityVerificationDto>>
 {
-    private readonly IIdentityVerificationRepository _kycRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetMyKycHistoryQueryHandler(IIdentityVerificationRepository kycRepository)
+    public GetMyKycHistoryQueryHandler(IUnitOfWork unitOfWork)
     {
-        _kycRepository = kycRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<IdentityVerificationDto>> Handle(GetMyKycHistoryQuery request, CancellationToken cancellationToken)
     {
-        var list = await _kycRepository.GetHistoryByUserIdAsync(request.UserId, cancellationToken);
+        var list = await _unitOfWork.IdentityVerifications.GetHistoryByUserIdAsync(request.UserId, cancellationToken);
 
         return list.Select(v => new IdentityVerificationDto
         {

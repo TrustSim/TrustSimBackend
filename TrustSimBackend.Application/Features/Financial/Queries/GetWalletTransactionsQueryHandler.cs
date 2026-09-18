@@ -12,26 +12,22 @@ namespace TrustSimBackend.Application.Features.Financial.Queries;
 /// </summary>
 public class GetWalletTransactionsQueryHandler : IRequestHandler<GetWalletTransactionsQuery, PagedResult<WalletTransactionDto>>
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetWalletTransactionsQueryHandler(
-        IWalletRepository walletRepository,
-        IWalletTransactionRepository walletTransactionRepository)
+    public GetWalletTransactionsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _walletRepository = walletRepository;
-        _walletTransactionRepository = walletTransactionRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<WalletTransactionDto>> Handle(GetWalletTransactionsQuery request, CancellationToken cancellationToken)
     {
-        var wallet = await _walletRepository.GetByUserIdAsync(request.UserId, cancellationToken);
+        var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
         if (wallet == null)
         {
             throw new NotFoundException($"Không tìm thấy ví tiền của người dùng với ID '{request.UserId}'.");
         }
 
-        var (items, totalCount) = await _walletTransactionRepository.GetPagedByWalletIdAsync(
+        var (items, totalCount) = await _unitOfWork.WalletTransactions.GetPagedByWalletIdAsync(
             wallet.Id,
             request.Type,
             request.Status,

@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class GetAuditLogsQueryHandler : IRequestHandler<GetAuditLogsQuery, PagedResult<AuditLogDto>>
 {
-    private readonly IAuditLogRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetAuditLogsQueryHandler(IAuditLogRepository repository)
+    public GetAuditLogsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<AuditLogDto>> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _repository.GetPagedAsync(
+        var (items, totalCount) = await _unitOfWork.AuditLogs.GetPagedAsync(
             request.EntityName,
             request.EntityId,
             request.ActorId,

@@ -7,16 +7,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetPrefixesQueryHandler : IRequestHandler<GetPrefixesQuery, IReadOnlyList<PhonePrefixDto>>
 {
-    private readonly IPhonePrefixRepository _prefixRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetPrefixesQueryHandler(IPhonePrefixRepository prefixRepository)
+    public GetPrefixesQueryHandler(IUnitOfWork unitOfWork)
     {
-        _prefixRepository = prefixRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<PhonePrefixDto>> Handle(GetPrefixesQuery request, CancellationToken cancellationToken)
     {
-        var prefixes = await _prefixRepository.GetAllAsync(request.CarrierId, cancellationToken);
+        var prefixes = await _unitOfWork.PhonePrefixes.GetAllAsync(request.CarrierId, cancellationToken);
         return prefixes.Select(p => new PhonePrefixDto
         {
             Id = p.Id,

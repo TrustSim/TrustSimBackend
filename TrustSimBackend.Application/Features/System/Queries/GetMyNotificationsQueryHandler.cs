@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class GetMyNotificationsQueryHandler : IRequestHandler<GetMyNotificationsQuery, PagedResult<NotificationDto>>
 {
-    private readonly INotificationRepository _notificationRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetMyNotificationsQueryHandler(INotificationRepository notificationRepository)
+    public GetMyNotificationsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _notificationRepository = notificationRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<PagedResult<NotificationDto>> Handle(GetMyNotificationsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _notificationRepository.GetPagedByUserIdAsync(
+        var (items, totalCount) = await _unitOfWork.Notifications.GetPagedByUserIdAsync(
             request.UserId,
             request.IsRead,
             request.PageIndex,

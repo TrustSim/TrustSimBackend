@@ -9,18 +9,16 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class CreateFormatRhythmCommandHandler : IRequestHandler<CreateFormatRhythmCommand, FormatRhythmDto>
 {
-    private readonly IFormatRhythmRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public CreateFormatRhythmCommandHandler(IFormatRhythmRepository repository, IUnitOfWork unitOfWork)
+    public CreateFormatRhythmCommandHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<FormatRhythmDto> Handle(CreateFormatRhythmCommand request, CancellationToken cancellationToken)
     {
-        if (await _repository.ExistsByNameAsync(request.FormatRhythmName, cancellationToken: cancellationToken))
+        if (await _unitOfWork.FormatRhythms.ExistsByNameAsync(request.FormatRhythmName, cancellationToken: cancellationToken))
         {
             throw new BadRequestException($"Định dạng nhịp số '{request.FormatRhythmName}' đã tồn tại.");
         }
@@ -34,7 +32,7 @@ public class CreateFormatRhythmCommandHandler : IRequestHandler<CreateFormatRhyt
             CreatedDate = DateTime.UtcNow
         };
 
-        await _repository.AddAsync(rhythm, cancellationToken);
+        await _unitOfWork.FormatRhythms.AddAsync(rhythm, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new FormatRhythmDto

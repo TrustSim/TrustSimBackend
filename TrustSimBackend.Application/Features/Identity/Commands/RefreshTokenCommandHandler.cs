@@ -18,18 +18,15 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, AuthResponseDto>
 {
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly ICookieService _cookieService;
 
     public RefreshTokenCommandHandler(
-        IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
         IJwtTokenGenerator jwtTokenGenerator,
         ICookieService cookieService)
     {
-        _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _jwtTokenGenerator = jwtTokenGenerator;
         _cookieService = cookieService;
@@ -48,7 +45,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         }
 
         // 2. Tìm kiếm Token trong Database
-        var existingToken = await _refreshTokenRepository.GetByTokenAsync(tokenStr, cancellationToken);
+        var existingToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(tokenStr, cancellationToken);
         if (existingToken == null)
         {
             _cookieService.ClearAuthCookies();
@@ -59,7 +56,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         if (existingToken.IsUsed)
         {
             // Token đã từng dùng bị gửi lại -> Nguy cơ bị đánh cắp phiên!
-            await _refreshTokenRepository.RevokeAllUserTokensAsync(
+            await _unitOfWork.RefreshTokens.RevokeAllUserTokensAsync(
                 existingToken.UserAccountId,
                 "Phát hiện tái sử dụng Refresh Token đã dùng (Token Reuse Detected)",
                 request.IpAddress,
@@ -92,7 +89,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         // 7. Xoay vòng Token (Token Rotation): Đánh dấu token cũ đã dùng và ghi nhận token thay thế
         existingToken.IsUsed = true;
         existingToken.ReplacedByToken = newTokens.RefreshToken;
-        _refreshTokenRepository.Update(existingToken);
+        _unitOfWork.RefreshTokens.Update(existingToken);
 
         // 8. Lưu Refresh Token mới vào Database
         var newRefreshTokenEntity = new Domain.Entities.Identity.RefreshToken
@@ -106,7 +103,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
             IsUsed = false,
             IsRevoked = false
         };
-        await _refreshTokenRepository.AddAsync(newRefreshTokenEntity, cancellationToken);
+        await _unitOfWork.RefreshTokens.AddAsync(newRefreshTokenEntity, cancellationToken);
 
         // Commit DB transaction
         await _unitOfWork.SaveChangesAsync(cancellationToken);

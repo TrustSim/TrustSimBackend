@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetSimByIdQueryHandler : IRequestHandler<GetSimByIdQuery, SimNumberDto>
 {
-    private readonly ISimNumberRepository _simRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetSimByIdQueryHandler(ISimNumberRepository simRepository)
+    public GetSimByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _simRepository = simRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<SimNumberDto> Handle(GetSimByIdQuery request, CancellationToken cancellationToken)
     {
-        var sim = await _simRepository.GetByIdAsync(request.Id, cancellationToken);
+        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(request.Id, cancellationToken);
         if (sim == null)
         {
             throw new NotFoundException($"Không tìm thấy số SIM với ID '{request.Id}'.");

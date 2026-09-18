@@ -11,20 +11,16 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class UpdateAvatarCommandHandler : IRequestHandler<UpdateAvatarCommand, string>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateAvatarCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IUnitOfWork unitOfWork)
+    public UpdateAvatarCommandHandler(IUnitOfWork unitOfWork)
     {
-        _userAccountRepository = userAccountRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<string> Handle(UpdateAvatarCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userAccountRepository.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
         {
             throw new NotFoundException(nameof(UserAccount), request.UserId);
@@ -41,7 +37,7 @@ public class UpdateAvatarCommandHandler : IRequestHandler<UpdateAvatarCommand, s
         }
 
         user.UserProfile.AvatarImg = request.AvatarUrl.Trim();
-        _userAccountRepository.Update(user);
+        _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return user.UserProfile.AvatarImg;

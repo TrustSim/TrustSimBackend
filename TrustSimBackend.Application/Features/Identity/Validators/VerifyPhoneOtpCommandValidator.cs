@@ -1,5 +1,5 @@
 using FluentValidation;
-using TrustSimBackend.Application.Features.Identity.Commands;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 
 namespace TrustSimBackend.Application.Features.Identity.Validators;
 

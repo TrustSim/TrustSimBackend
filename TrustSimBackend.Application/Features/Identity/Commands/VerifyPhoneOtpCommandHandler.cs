@@ -1,6 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 
 namespace TrustSimBackend.Application.Features.Identity.Commands;
 

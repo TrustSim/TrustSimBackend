@@ -8,18 +8,18 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class ExportSimsQueryHandler : IRequestHandler<ExportSimsQuery, byte[]>
 {
-    private readonly ISimNumberRepository _simRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportSimsQueryHandler(ISimNumberRepository simRepository, IExcelService excelService)
+    public ExportSimsQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _simRepository = simRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportSimsQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _simRepository.GetPagedAsync(
+        var (items, _) = await _unitOfWork.SimNumbers.GetPagedAsync(
             request.Keyword,
             request.CarrierId,
             request.CategoryId,

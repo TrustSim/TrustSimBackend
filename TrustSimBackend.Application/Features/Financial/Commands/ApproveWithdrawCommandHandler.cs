@@ -11,20 +11,16 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 /// </summary>
 public class ApproveWithdrawCommandHandler : IRequestHandler<ApproveWithdrawCommand, bool>
 {
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public ApproveWithdrawCommandHandler(
-        IWalletTransactionRepository walletTransactionRepository,
-        IUnitOfWork unitOfWork)
+    public ApproveWithdrawCommandHandler(IUnitOfWork unitOfWork)
     {
-        _walletTransactionRepository = walletTransactionRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(ApproveWithdrawCommand request, CancellationToken cancellationToken)
     {
-        var transaction = await _walletTransactionRepository.GetByIdAsync(request.TransactionId, cancellationToken);
+        var transaction = await _unitOfWork.WalletTransactions.GetByIdAsync(request.TransactionId, cancellationToken);
         if (transaction == null)
         {
             throw new NotFoundException($"Không tìm thấy giao dịch rút tiền với ID '{request.TransactionId}'.");
@@ -47,7 +43,7 @@ public class ApproveWithdrawCommandHandler : IRequestHandler<ApproveWithdrawComm
             transaction.Description += $" [Admin Note: {request.Note}]";
         }
 
-        _walletTransactionRepository.Update(transaction);
+        _unitOfWork.WalletTransactions.Update(transaction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

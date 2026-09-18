@@ -8,18 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryCommand, SimCategoryDto>
 {
-    private readonly ISimCategoryRepository _categoryRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateCategoryCommandHandler(ISimCategoryRepository categoryRepository, IUnitOfWork unitOfWork)
+    public UpdateCategoryCommandHandler(IUnitOfWork unitOfWork)
     {
-        _categoryRepository = categoryRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<SimCategoryDto> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
     {
-        var category = await _categoryRepository.GetByIdAsync(request.Id, cancellationToken);
+        var category = await _unitOfWork.SimCategories.GetByIdAsync(request.Id, cancellationToken);
         if (category == null)
         {
             throw new NotFoundException($"Không tìm thấy thể loại SIM với ID '{request.Id}'.");
@@ -32,7 +30,7 @@ public class UpdateCategoryCommandHandler : IRequestHandler<UpdateCategoryComman
         }
         category.ValuationMultiplier = request.ValuationMultiplier > 0 ? request.ValuationMultiplier : 1.0f;
 
-        _categoryRepository.Update(category);
+        _unitOfWork.SimCategories.Update(category);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new SimCategoryDto

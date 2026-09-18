@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class GetFormatRhythmByIdQueryHandler : IRequestHandler<GetFormatRhythmByIdQuery, FormatRhythmDto>
 {
-    private readonly IFormatRhythmRepository _repository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetFormatRhythmByIdQueryHandler(IFormatRhythmRepository repository)
+    public GetFormatRhythmByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _repository = repository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<FormatRhythmDto> Handle(GetFormatRhythmByIdQuery request, CancellationToken cancellationToken)
     {
-        var rhythm = await _repository.GetByIdAsync(request.Id, cancellationToken);
+        var rhythm = await _unitOfWork.FormatRhythms.GetByIdAsync(request.Id, cancellationToken);
         if (rhythm == null)
         {
             throw new NotFoundException($"Không tìm thấy định dạng nhịp số với ID '{request.Id}'.");

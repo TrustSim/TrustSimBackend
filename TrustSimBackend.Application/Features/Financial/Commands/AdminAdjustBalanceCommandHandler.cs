@@ -9,23 +9,16 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 public class AdminAdjustBalanceCommandHandler : IRequestHandler<AdminAdjustBalanceCommand, bool>
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly IWalletTransactionRepository _transactionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public AdminAdjustBalanceCommandHandler(
-        IWalletRepository walletRepository,
-        IWalletTransactionRepository transactionRepository,
-        IUnitOfWork unitOfWork)
+    public AdminAdjustBalanceCommandHandler(IUnitOfWork unitOfWork)
     {
-        _walletRepository = walletRepository;
-        _transactionRepository = transactionRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(AdminAdjustBalanceCommand request, CancellationToken cancellationToken)
     {
-        var wallet = await _walletRepository.GetByIdAsync(request.WalletId, cancellationToken);
+        var wallet = await _unitOfWork.Wallets.GetByIdAsync(request.WalletId, cancellationToken);
         if (wallet == null) throw new NotFoundException($"Không tìm thấy ví tiền với ID '{request.WalletId}'.");
 
         var beforeBalance = wallet.AvailableBalance;
@@ -34,7 +27,7 @@ public class AdminAdjustBalanceCommandHandler : IRequestHandler<AdminAdjustBalan
 
         wallet.AvailableBalance = newBalance;
         wallet.UpdatedDate = DateTime.UtcNow;
-        _walletRepository.Update(wallet);
+        _unitOfWork.Wallets.Update(wallet);
 
         var tx = new WalletTransaction
         {
@@ -50,7 +43,7 @@ public class AdminAdjustBalanceCommandHandler : IRequestHandler<AdminAdjustBalan
             CreatedDate = DateTime.UtcNow
         };
 
-        await _transactionRepository.AddAsync(tx, cancellationToken);
+        await _unitOfWork.WalletTransactions.AddAsync(tx, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return true;
     }

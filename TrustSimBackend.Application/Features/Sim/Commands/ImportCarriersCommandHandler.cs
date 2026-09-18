@@ -13,13 +13,16 @@ public class ImportCarriersCommandHandler : IRequestHandler<ImportCarriersComman
 {
     private readonly IBulkDataService _bulkDataService;
     private readonly IExcelService _excelService;
-    private readonly ISimCarrierRepository _carrierRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public ImportCarriersCommandHandler(IBulkDataService bulkDataService, IExcelService excelService, ISimCarrierRepository carrierRepository)
+    public ImportCarriersCommandHandler(
+        IBulkDataService bulkDataService,
+        IExcelService excelService,
+        IUnitOfWork unitOfWork)
     {
         _bulkDataService = bulkDataService;
         _excelService = excelService;
-        _carrierRepository = carrierRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ImportResult<SimCarrierDto>> Handle(ImportCarriersCommand request, CancellationToken cancellationToken)
@@ -44,7 +47,7 @@ public class ImportCarriersCommandHandler : IRequestHandler<ImportCarriersComman
             }
 
             var code = r.CarrierCode.Trim().ToUpper();
-            if (await _carrierRepository.ExistsByCodeAsync(code, cancellationToken: cancellationToken))
+            if (await _unitOfWork.SimCarriers.ExistsByCodeAsync(code, cancellationToken: cancellationToken))
             {
                 result.Errors.Add(new ImportRowError { RowIndex = idx, FieldName = "CarrierCode", ErrorMessage = $"Mã nhà mạng '{code}' đã tồn tại." });
                 result.FailedCount++;

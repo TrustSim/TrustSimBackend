@@ -7,18 +7,18 @@ namespace TrustSimBackend.Application.Features.Sim.Queries;
 
 public class ExportPhonePrefixesQueryHandler : IRequestHandler<ExportPhonePrefixesQuery, byte[]>
 {
-    private readonly IPhonePrefixRepository _prefixRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public ExportPhonePrefixesQueryHandler(IPhonePrefixRepository prefixRepository, IExcelService excelService)
+    public ExportPhonePrefixesQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _prefixRepository = prefixRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(ExportPhonePrefixesQuery request, CancellationToken cancellationToken)
     {
-        var prefixes = await _prefixRepository.GetAllAsync(request.CarrierId, cancellationToken);
+        var prefixes = await _unitOfWork.PhonePrefixes.GetAllAsync(request.CarrierId, cancellationToken);
         var rows = prefixes.Select(p => new PrefixExcelRow
         {
             PrefixValue = p.PrefixValue,

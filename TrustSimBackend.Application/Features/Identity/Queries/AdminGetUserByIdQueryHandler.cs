@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 
 public class AdminGetUserByIdQueryHandler : IRequestHandler<AdminGetUserByIdQuery, AdminUserDetailDto>
 {
-    private readonly IUserAccountRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public AdminGetUserByIdQueryHandler(IUserAccountRepository userRepository)
+    public AdminGetUserByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<AdminUserDetailDto> Handle(AdminGetUserByIdQuery request, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByIdAsync(request.Id, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.Id, cancellationToken);
         if (user == null) throw new NotFoundException($"Không tìm thấy người dùng với ID '{request.Id}'.");
 
         return new AdminUserDetailDto

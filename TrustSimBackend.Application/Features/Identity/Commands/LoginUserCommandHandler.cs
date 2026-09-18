@@ -3,7 +3,6 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
-using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Identity.Commands;
@@ -19,23 +18,17 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class LoginUserCommandHandler : IRequestHandler<LoginUserCommand, AuthResponseDto>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly ICookieService _cookieService;
 
     public LoginUserCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IRefreshTokenRepository refreshTokenRepository,
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
         IJwtTokenGenerator jwtTokenGenerator,
         ICookieService cookieService)
     {
-        _userAccountRepository = userAccountRepository;
-        _refreshTokenRepository = refreshTokenRepository;
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _jwtTokenGenerator = jwtTokenGenerator;
@@ -47,7 +40,7 @@ public class LoginUserCommandHandler : IRequestHandler<LoginUserCommand, AuthRes
         var identifier = request.UserNameOrEmail.Trim();
 
         // 1. Tìm kiếm User theo Username hoặc Email
-        var user = await _userAccountRepository.GetByUserNameOrEmailAsync(identifier, cancellationToken);
+        var user = await _unitOfWork.Users.GetByUserNameOrEmailAsync(identifier, cancellationToken);
 
         if (user == null)
         {
@@ -82,7 +75,7 @@ public class LoginUserCommandHandler : IRequestHandler<LoginUserCommand, AuthRes
             IsRevoked = false
         };
 
-        await _refreshTokenRepository.AddAsync(refreshTokenEntity, cancellationToken);
+        await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // 6. Ghi HttpOnly Cookie cho cả Access Token và Refresh Token

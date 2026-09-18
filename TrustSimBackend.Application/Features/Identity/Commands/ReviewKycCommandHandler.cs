@@ -13,26 +13,20 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
 {
-    private readonly IIdentityVerificationRepository _kycRepository;
-    private readonly IUserAccountRepository _userAccountRepository;
-    private readonly IPkiKeyService _pkiKeyService;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPkiKeyService _pkiKeyService;
 
     public ReviewKycCommandHandler(
-        IIdentityVerificationRepository kycRepository,
-        IUserAccountRepository userAccountRepository,
-        IPkiKeyService pkiKeyService,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPkiKeyService pkiKeyService)
     {
-        _kycRepository = kycRepository;
-        _userAccountRepository = userAccountRepository;
-        _pkiKeyService = pkiKeyService;
         _unitOfWork = unitOfWork;
+        _pkiKeyService = pkiKeyService;
     }
 
     public async Task<bool> Handle(ReviewKycCommand request, CancellationToken cancellationToken)
     {
-        var verification = await _kycRepository.GetByIdAsync(request.VerificationId, cancellationToken);
+        var verification = await _unitOfWork.IdentityVerifications.GetByIdAsync(request.VerificationId, cancellationToken);
         if (verification == null)
         {
             throw new NotFoundException($"Không tìm thấy hồ sơ KYC với ID '{request.VerificationId}'.");
@@ -53,7 +47,7 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
             // Nếu Admin phê duyệt, tự động khởi tạo/kích hoạt cặp khóa ký số PKI cho người dùng
             if (request.Status == VerificationStatus.VERIFIED)
             {
-                var user = await _userAccountRepository.GetByIdAsync(verification.UserProfile.UserAccountId, cancellationToken);
+                var user = await _unitOfWork.Users.GetByIdAsync(verification.UserProfile.UserAccountId, cancellationToken);
                 if (user != null)
                 {
                     if (user.UserSecurityProfile == null)
@@ -78,12 +72,12 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
                     }
 
                     user.UpdatedDate = DateTime.UtcNow;
-                    _userAccountRepository.Update(user);
+                    _unitOfWork.Users.Update(user);
                 }
             }
         }
 
-        _kycRepository.Update(verification);
+        _unitOfWork.IdentityVerifications.Update(verification);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

@@ -8,16 +8,16 @@ namespace TrustSimBackend.Application.Features.Dispute.Queries;
 
 public class GetDisputeByIdQueryHandler : IRequestHandler<GetDisputeByIdQuery, DisputeTicketDto>
 {
-    private readonly IDisputeTicketRepository _disputeRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetDisputeByIdQueryHandler(IDisputeTicketRepository disputeRepository)
+    public GetDisputeByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _disputeRepository = disputeRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<DisputeTicketDto> Handle(GetDisputeByIdQuery request, CancellationToken cancellationToken)
     {
-        var ticket = await _disputeRepository.GetByIdAsync(request.Id, cancellationToken);
+        var ticket = await _unitOfWork.DisputeTickets.GetByIdAsync(request.Id, cancellationToken);
         if (ticket == null)
         {
             throw new NotFoundException($"Không tìm thấy khiếu nại với ID '{request.Id}'.");

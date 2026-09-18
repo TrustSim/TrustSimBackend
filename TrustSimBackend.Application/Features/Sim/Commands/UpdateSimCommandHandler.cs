@@ -9,29 +9,22 @@ namespace TrustSimBackend.Application.Features.Sim.Commands;
 
 public class UpdateSimCommandHandler : IRequestHandler<UpdateSimCommand, SimNumberDto>
 {
-    private readonly ISimNumberRepository _simRepository;
-    private readonly IPhonePrefixRepository _prefixRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateSimCommandHandler(
-        ISimNumberRepository simRepository,
-        IPhonePrefixRepository prefixRepository,
-        IUnitOfWork unitOfWork)
+    public UpdateSimCommandHandler(IUnitOfWork unitOfWork)
     {
-        _simRepository = simRepository;
-        _prefixRepository = prefixRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<SimNumberDto> Handle(UpdateSimCommand request, CancellationToken cancellationToken)
     {
-        var sim = await _simRepository.GetByIdAsync(request.Id, cancellationToken);
+        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(request.Id, cancellationToken);
         if (sim == null)
         {
             throw new NotFoundException($"Không tìm thấy số SIM với ID '{request.Id}'.");
         }
 
-        var prefix = await _prefixRepository.GetByIdAsync(request.PhonePrefixId, cancellationToken);
+        var prefix = await _unitOfWork.PhonePrefixes.GetByIdAsync(request.PhonePrefixId, cancellationToken);
         if (prefix == null)
         {
             throw new NotFoundException($"Không tìm thấy đầu số với ID '{request.PhonePrefixId}'.");
@@ -59,7 +52,7 @@ public class UpdateSimCommandHandler : IRequestHandler<UpdateSimCommand, SimNumb
             }
         }
 
-        _simRepository.Update(sim);
+        _unitOfWork.SimNumbers.Update(sim);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new SimNumberDto

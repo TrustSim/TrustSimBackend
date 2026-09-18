@@ -11,26 +11,22 @@ namespace TrustSimBackend.Application.Features.Financial.Queries;
 /// </summary>
 public class GetWalletTransactionByIdQueryHandler : IRequestHandler<GetWalletTransactionByIdQuery, WalletTransactionDto>
 {
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
-    private readonly IWalletRepository _walletRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetWalletTransactionByIdQueryHandler(
-        IWalletTransactionRepository walletTransactionRepository,
-        IWalletRepository walletRepository)
+    public GetWalletTransactionByIdQueryHandler(IUnitOfWork unitOfWork)
     {
-        _walletTransactionRepository = walletTransactionRepository;
-        _walletRepository = walletRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<WalletTransactionDto> Handle(GetWalletTransactionByIdQuery request, CancellationToken cancellationToken)
     {
-        var transaction = await _walletTransactionRepository.GetByIdAsync(request.TransactionId, cancellationToken);
+        var transaction = await _unitOfWork.WalletTransactions.GetByIdAsync(request.TransactionId, cancellationToken);
         if (transaction == null)
         {
             throw new NotFoundException($"Không tìm thấy giao dịch với ID '{request.TransactionId}'.");
         }
 
-        var wallet = await _walletRepository.GetByIdAsync(transaction.WalletId, cancellationToken);
+        var wallet = await _unitOfWork.Wallets.GetByIdAsync(transaction.WalletId, cancellationToken);
         if (wallet == null || wallet.UserAccountId != request.UserId)
         {
             throw new ForbiddenAccessException("Bạn không có quyền xem chi tiết giao dịch này.");

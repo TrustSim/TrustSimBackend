@@ -7,16 +7,16 @@ namespace TrustSimBackend.Application.Features.System.Queries;
 
 public class GetDocumentsQueryHandler : IRequestHandler<GetDocumentsQuery, IReadOnlyList<DocumentDto>>
 {
-    private readonly IDocumentRepository _documentRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
-    public GetDocumentsQueryHandler(IDocumentRepository documentRepository)
+    public GetDocumentsQueryHandler(IUnitOfWork unitOfWork)
     {
-        _documentRepository = documentRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<IReadOnlyList<DocumentDto>> Handle(GetDocumentsQuery request, CancellationToken cancellationToken)
     {
-        var docs = await _documentRepository.GetAllAsync(request.ActiveOnly, cancellationToken);
+        var docs = await _unitOfWork.Documents.GetAllAsync(request.ActiveOnly, cancellationToken);
         return docs.Select(d => new DocumentDto
         {
             Id = d.Id,

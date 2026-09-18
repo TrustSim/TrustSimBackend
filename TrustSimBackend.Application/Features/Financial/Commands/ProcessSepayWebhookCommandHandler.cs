@@ -13,21 +13,15 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 /// </summary>
 public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWebhookCommand, bool>
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISePayService _sePayService;
     private readonly ILogger<ProcessSepayWebhookCommandHandler> _logger;
 
     public ProcessSepayWebhookCommandHandler(
-        IWalletRepository walletRepository,
-        IWalletTransactionRepository walletTransactionRepository,
         IUnitOfWork unitOfWork,
         ISePayService sePayService,
         ILogger<ProcessSepayWebhookCommandHandler> logger)
     {
-        _walletRepository = walletRepository;
-        _walletTransactionRepository = walletTransactionRepository;
         _unitOfWork = unitOfWork;
         _sePayService = sePayService;
         _logger = logger;
@@ -66,10 +60,10 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
         }
 
         // 4. Tìm giao dịch trong Database (hỗ trợ cả trích xuất lẫn Code nguyên bản)
-        var transaction = await _walletTransactionRepository.GetByTransactionCodeAsync(transactionCode, cancellationToken);
+        var transaction = await _unitOfWork.WalletTransactions.GetByTransactionCodeAsync(transactionCode, cancellationToken);
         if (transaction == null && !string.IsNullOrWhiteSpace(payload.Code))
         {
-            transaction = await _walletTransactionRepository.GetByTransactionCodeAsync(payload.Code.Trim(), cancellationToken);
+            transaction = await _unitOfWork.WalletTransactions.GetByTransactionCodeAsync(payload.Code.Trim(), cancellationToken);
         }
 
         if (transaction == null)
@@ -93,7 +87,7 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
         }
 
         // 7. Lấy ví người dùng và cộng tiền theo số tiền thực nhận
-        var wallet = transaction.Wallet ?? await _walletRepository.GetByIdAsync(transaction.WalletId, cancellationToken);
+        var wallet = transaction.Wallet ?? await _unitOfWork.Wallets.GetByIdAsync(transaction.WalletId, cancellationToken);
         if (wallet == null)
         {
             _logger.LogError("[SePay Webhook] Không tìm thấy Wallet với ID '{WalletId}'.", transaction.WalletId);
@@ -112,8 +106,8 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
         transaction.ExternalTransactionId = payload.Id.ToString();
         transaction.Description = $"Nạp tiền thành công qua SePay ({payload.Gateway} - GD #{payload.Id})";
 
-        _walletRepository.Update(wallet);
-        _walletTransactionRepository.Update(transaction);
+        _unitOfWork.Wallets.Update(wallet);
+        _unitOfWork.WalletTransactions.Update(transaction);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

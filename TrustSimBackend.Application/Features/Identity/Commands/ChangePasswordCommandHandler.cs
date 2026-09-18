@@ -12,23 +12,20 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordCommand, bool>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
-    private readonly IPasswordHasher _passwordHasher;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPasswordHasher _passwordHasher;
 
     public ChangePasswordCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IPasswordHasher passwordHasher,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IPasswordHasher passwordHasher)
     {
-        _userAccountRepository = userAccountRepository;
-        _passwordHasher = passwordHasher;
         _unitOfWork = unitOfWork;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<bool> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
-        var user = await _userAccountRepository.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
         if (user == null)
         {
             throw new NotFoundException(nameof(UserAccount), request.UserId);
@@ -43,7 +40,7 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
 
         // 2. Băm mật khẩu mới và cập nhật
         user.PassWordHash = _passwordHasher.HashPassword(request.NewPassword);
-        _userAccountRepository.Update(user);
+        _unitOfWork.Users.Update(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

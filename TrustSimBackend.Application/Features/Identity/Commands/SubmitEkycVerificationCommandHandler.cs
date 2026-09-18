@@ -19,8 +19,6 @@ namespace TrustSimBackend.Application.Features.Identity.Commands;
 /// </summary>
 public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVerificationCommand, EkycVerificationResultDto>
 {
-    private readonly IUserAccountRepository _userAccountRepository;
-    private readonly IIdentityVerificationRepository _kycRepository;
     private readonly IAwsRekognitionService _rekognitionService;
     private readonly ICloudStorageService _storageService;
     private readonly IPkiKeyService _pkiKeyService;
@@ -29,8 +27,6 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
     private readonly ILogger<SubmitEkycVerificationCommandHandler> _logger;
 
     public SubmitEkycVerificationCommandHandler(
-        IUserAccountRepository userAccountRepository,
-        IIdentityVerificationRepository kycRepository,
         IAwsRekognitionService rekognitionService,
         ICloudStorageService storageService,
         IPkiKeyService pkiKeyService,
@@ -38,8 +34,6 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         IOptions<AwsRekognitionSettings> settings,
         ILogger<SubmitEkycVerificationCommandHandler> logger)
     {
-        _userAccountRepository = userAccountRepository;
-        _kycRepository = kycRepository;
         _rekognitionService = rekognitionService;
         _storageService = storageService;
         _pkiKeyService = pkiKeyService;
@@ -51,7 +45,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
     public async Task<EkycVerificationResultDto> Handle(SubmitEkycVerificationCommand request, CancellationToken cancellationToken)
     {
         // 1. Kiểm tra tài khoản & trạng thái hiện tại
-        var user = await _userAccountRepository.GetByIdAsync(request.UserId, cancellationToken)
+        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken)
             ?? throw new NotFoundException($"Không tìm thấy tài khoản người dùng với ID '{request.UserId}'.");
 
         if (user.UserProfile == null)
@@ -103,7 +97,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         }
 
         // 7. Kiểm tra tính duy nhất của số CCCD trên toàn hệ thống (chống clone nick)
-        var isDuplicate = await _userAccountRepository.ExistsByIdentityNumberAsync(
+        var isDuplicate = await _unitOfWork.Users.ExistsByIdentityNumberAsync(
             ocrResult.IdentityNumber, user.Id, cancellationToken);
 
         if (isDuplicate)
@@ -236,8 +230,8 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             user.UserProfile.UpdatedDate = DateTime.UtcNow;
             user.UpdatedDate = DateTime.UtcNow;
 
-            _userAccountRepository.Update(user);
-            await _kycRepository.AddAsync(verification, cancellationToken);
+            _unitOfWork.Users.Update(user);
+            await _unitOfWork.IdentityVerifications.AddAsync(verification, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Dọn dẹp tệp ảnh tạm thời trên web server
@@ -246,8 +240,8 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             throw new KycFaceMismatchException(faceMatch.SimilarityScore);
         }
 
-        _userAccountRepository.Update(user);
-        await _kycRepository.AddAsync(verification, cancellationToken);
+        _unitOfWork.Users.Update(user);
+        await _unitOfWork.IdentityVerifications.AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // 11. Tự động dọn dẹp các tệp ảnh tạm trên web server (wwwroot/uploads) sau khi lưu DB thành công

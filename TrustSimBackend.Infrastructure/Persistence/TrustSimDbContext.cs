@@ -10,7 +10,7 @@ using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Infrastructure.Persistence;
 
-public class TrustSimDbContext : DbContext, IUnitOfWork
+public class TrustSimDbContext : DbContext
 {
     public TrustSimDbContext(DbContextOptions<TrustSimDbContext> options) : base(options)
     {

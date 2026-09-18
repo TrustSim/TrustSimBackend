@@ -7,18 +7,18 @@ namespace TrustSimBackend.Application.Features.Identity.Queries;
 
 public class AdminExportKycQueryHandler : IRequestHandler<AdminExportKycQuery, byte[]>
 {
-    private readonly IIdentityVerificationRepository _kycRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IExcelService _excelService;
 
-    public AdminExportKycQueryHandler(IIdentityVerificationRepository kycRepository, IExcelService excelService)
+    public AdminExportKycQueryHandler(IUnitOfWork unitOfWork, IExcelService excelService)
     {
-        _kycRepository = kycRepository;
+        _unitOfWork = unitOfWork;
         _excelService = excelService;
     }
 
     public async Task<byte[]> Handle(AdminExportKycQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _kycRepository.GetPagedAsync(
+        var (items, _) = await _unitOfWork.IdentityVerifications.GetPagedAsync(
             request.Status,
             pageIndex: 1,
             pageSize: 100000,

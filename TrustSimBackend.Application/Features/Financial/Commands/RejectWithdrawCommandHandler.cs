@@ -11,23 +11,16 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 /// </summary>
 public class RejectWithdrawCommandHandler : IRequestHandler<RejectWithdrawCommand, bool>
 {
-    private readonly IWalletRepository _walletRepository;
-    private readonly IWalletTransactionRepository _walletTransactionRepository;
     private readonly IUnitOfWork _unitOfWork;
 
-    public RejectWithdrawCommandHandler(
-        IWalletRepository walletRepository,
-        IWalletTransactionRepository walletTransactionRepository,
-        IUnitOfWork unitOfWork)
+    public RejectWithdrawCommandHandler(IUnitOfWork unitOfWork)
     {
-        _walletRepository = walletRepository;
-        _walletTransactionRepository = walletTransactionRepository;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<bool> Handle(RejectWithdrawCommand request, CancellationToken cancellationToken)
     {
-        var transaction = await _walletTransactionRepository.GetByIdAsync(request.TransactionId, cancellationToken);
+        var transaction = await _unitOfWork.WalletTransactions.GetByIdAsync(request.TransactionId, cancellationToken);
         if (transaction == null)
         {
             throw new NotFoundException($"Không tìm thấy giao dịch rút tiền với ID '{request.TransactionId}'.");
@@ -43,7 +36,7 @@ public class RejectWithdrawCommandHandler : IRequestHandler<RejectWithdrawComman
             throw new BadRequestException($"Giao dịch đã ở trạng thái '{transaction.TransactionStatus}', không thể từ chối.");
         }
 
-        var wallet = await _walletRepository.GetByIdAsync(transaction.WalletId, cancellationToken);
+        var wallet = await _unitOfWork.Wallets.GetByIdAsync(transaction.WalletId, cancellationToken);
         if (wallet == null)
         {
             throw new NotFoundException($"Không tìm thấy ví tiền với ID '{transaction.WalletId}'.");
@@ -57,8 +50,8 @@ public class RejectWithdrawCommandHandler : IRequestHandler<RejectWithdrawComman
         transaction.CompletedAt = DateTime.UtcNow;
         transaction.Description += $" [Admin từ chối: {request.Reason}]";
 
-        _walletRepository.Update(wallet);
-        _walletTransactionRepository.Update(transaction);
+        _unitOfWork.Wallets.Update(wallet);
+        _unitOfWork.WalletTransactions.Update(transaction);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
