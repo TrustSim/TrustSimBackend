@@ -401,6 +401,8 @@ public static class DbSeeder
         var defaultPrefix = await context.PhonePrefixes.Select(p => p.Id).FirstOrDefaultAsync();
         var pr098 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "098"))?.Id ?? defaultPrefix;
         var pr097 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "097"))?.Id ?? defaultPrefix;
+        var pr086 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "086"))?.Id ?? defaultPrefix;
+        var pr033 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "033"))?.Id ?? defaultPrefix;
         var pr091 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "091"))?.Id ?? defaultPrefix;
         var pr088 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "088"))?.Id ?? defaultPrefix;
         var pr090 = (await context.PhonePrefixes.FirstOrDefaultAsync(p => p.PrefixValue == "090"))?.Id ?? defaultPrefix;
@@ -424,6 +426,8 @@ public static class DbSeeder
         var caThanTai = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "THAN_TAI"))?.Id ?? defaultCategory;
         var caThanTaiLon = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "THAN_TAI_LON"))?.Id ?? defaultCategory;
         var caKhongThatBat = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "KHONG_THAT_BAT"))?.Id ?? defaultCategory;
+        var caGanhDao = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "GANH_DAO"))?.Id ?? defaultCategory;
+        var caLapDoi = (await context.SimCategories.FirstOrDefaultAsync(c => c.CategoryCode == "LAP_DOI"))?.Id ?? defaultCategory;
 
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
         var sellerDaiPhat = Guid.Parse("11000000-0000-0000-0000-000000000004");
@@ -437,6 +441,10 @@ public static class DbSeeder
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), PhoneNumber = "0797979799", Price = 35000000m,   SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr079, FormatRhythmId = f22222 },
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), PhoneNumber = "0966668888", Price = 120000000m,  SimStatus = SimStatus.TRANSFERRED, PhonePrefixId = pr097, FormatRhythmId = f244 },
             new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000007"), PhoneNumber = "0986868686", Price = 2200000000m, SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr098, FormatRhythmId = f22222 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000008"), PhoneNumber = "0869192776", Price = 450000m,       SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr086, FormatRhythmId = f334 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000009"), PhoneNumber = "0903123678", Price = 2500000m,     SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr090, FormatRhythmId = f334 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000010"), PhoneNumber = "0977889900", Price = 8500000m,     SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr097, FormatRhythmId = f22222 },
+            new() { Id = Guid.Parse("21000000-0000-0000-0000-000000000011"), PhoneNumber = "0339393939", Price = 18000000m,    SimStatus = SimStatus.AVAILABLE,  PhonePrefixId = pr033, FormatRhythmId = f22222 },
         };
         await context.SimNumbers.AddRangeAsync(sims);
 
@@ -455,6 +463,10 @@ public static class DbSeeder
             new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000011"), SimNumberId = sims[6].Id, SimCategoryId = caDaiTaxi86,     ScoreContribution = 1.0f },
             new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000012"), SimNumberId = sims[6].Id, SimCategoryId = caLocPhat86,     ScoreContribution = 1.0f },
             new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000013"), SimNumberId = sims[6].Id, SimCategoryId = caKhongThatBat,   ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000014"), SimNumberId = sims[7].Id, SimCategoryId = caGanhDao,       ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000015"), SimNumberId = sims[8].Id, SimCategoryId = caSanhTien,      ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000016"), SimNumberId = sims[9].Id, SimCategoryId = caLapDoi,        ScoreContribution = 1.0f },
+            new() { Id = Guid.Parse("22000000-0000-0000-0000-000000000017"), SimNumberId = sims[10].Id, SimCategoryId = caThanTai,       ScoreContribution = 1.0f },
         };
         await context.SimCategoryMappings.AddRangeAsync(mappings);
 
@@ -464,7 +476,11 @@ public static class DbSeeder
             new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000002"), UserAccountId = sellerPhuQuy, SimNumberId = sims[1].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
             new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000003"), UserAccountId = sellerDaiPhat,SimNumberId = sims[2].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
             new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000004"), UserAccountId = sellerDaiPhat,SimNumberId = sims[3].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
-            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000005"), UserAccountId = sellerPhuQuy, SimNumberId = sims[6].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION }
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000005"), UserAccountId = sellerPhuQuy, SimNumberId = sims[6].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000006"), UserAccountId = sellerDaiPhat,SimNumberId = sims[7].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000007"), UserAccountId = sellerDaiPhat,SimNumberId = sims[8].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000008"), UserAccountId = sellerPhuQuy, SimNumberId = sims[9].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION },
+            new() { Id = Guid.Parse("23000000-0000-0000-0000-000000000009"), UserAccountId = sellerPhuQuy, SimNumberId = sims[10].Id, OwnershipStatus = OwnershipStatus.ACTIVE, AcquistionType = AcquistionType.INITIAL_VERIFICATION }
         };
         await context.SimOwnerships.AddRangeAsync(ownerships);
 

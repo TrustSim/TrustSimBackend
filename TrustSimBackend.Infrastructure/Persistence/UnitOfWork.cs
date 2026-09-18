@@ -50,6 +50,11 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable, IDisposable
         return await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public void ClearChangeTracker()
+    {
+        _context.ChangeTracker.Clear();
+    }
+
     public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
         _transaction = await _context.Database.BeginTransactionAsync(cancellationToken);

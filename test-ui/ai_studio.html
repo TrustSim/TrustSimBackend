@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrustSim AI Studio - Thẩm Định Giá & Tư Vấn SIM Số Đẹp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #070b14;
+      --bg-card: rgba(15, 23, 42, 0.72);
+      --bg-card-hover: rgba(26, 38, 66, 0.85);
+      --bg-input: rgba(9, 14, 26, 0.85);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(56, 189, 248, 0.35);
+      --primary: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.35);
+      --accent: #818cf8;
+      --gold: #fbbf24;
+      --gold-glow: rgba(251, 191, 36, 0.25);
+      --emerald: #34d399;
+      --rose: #fb7185;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 22px;
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(129, 140, 248, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(251, 191, 36, 0.06) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      background: rgba(7, 11, 20, 0.88);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 0.85rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      text-decoration: none;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #070b14;
+      font-size: 1.3rem;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .brand-info h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #ffffff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-info span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 0.35rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.6rem 1.25rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      color: #070b14;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.4);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .server-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: rgba(15, 23, 42, 0.7);
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1540px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(56, 189, 248, 0.25);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.28rem 0.8rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 9999px;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .badge-gold { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+    .badge-emerald { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+    .badge-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-rose { background: rgba(251, 113, 133, 0.15); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.3); }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: var(--text-main);
+      transition: all 0.2s ease;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #070b14;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.25s ease;
+    }
+
+    .btn:hover {
+      background: #7dd3fc;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--primary-glow);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: none;
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      color: #070b14;
+    }
+
+    .btn-gold:hover {
+      background: linear-gradient(135deg, #fcd34d, #fbbf24);
+      box-shadow: 0 4px 20px rgba(251, 191, 36, 0.4);
+    }
+
+    /* Chips */
+    .chip-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.6rem;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9999px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--font-mono);
+    }
+
+    .chip:hover {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* Grids */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 1024px) {
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Structure Breakdown Badges */
+    .structure-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .structure-item {
+      background: rgba(10, 16, 30, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem;
+      text-align: center;
+    }
+
+    .structure-item-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .structure-item-val {
+      font-family: var(--font-mono);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    /* 3-Channel Valuation Cards */
+    .price-channel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .price-channel-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .channel-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1.25rem;
+      text-align: center;
+      transition: all 0.25s ease;
+    }
+
+    .channel-card.highlight {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+      border: 1.5px solid var(--gold);
+      box-shadow: 0 0 25px var(--gold-glow);
+      transform: scale(1.03);
+    }
+
+    .channel-title {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+    }
+
+    .channel-price {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #f8fafc;
+      font-family: var(--font-mono);
+    }
+
+    .channel-card.highlight .channel-price {
+      font-size: 1.85rem;
+      background: linear-gradient(135deg, #fef08a, #fbbf24, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .channel-desc {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+    }
+
+    /* Cadence Table */
+    .rhythm-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 0.4rem;
+      margin-top: 0.75rem;
+    }
+
+    .rhythm-table th {
+      text-align: left;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      padding: 0.4rem 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    .rhythm-table td {
+      background: rgba(15, 23, 42, 0.6);
+      padding: 0.75rem 0.85rem;
+      font-size: 0.88rem;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .rhythm-table td:first-child {
+      border-left: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    }
+
+    .rhythm-table td:last-child {
+      border-right: 1px solid var(--border-subtle);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+
+    .rhythm-table tr.optimal-row td {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: #e0f2fe;
+      font-weight: 600;
+    }
+
+    /* Chat Elements */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 720px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(15, 23, 42, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      scroll-behavior: smooth;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+
+    .message {
+      display: flex;
+      gap: 1rem;
+      max-width: 88%;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      flex-direction: row-reverse;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .message.user .avatar {
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      color: white;
+    }
+
+    .message.assistant .avatar {
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      color: #070b14;
+    }
+
+    .message-bubble {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .message.user .message-bubble {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 1px solid #3b82f6;
+      color: #ffffff;
+    }
+
+    .tool-calling-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      background: rgba(10, 16, 30, 0.8);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      color: #c084fc;
+      padding: 0.35rem 0.85rem;
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.75rem;
+    }
+
+    .sim-recommend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .sim-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: var(--radius-md);
+      padding: 0.85rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .sim-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.2);
+    }
+
+    .sim-card-phone {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .sim-card-price {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin: 0.25rem 0;
+    }
+
+    .cursor-blink {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: var(--primary);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 0.8s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .chat-input-bar {
+      padding: 1rem 1.5rem;
+      background: rgba(15, 23, 42, 0.95);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.85rem 1.25rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .chat-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .doc-item {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      transition: all 0.25s ease;
+    }
+
+    .doc-item:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+      background: rgba(24, 34, 60, 0.75);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header>
+    <a href="#" class="brand">
+      <div class="brand-logo">TS</div>
+      <div class="brand-info">
+        <h1>TrustSim AI Studio</h1>
+        <span>Phòng Thử Nghiệm Định Giá 3 Kênh & Trợ Lý SIM Phong Thủy</span>
+      </div>
+    </a>
+
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('valuation-tab')">
+        <span>💎</span> Thẩm Định & Định Giá SIM
+      </button>
+      <button class="tab-btn" onclick="switchTab('consultant-tab')">
+        <span>🤖</span> Trợ Lý Tư Vấn SIM (SSE)
+      </button>
+      <button class="tab-btn" onclick="switchTab('rag-tab'); loadAllDocuments();">
+        <span>⚙️</span> Tri Thức RAG & Cài Đặt
+      </button>
+    </nav>
+
+    <div class="header-controls">
+      <div class="server-status">
+        <div class="status-dot"></div>
+        <span id="server-status-text">Backend: http://localhost:5130</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+
+    <!-- TAB 1: THẨM ĐỊNH & ĐỊNH GIÁ SIM 3 KÊNH -->
+    <section id="valuation-tab" class="tab-panel active">
+      <div class="grid-2">
+        <!-- Input Form -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span>🔍</span> Nhập Số SIM Cần Thẩm Định</h2>
+            <span class="badge badge-primary">Hybrid 4 Layers + RAG</span>
+          </div>
+
+          <form id="valuation-form" onsubmit="handleValuate(event)">
+            <div class="form-group">
+              <label class="form-label">Số điện thoại cần định giá (10 chữ số):</label>
+              <input type="text" id="sim-input" class="form-control" placeholder="Ví dụ: 0869192776 hoặc 0986868686" value="0869192776" required />
+              
+              <div class="chip-container">
+                <span class="chip" onclick="setSimNumber('0869192776')">086.919.2776 (Gánh 919)</span>
+                <span class="chip" onclick="setSimNumber('0986868686')">098.686.8686 (Đại Taxi 86)</span>
+                <span class="chip" onclick="setSimNumber('0912345678')">091.2345678 (Sảnh tiến Vina)</span>
+                <span class="chip" onclick="setSimNumber('0797979799')">079.79.79.799 (Thần tài lớn)</span>
+                <span class="chip" onclick="setSimNumber('0888686868')">088.868.6868 (Lộc phát kép)</span>
+              </div>
+            </div>
+
+            <button type="submit" id="btn-valuate" class="btn btn-gold" style="width: 100%;">
+              <span>⚡</span> Thẩm Định & Định Giá Ngay
+            </button>
+          </form>
+
+          <!-- Core Principle Guide -->
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle);">
+            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Quy Chuẩn Định Giá 3 Kênh Minh Bạch:</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 0.8rem; color: #38bdf8; font-weight: 700;">1. Bóc Tách 3 Cụm Cấu Trúc</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Đầu số nhà mạng + Thân giữa + Cụm đuôi + Tổng nút (1-10)</div>
+              </div>
+              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 0.8rem; color: #fbbf24; font-weight: 700;">2. Tri Thức RAG Thị Trường</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Truy vấn quy chuẩn định giá, phong thủy từ DB vector</div>
+              </div>
+              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 0.8rem; color: #34d399; font-weight: 700;">3. Gemini AI LLM Reasoning</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Lập luận chuyên sâu 4 phần giải trình cơ sở định giá</div>
+              </div>
+              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+                <div style="font-size: 0.8rem; color: #c084fc; font-weight: 700;">4. Phân Kênh Giao Dịch</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Giá Mua Mới Đại lý, Chợ Tự do P2P & Thợ Thu Mua 24h</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Result Card -->
+        <div class="card" id="valuation-result-card">
+          <div class="card-header">
+            <h2 class="card-title"><span>📊</span> Kết Quả Thẩm Định Chi Tiết</h2>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span id="res-engine-badge" class="badge badge-primary" style="display: none;">AI Engine</span>
+              <span id="valuation-status-badge" class="badge badge-emerald">Chờ kiểm tra</span>
+            </div>
+          </div>
+
+          <div id="valuation-empty-state" style="text-align: center; padding: 3rem 1rem; color: var(--text-dim);">
+            <div style="font-size: 3.5rem; margin-bottom: 1rem;">💎</div>
+            <p>Nhập số điện thoại và bấm <b>"Thẩm Định & Định Giá Ngay"</b> để nhận kết quả phân tích đa chiều.</p>
+          </div>
+
+          <div id="valuation-data" style="display: none;">
+            
+            <!-- Structure Badges (Prefix, Middle, Tail, TotalPoints) -->
+            <div class="structure-bar">
+              <div class="structure-item">
+                <div class="structure-item-label">Đầu số</div>
+                <div class="structure-item-val" id="res-struct-prefix">086 (Viettel)</div>
+              </div>
+              <div class="structure-item">
+                <div class="structure-item-label">Thân giữa</div>
+                <div class="structure-item-val" id="res-struct-middle">919</div>
+              </div>
+              <div class="structure-item">
+                <div class="structure-item-label">Cụm đuôi</div>
+                <div class="structure-item-val" id="res-struct-tail">2776</div>
+              </div>
+              <div class="structure-item">
+                <div class="structure-item-label">Tổng nút</div>
+                <div class="structure-item-val" style="color: var(--gold);" id="res-struct-points">5/10</div>
+              </div>
+            </div>
+
+            <!-- 3-Channel Price Cards -->
+            <div class="price-channel-grid">
+              <div class="channel-card">
+                <div class="channel-title"><span>🏪</span> Mua Mới Đại Lý</div>
+                <div class="channel-price" id="res-price-retail">650.000 ₫</div>
+                <div class="channel-desc">Showroom / Kèm gói cước</div>
+              </div>
+
+              <div class="channel-card highlight">
+                <div class="channel-title"><span style="color: var(--gold);">🤝</span> Chợ Tự Do (P2P)</div>
+                <div class="channel-price" id="res-price-p2p">450.000 ₫</div>
+                <div class="channel-desc">Giá giao dịch tối ưu người dùng</div>
+              </div>
+
+              <div class="channel-card">
+                <div class="channel-title"><span>💼</span> Thợ Thu Mua 24h</div>
+                <div class="channel-price" id="res-price-dealer">300.000 ₫</div>
+                <div class="channel-desc">Thanh lý nhanh cho thương lái</div>
+              </div>
+            </div>
+
+            <!-- Identified Categories / Tags -->
+            <div style="margin-bottom: 1.25rem;">
+              <label class="form-label">Tổ hợp thế số nhận diện:</label>
+              <div class="chip-container" id="res-categories-container"></div>
+            </div>
+
+            <!-- Cadence Rhythms Table -->
+            <div style="margin-bottom: 1.25rem;">
+              <label class="form-label">So sánh Nhịp Ngắt & Định Dạng Hiển Thị:</label>
+              <table class="rhythm-table">
+                <thead>
+                  <tr>
+                    <th>Tên Nhịp</th>
+                    <th>Cách Hiển Thị</th>
+                    <th>Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="res-rhythms-body"></tbody>
+              </table>
+            </div>
+
+            <!-- Full AI Reasoning -->
+            <div>
+              <label class="form-label">Bài Giải Trình Thẩm Định Chuyên Sâu (Gemini AI & RAG):</label>
+              <div id="res-ai-rationale" style="background: rgba(9, 14, 26, 0.9); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1.1rem; font-size: 0.9rem; line-height: 1.7; color: #cbd5e1; white-space: pre-wrap;"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: TRỢ LÝ TƯ VẤN SIM (LIVE SSE STREAM) -->
+    <section id="consultant-tab" class="tab-panel">
+      <div class="grid-3" style="grid-template-columns: 320px 1fr;">
+        <!-- Left: Filters & Fast Actions -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span>👤</span> Tiêu Chí Tìm Kiếm</h2>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Năm sinh (Tùy chọn):</label>
+            <input type="number" id="user-birth-year" class="form-control" placeholder="Ví dụ: 1995 hoặc 2004" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mệnh Ngũ Hành (Tùy chọn):</label>
+            <select id="user-element" class="form-control">
+              <option value="">-- Để trống hoặc Tự động tính --</option>
+              <option value="KIM">KIM (Kim sinh Thủy)</option>
+              <option value="MOC">MỘC (Mộc sinh Hỏa)</option>
+              <option value="THUY">THỦY (Thủy sinh Mộc)</option>
+              <option value="HOA">HỎA (Hỏa sinh Thổ)</option>
+              <option value="THO">THỔ (Thổ sinh Kim)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nghề nghiệp / Lĩnh vực (Tùy chọn):</label>
+            <input type="text" id="user-career" class="form-control" placeholder="Bất động sản, IT, Tài chính..." />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Ngân sách từ (VNĐ):</label>
+              <input type="number" id="budget-min" class="form-control" placeholder="Tùy chọn" step="500000" oninput="updateBudgetHelper()" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Đến (VNĐ):</label>
+              <input type="number" id="budget-max" class="form-control" placeholder="Tùy chọn" step="500000" oninput="updateBudgetHelper()" />
+            </div>
+          </div>
+
+          <div id="budget-helper-text" style="display: none; font-size: 0.78rem; color: var(--primary); background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem;"></div>
+
+          <div class="form-group" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+            <label class="form-label">Chế độ Streaming (SSE):</label>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 0.85rem; color: var(--text-muted);">Real-time SSE Token Stream</span>
+              <input type="checkbox" id="stream-toggle" checked style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" />
+            </div>
+          </div>
+
+          <div style="margin-top: 1.25rem;">
+            <label class="form-label">Câu hỏi gợi ý nhanh:</label>
+            <div class="chip-container">
+              <span class="chip" onclick="setChatMessage('Tôi sinh năm 2004 thuộc mệnh gì và nên chọn số phong thủy thế nào?')">
+                🔮 Tôi sinh 2004 mệnh gì?
+              </span>
+              <span class="chip" onclick="setChatMessage('Tìm giúp tôi số SIM Viettel hoặc Vina trong tầm giá dưới 5 triệu đồng.')">
+                🎯 Tìm SIM tầm giá dưới 5tr
+              </span>
+              <span class="chip" onclick="setChatMessage('Hiện tại trên sàn có các phiên đấu giá SIM VIP nào đang diễn ra?')">
+                🏆 Các phiên đấu giá SIM VIP
+              </span>
+              <span class="chip" onclick="setChatMessage('Quy trình ký quỹ Escrow và thanh toán nạp tiền ví SePay diễn ra như thế nào?')">
+                🛡️ Ký quỹ Escrow & Ví SePay
+              </span>
+            </div>
+          </div>
+
+          <button class="btn btn-secondary" onclick="resetChatSession()" style="width: 100%; margin-top: 1.25rem;">
+            <span>🔄</span> Tạo Phiên Chat Mới
+          </button>
+        </div>
+
+        <!-- Right: ChatGPT-Style Chat Container -->
+        <div class="chat-container">
+          <div class="chat-header">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <div class="avatar" style="background: linear-gradient(135deg, #38bdf8, #818cf8); color: #070b14;">AI</div>
+              <div>
+                <div style="font-weight: 700; font-size: 0.95rem;">TrustSim AI Consultant</div>
+                <div style="font-size: 0.75rem; color: var(--emerald);">● Semantic Kernel & Google Gemini Active</div>
+              </div>
+            </div>
+            <div id="session-id-display" style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-dim);">
+              Session: Chưa khởi tạo
+            </div>
+          </div>
+
+          <!-- Chat Transcript -->
+          <div class="chat-messages" id="chat-messages">
+            <div class="message assistant">
+              <div class="avatar">AI</div>
+              <div class="message-bubble">
+                Xin chào quý khách! Tôi là <b>Trợ lý Chuyên gia SIM & Phong thủy TrustSim</b>.<br/>
+                Tôi có thể giúp quý khách giải đáp bản mệnh ngũ hành, tìm kiếm SIM phù hợp trong kho hàng thực tế, tra cứu phiên đấu giá VIP hoặc hướng dẫn quy trình ký quỹ giao dịch an toàn.<br/>
+                Quý khách cần tư vấn nội dung gì hôm nay?
+              </div>
+            </div>
+          </div>
+
+          <!-- Input Bar -->
+          <form class="chat-input-bar" onsubmit="handleSendChatMessage(event)">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Nhập câu hỏi tư vấn... (Enter để gửi)" required autocomplete="off" />
+            <button type="submit" id="btn-send-chat" class="btn">
+              <span>Gửi</span> 🚀
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: TRI THỨC RAG & CÀI ĐẶT HỆ THỐNG -->
+    <section id="rag-tab" class="tab-panel">
+      <div class="grid-2">
+        <!-- Ingestion Panel -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title"><span>📥</span> Nạp Tài Liệu RAG Vào pgvector</h2>
+            <span class="badge badge-purple">Admin Knowledge</span>
+          </div>
+
+          <!-- Ingestion Mode Selector -->
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; background: rgba(9, 14, 26, 0.6); padding: 0.35rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <button id="tab-ingest-url-btn" type="button" class="tab-btn active" style="flex: 1; justify-content: center; padding: 0.45rem 0.5rem; font-size: 0.82rem;" onclick="switchIngestMode('url')">
+              🔗 Đường Dẫn Web / Drive
+            </button>
+            <button id="tab-ingest-upload-btn" type="button" class="tab-btn" style="flex: 1; justify-content: center; padding: 0.45rem 0.5rem; font-size: 0.82rem;" onclick="switchIngestMode('upload')">
+              📁 Tải Tệp (.PDF, .DOCX, .TXT)
+            </button>
+          </div>
+
+          <!-- Form 1: URL -->
+          <form id="rag-url-form" onsubmit="handleIngestDocument(event)">
+            <div class="form-group">
+              <label class="form-label">Tên tài liệu / Tiêu đề:</label>
+              <input type="text" id="doc-name" class="form-control" placeholder="Ví dụ: Báo cáo Thị trường SIM 2026" required />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Loại tài liệu (Category):</label>
+              <select id="doc-type" class="form-control">
+                <option value="MARKET_RESEARCH">MARKET_RESEARCH (Báo cáo thị trường SIM)</option>
+                <option value="FENG_SHUI_RULE">FENG_SHUI_RULE (Cẩm nang phong thủy & Ngũ hành)</option>
+                <option value="PRICING_GUIDELINE">PRICING_GUIDELINE (Hướng dẫn định giá SIM)</option>
+                <option value="GENERAL">GENERAL (Tài liệu tổng hợp)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Đường dẫn tài liệu:</label>
+              <input type="url" id="doc-url" class="form-control" placeholder="https://raw.githubusercontent.com/..." required />
+            </div>
+
+            <button type="submit" id="btn-ingest" class="btn btn-gold" style="width: 100%;">
+              <span>🚀</span> Nạp & Tự Động Tạo Vector Embeddings
+            </button>
+          </form>
+
+          <!-- Form 2: File Upload -->
+          <form id="rag-upload-form" onsubmit="handleUploadDocument(event)" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">Chọn tệp tài liệu (.PDF, .DOCX, .TXT, .MD):</label>
+              <input type="file" id="upload-file-input" class="form-control" accept=".pdf,.docx,.txt,.md,.html,.htm,.csv" required onchange="onFileSelected(this)" />
+              <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.35rem;">
+                Hệ thống tự động sử dụng <b>PdfPig Native Engine</b> trích xuất 100% nội dung PDF và vector hóa pgvector.
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tên tài liệu / Tiêu đề gợi nhớ:</label>
+              <input type="text" id="upload-doc-name" class="form-control" placeholder="Tự động lấy theo tên tệp..." />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Loại tài liệu:</label>
+              <select id="upload-doc-type" class="form-control">
+                <option value="MARKET_RESEARCH">MARKET_RESEARCH (Báo cáo thị trường SIM)</option>
+                <option value="FENG_SHUI_RULE">FENG_SHUI_RULE (Cẩm nang phong thủy & Ngũ hành)</option>
+                <option value="PRICING_GUIDELINE">PRICING_GUIDELINE (Hướng dẫn định giá SIM)</option>
+                <option value="GENERAL">GENERAL (Tài liệu tổng hợp)</option>
+              </select>
+            </div>
+
+            <button type="submit" id="btn-upload" class="btn btn-gold" style="width: 100%;">
+              <span>📤</span> Tải Lên & Khởi Chạy RAG Indexing
+            </button>
+          </form>
+        </div>
+
+        <!-- Document Monitor & API Connection -->
+        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <!-- Document Monitor -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><span>📡</span> Danh Sách Tri Thức RAG Trong DB</h2>
+              <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="loadAllDocuments()">
+                <span>🔄 Làm mới</span>
+              </button>
+            </div>
+
+            <div id="doc-list-container">
+              <div style="text-align: center; padding: 2rem; color: var(--text-dim);">
+                <span>Đang tải danh sách tài liệu từ Database...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- API & Quick Login -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><span>🔑</span> Cấu Hình API & Đăng Nhập Nhanh</h2>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Backend API Base URL:</label>
+              <input type="text" id="api-base-url" class="form-control" value="http://localhost:5130" onchange="saveSettings()" />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Bearer JWT Token:</label>
+              <textarea id="jwt-token" class="form-control" rows="2" placeholder="Token tự động nạp khi bấm Đăng Nhập Nhanh..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;" onclick="quickLogin('admin@trustsim.vn', 'Password123@')">
+                👑 Admin Login
+              </button>
+              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;" onclick="quickLogin('phuquy.sim@gmail.com', 'Password123@')">
+                🏪 Seller Login
+              </button>
+              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;" onclick="quickLogin('minhtri.bds@gmail.com', 'Password123@')">
+                👤 User Login
+              </button>
+            </div>
+
+            <div id="login-status-msg" style="margin-top: 0.85rem; font-size: 0.85rem;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // --- Global State ---
+    let API_BASE = localStorage.getItem('trustsim_api_base') || 'http://localhost:5130';
+    let AUTH_TOKEN = localStorage.getItem('trustsim_jwt') || '';
+    let currentSessionId = null;
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function formatChatText(text) {
+      if (!text) return '';
+      let html = escapeHtml(text);
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 0.15rem 0.35rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.85em;">$1</code>');
+      html = html.replace(/\n/g, '<br/>');
+      return html;
+    }
+
+    document.getElementById('api-base-url').value = API_BASE;
+    document.getElementById('jwt-token').value = AUTH_TOKEN;
+    document.getElementById('server-status-text').textContent = `Backend: ${API_BASE}`;
+
+    if (AUTH_TOKEN) {
+      loadAllDocuments();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      
+      const targetPanel = document.getElementById(tabId);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function switchIngestMode(mode) {
+      const urlForm = document.getElementById('rag-url-form');
+      const uploadForm = document.getElementById('rag-upload-form');
+      const urlBtn = document.getElementById('tab-ingest-url-btn');
+      const uploadBtn = document.getElementById('tab-ingest-upload-btn');
+
+      if (mode === 'url') {
+        urlForm.style.display = 'block';
+        uploadForm.style.display = 'none';
+        urlBtn.classList.add('active');
+        uploadBtn.classList.remove('active');
+      } else {
+        urlForm.style.display = 'none';
+        uploadForm.style.display = 'block';
+        urlBtn.classList.remove('active');
+        uploadBtn.classList.add('active');
+      }
+    }
+
+    function onFileSelected(input) {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const nameInput = document.getElementById('upload-doc-name');
+        if (!nameInput.value.trim()) {
+          nameInput.value = file.name.replace(/\.[^/.]+$/, '');
+        }
+      }
+    }
+
+    function saveSettings() {
+      API_BASE = document.getElementById('api-base-url').value.trim().replace(/\/$/, '');
+      AUTH_TOKEN = document.getElementById('jwt-token').value.trim();
+      localStorage.setItem('trustsim_api_base', API_BASE);
+      localStorage.setItem('trustsim_jwt', AUTH_TOKEN);
+      document.getElementById('server-status-text').textContent = `Backend: ${API_BASE}`;
+    }
+
+    async function quickLogin(userNameOrEmail, password) {
+      const msgDiv = document.getElementById('login-status-msg');
+      msgDiv.innerHTML = `<span style="color: var(--primary);">⏳ Đang kết nối tới ${API_BASE}...</span>`;
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ userNameOrEmail: userNameOrEmail, password: password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.data && data.data.token) {
+          AUTH_TOKEN = data.data.token;
+          document.getElementById('jwt-token').value = AUTH_TOKEN;
+          localStorage.setItem('trustsim_jwt', AUTH_TOKEN);
+          msgDiv.innerHTML = `<span style="color: var(--emerald); font-weight: 700;">✅ Đăng nhập: ${escapeHtml(data.data.fullName || data.data.userName)} (${data.data.role})</span>`;
+          loadAllDocuments();
+        } else {
+          msgDiv.innerHTML = `<span style="color: var(--rose);">❌ Đăng nhập thất bại: ${escapeHtml(data.message || 'Lỗi xác thực')}</span>`;
+        }
+      } catch (err) {
+        msgDiv.innerHTML = `<span style="color: var(--rose);">❌ Lỗi kết nối: ${escapeHtml(err.message)}</span>`;
+      }
+    }
+
+    function getAuthHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = (AUTH_TOKEN || localStorage.getItem('trustsim_jwt') || document.getElementById('jwt-token').value || '').trim();
+      if (token) {
+        headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    function updateBudgetHelper() {
+      const minVal = parseFloat(document.getElementById('budget-min').value);
+      const maxVal = parseFloat(document.getElementById('budget-max').value);
+      const helper = document.getElementById('budget-helper-text');
+
+      if (!isNaN(minVal) || !isNaN(maxVal)) {
+        helper.style.display = 'block';
+        const minStr = !isNaN(minVal) ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(minVal) : '0 ₫';
+        const maxStr = !isNaN(maxVal) ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(maxVal) : 'Không giới hạn';
+        helper.innerHTML = `💰 Ngân sách: <b>${minStr}</b> đến <b>${maxStr}</b>`;
+      } else {
+        helper.style.display = 'none';
+      }
+    }
+
+    // --- TAB 1: VALUATION LOGIC ---
+    function setSimNumber(num) {
+      document.getElementById('sim-input').value = num;
+    }
+
+    async function handleValuate(e) {
+      e.preventDefault();
+      const phone = document.getElementById('sim-input').value.trim();
+      if (!phone) return;
+
+      const btn = document.getElementById('btn-valuate');
+      const badge = document.getElementById('valuation-status-badge');
+      const emptyState = document.getElementById('valuation-empty-state');
+      const dataState = document.getElementById('valuation-data');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Đang thẩm định đa kênh (RAG + LLM)...';
+      badge.className = 'badge badge-primary';
+      badge.textContent = 'Đang xử lý';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/valuation/estimate`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({ phoneNumber: phone })
+        });
+
+        const json = await res.json();
+        if (!res.ok || !json.data) {
+          throw new Error(json.message || `Lỗi HTTP ${res.status}`);
+        }
+
+        const data = json.data;
+        emptyState.style.display = 'none';
+        dataState.style.display = 'block';
+
+        // 1. Structure breakdown
+        document.getElementById('res-struct-prefix').textContent = data.prefixGroup || `${phone.substring(0,3)} (${data.carrierName || 'Viễn thông'})`;
+        document.getElementById('res-struct-middle').textContent = data.middleGroup || phone.substring(3,6);
+        document.getElementById('res-struct-tail').textContent = data.tailGroup || phone.substring(6);
+        document.getElementById('res-struct-points').textContent = `${data.totalPoints || 5}/10 điểm`;
+
+        // 2. 3-Channel Prices
+        const fmtCurrency = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
+        document.getElementById('res-price-retail').textContent = fmtCurrency(data.retailPrice || data.maxPrice);
+        document.getElementById('res-price-p2p').textContent = fmtCurrency(data.p2pPrice || data.suggestedPrice);
+        document.getElementById('res-price-dealer').textContent = fmtCurrency(data.dealerPrice || data.minPrice);
+
+        // 3. Engine Badge
+        const engineBadge = document.getElementById('res-engine-badge');
+        if (engineBadge) {
+          const timeText = data.executionTimeMs ? ` (${data.executionTimeMs} ms)` : '';
+          engineBadge.style.display = 'inline-flex';
+          engineBadge.className = data.engineSource === 'SEMANTIC_KERNEL_GEMINI' ? 'badge badge-emerald' : 'badge badge-gold';
+          engineBadge.innerHTML = `⚡ ${data.aiModelName || data.engineSource || 'Gemini 3.1 Flash Lite'}${timeText}`;
+        }
+
+        // 4. Categories
+        const catContainer = document.getElementById('res-categories-container');
+        catContainer.innerHTML = '';
+        const detectedCats = data.detectedCategories || [];
+        if (detectedCats.length > 0) {
+          detectedCats.forEach(cat => {
+            const span = document.createElement('span');
+            span.className = 'chip';
+            span.style.color = '#38bdf8';
+            span.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+            span.textContent = `✨ ${typeof cat === 'string' ? cat : (cat.categoryName || cat.categoryCode)}`;
+            catContainer.appendChild(span);
+          });
+        } else {
+          catContainer.innerHTML = '<span style="color: var(--text-dim); font-size: 0.85rem;">Số phổ thông / phụ (không có thế VIP)</span>';
+        }
+
+        // 5. Rhythms breakdown
+        const rhythmsBody = document.getElementById('res-rhythms-body');
+        rhythmsBody.innerHTML = '';
+        const tr = document.createElement('tr');
+        tr.className = 'optimal-row';
+        tr.innerHTML = `
+          <td>${escapeHtml(data.detectedRhythmName || 'Nhịp Tối Ưu')} (${escapeHtml(data.selectedRhythmValue || '3.3.4')})</td>
+          <td style="font-family: var(--font-mono); font-weight: 700; color: #38bdf8;">${escapeHtml(data.formattedNumber || phone)}</td>
+          <td><span class="badge badge-emerald">Được khuyến nghị ⭐</span></td>
+        `;
+        rhythmsBody.appendChild(tr);
+
+        // 6. Rationale
+        document.getElementById('res-ai-rationale').textContent = data.valuationReasoning || 'Không có giải trình chi tiết.';
+        badge.className = 'badge badge-emerald';
+        badge.textContent = 'Thành công';
+      } catch (err) {
+        alert('Lỗi định giá: ' + err.message);
+        badge.className = 'badge badge-purple';
+        badge.textContent = 'Lỗi';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>⚡</span> Thẩm Định & Định Giá Ngay';
+      }
+    }
+
+    // --- TAB 2: CONSULTANT CHAT LOGIC ---
+    function setChatMessage(msg) {
+      document.getElementById('chat-input').value = msg;
+    }
+
+    function resetChatSession() {
+      currentSessionId = null;
+      document.getElementById('session-id-display').textContent = 'Session: Chưa khởi tạo';
+      const container = document.getElementById('chat-messages');
+      container.innerHTML = `
+        <div class="message assistant">
+          <div class="avatar">AI</div>
+          <div class="message-bubble">
+            Đã làm mới phiên tư vấn! Quý khách có thể bắt đầu bằng một yêu cầu mới theo bản mệnh, tầm giá hoặc thế số mong muốn.
+          </div>
+        </div>
+      `;
+    }
+
+    async function handleSendChatMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const birthYear = parseInt(document.getElementById('user-birth-year').value) || null;
+      const element = document.getElementById('user-element').value || null;
+      const career = document.getElementById('user-career').value.trim() || null;
+      const budgetMin = parseFloat(document.getElementById('budget-min').value) || null;
+      const budgetMax = parseFloat(document.getElementById('budget-max').value) || null;
+      const isStream = document.getElementById('stream-toggle').checked;
+
+      appendMessage('user', text);
+      input.value = '';
+
+      const btn = document.getElementById('btn-send-chat');
+      btn.disabled = true;
+
+      const payload = {
+        sessionId: currentSessionId,
+        message: text,
+        userBirthYear: birthYear,
+        fengShuiElement: element,
+        userCareer: career,
+        budgetMin: budgetMin,
+        budgetMax: budgetMax
+      };
+
+      if (isStream) {
+        await executeChatStream(payload);
+      } else {
+        await executeChatNormal(payload);
+      }
+
+      btn.disabled = false;
+    }
+
+    function appendMessage(role, content) {
+      const container = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      msgDiv.innerHTML = `
+        <div class="avatar">${role === 'user' ? 'U' : 'AI'}</div>
+        <div class="message-bubble">${formatChatText(content)}</div>
+      `;
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+      return msgDiv;
+    }
+
+    async function executeChatStream(payload) {
+      const container = document.getElementById('chat-messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message assistant';
+      
+      const avatarDiv = document.createElement('div');
+      avatarDiv.className = 'avatar';
+      avatarDiv.textContent = 'AI';
+      
+      const bubbleDiv = document.createElement('div');
+      bubbleDiv.className = 'message-bubble';
+      
+      const toolBadgeSlot = document.createElement('div');
+      const textSlot = document.createElement('div');
+      textSlot.innerHTML = '<span class="cursor-blink"></span>';
+      const simSlot = document.createElement('div');
+
+      bubbleDiv.appendChild(toolBadgeSlot);
+      bubbleDiv.appendChild(textSlot);
+      bubbleDiv.appendChild(simSlot);
+
+      msgDiv.appendChild(avatarDiv);
+      msgDiv.appendChild(bubbleDiv);
+      container.appendChild(msgDiv);
+      container.scrollTop = container.scrollHeight;
+
+      let fullText = '';
+
+      try {
+        const response = await fetch(`${API_BASE}/api/ai/consultant/chat/stream`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+
+            const eventMatch = line.match(/event:\s*(\w+)/);
+            const dataMatch = line.match(/data:\s*(.+)/s);
+
+            const eventType = eventMatch ? eventMatch[1] : 'token';
+            let dataObj = null;
+
+            if (dataMatch) {
+              try {
+                dataObj = JSON.parse(dataMatch[1]);
+              } catch (e) {
+                dataObj = dataMatch[1];
+              }
+            }
+
+            if ((eventType === 'session' || eventType === 'Session') && dataObj) {
+              const sid = dataObj.sessionId || dataObj.SessionId;
+              if (sid) {
+                currentSessionId = sid;
+                document.getElementById('session-id-display').textContent = `Session: ${currentSessionId.substring(0, 8)}...`;
+              }
+            }
+            else if (eventType === 'tool_start' || eventType === 'Tool_start') {
+              const tName = dataObj.toolName || dataObj.ToolName || dataObj.toolSummary || dataObj.ToolSummary || 'RAG & Inventory Search';
+              toolBadgeSlot.innerHTML = `
+                <div class="tool-calling-badge">
+                  <span>⚡ Agentic Tool:</span>
+                  <span>${escapeHtml(tName)}...</span>
+                </div>
+              `;
+            }
+            else if (eventType === 'tool_end' || eventType === 'Tool_end') {
+              const tSummary = dataObj.toolSummary || dataObj.ToolSummary || dataObj.toolName || dataObj.ToolName || 'Hoàn tất';
+              toolBadgeSlot.innerHTML = `
+                <div class="tool-calling-badge" style="border-color: rgba(52, 211, 153, 0.4); color: #34d399;">
+                  <span>✅ Tool Result:</span>
+                  <span>${escapeHtml(tSummary)}</span>
+                </div>
+              `;
+            }
+            else if (eventType === 'token' || eventType === 'Token') {
+              const delta = dataObj ? (dataObj.delta || dataObj.Delta || dataObj.deltaContent || dataObj.DeltaContent || (typeof dataObj === 'string' ? dataObj : '')) : '';
+              if (delta) {
+                fullText += delta;
+                textSlot.innerHTML = formatChatText(fullText) + '<span class="cursor-blink"></span>';
+              }
+            }
+            else if (eventType === 'done' || eventType === 'Done') {
+              textSlot.innerHTML = formatChatText(fullText);
+              const sims = dataObj ? (dataObj.suggestedSims || dataObj.SuggestedSims || []) : [];
+              if (sims.length > 0) {
+                renderSimCards(simSlot, sims);
+              }
+            }
+            else if (eventType === 'error' || eventType === 'Error') {
+              const errMsg = dataObj ? (dataObj.errorMessage || dataObj.ErrorMessage || dataObj.message || 'Lỗi streaming') : 'Lỗi streaming';
+              textSlot.innerHTML = `<span style="color: var(--rose);">❌ ${escapeHtml(errMsg)}</span>`;
+            }
+          }
+
+          container.scrollTop = container.scrollHeight;
+        }
+
+        textSlot.innerHTML = formatChatText(fullText);
+      } catch (err) {
+        textSlot.innerHTML = `<span style="color: var(--rose);">❌ Lỗi stream: ${escapeHtml(err.message)}</span>`;
+      }
+    }
+
+    async function executeChatNormal(payload) {
+      const msgDiv = appendMessage('assistant', 'Đang suy nghĩ và xử lý...');
+      const bubble = msgDiv.querySelector('.message-bubble');
+
+      try {
+        const response = await fetch(`${API_BASE}/api/ai/consultant/chat`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+
+        const json = await response.json();
+        if (!response.ok || !json.data) {
+          throw new Error(json.message || `Lỗi HTTP ${response.status}`);
+        }
+
+        const data = json.data;
+        if (data.sessionId) {
+          currentSessionId = data.sessionId;
+          document.getElementById('session-id-display').textContent = `Session: ${currentSessionId.substring(0, 8)}...`;
+        }
+
+        bubble.innerHTML = formatChatText(data.replyContent || 'Hoàn tất.');
+
+        if (data.suggestedSims && data.suggestedSims.length > 0) {
+          const simSlot = document.createElement('div');
+          bubble.appendChild(simSlot);
+          renderSimCards(simSlot, data.suggestedSims);
+        }
+      } catch (err) {
+        bubble.innerHTML = `<span style="color: var(--rose);">❌ Lỗi: ${escapeHtml(err.message)}</span>`;
+      }
+    }
+
+    function renderSimCards(slot, sims) {
+      slot.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'sim-recommend-grid';
+
+      sims.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'sim-card';
+        card.onclick = () => {
+          switchTab('valuation-tab');
+          setSimNumber(s.phoneNumber);
+          document.getElementById('btn-valuate').click();
+        };
+
+        card.innerHTML = `
+          <div class="sim-card-phone">${escapeHtml(s.phoneNumber)}</div>
+          <div class="sim-card-price">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(s.price || 0)}</div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="sim-card-carrier">${escapeHtml(s.carrierName || 'Viễn thông')}</span>
+            <span style="font-size: 0.72rem; color: #38bdf8;">Định giá ➔</span>
+          </div>
+          <div style="font-size: 0.72rem; color: var(--emerald); margin-top: 0.25rem;">${escapeHtml(s.highlightReason || 'Số đẹp phong thủy')}</div>
+        `;
+        grid.appendChild(card);
+      });
+
+      slot.appendChild(grid);
+    }
+
+    // --- TAB 3: RAG DOCUMENTS MANAGEMENT ---
+    async function loadAllDocuments() {
+      const container = document.getElementById('doc-list-container');
+      container.innerHTML = '<div style="text-align: center; padding: 1.5rem; color: var(--text-dim);">Đang tải tài liệu RAG...</div>';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/documents?pageSize=20`, {
+          headers: getAuthHeaders(),
+          credentials: 'include'
+        });
+
+        const json = await res.json();
+        if (!res.ok || !json.data || !json.data.items) {
+          throw new Error(json.message || 'Không thể tải danh sách tài liệu');
+        }
+
+        const docs = json.data.items;
+        if (docs.length === 0) {
+          container.innerHTML = '<div style="text-align: center; padding: 1.5rem; color: var(--text-dim);">Chưa có tài liệu RAG nào. Hãy nạp tài liệu mới!</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        docs.forEach(d => {
+          const div = document.createElement('div');
+          div.className = 'doc-item';
+          div.innerHTML = `
+            <div class="doc-info">
+              <h4>${escapeHtml(d.documentName)}</h4>
+              <span>Loại: <b>${escapeHtml(d.documentType)}</b> | Chunks: <b>${d.totalChunks || 0}</b> | Tokens: <b>${d.totalTokens || 0}</b></span>
+            </div>
+            <div>
+              <span class="badge ${d.status === 'INDEXED' ? 'badge-emerald' : 'badge-gold'}">${escapeHtml(d.status)}</span>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--rose); padding: 1rem;">❌ ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function handleIngestDocument(e) {
+      e.preventDefault();
+      const name = document.getElementById('doc-name').value.trim();
+      const type = document.getElementById('doc-type').value;
+      const url = document.getElementById('doc-url').value.trim();
+
+      const btn = document.getElementById('btn-ingest');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Đang nạp & tạo Vector Embeddings...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/ai/documents/ingest`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({ documentName: name, documentType: type, linkUrl: url })
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Lỗi khi nạp tài liệu');
+
+        alert(`✅ Nạp thành công tài liệu "${name}"! ID: ${json.data.documentId}`);
+        loadAllDocuments();
+      } catch (err) {
+        alert('❌ Lỗi: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀</span> Nạp & Tự Động Tạo Vector Embeddings';
+      }
+    }
+
+    async function handleUploadDocument(e) {
+      e.preventDefault();
+      const fileInput = document.getElementById('upload-file-input');
+      if (!fileInput.files || !fileInput.files[0]) return;
+
+      const file = fileInput.files[0];
+      const name = document.getElementById('upload-doc-name').value.trim() || file.name;
+      const type = document.getElementById('upload-doc-type').value;
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentName', name);
+      formData.append('documentType', type);
+
+      const btn = document.getElementById('btn-upload');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Đang tải lên & trích xuất văn bản PdfPig...';
+
+      try {
+        const headers = {};
+        const token = (AUTH_TOKEN || localStorage.getItem('trustsim_jwt') || document.getElementById('jwt-token').value || '').trim();
+        if (token) {
+          headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+        }
+
+        const res = await fetch(`${API_BASE}/api/ai/documents/upload`, {
+          method: 'POST',
+          headers: headers,
+          credentials: 'include',
+          body: formData
+        });
+
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Lỗi tải tệp');
+
+        alert(`✅ Tải lên và trích xuất thành công: "${name}"! Tổng Chunks: ${json.data.totalChunks || 0}`);
+        loadAllDocuments();
+      } catch (err) {
+        alert('❌ Lỗi tải tệp: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📤</span> Tải Lên & Khởi Chạy RAG Indexing';
+      }
+    }
+  </script>
+</body>
+</html>

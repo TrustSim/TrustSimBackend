@@ -29,6 +29,12 @@ public class SimExtractedFeatures
     public bool HasAvoidNumbers { get; set; } = false; // Có chứa 49, 53 hoặc nhiều 4, 7 kỵ
     public bool HasLuckyEnd { get; set; } = false; // Đuôi 68, 86, 79, 39, 88, 99
     public string FengShuiNotes { get; set; } = string.Empty;
+
+    /// <summary>Bóc tách 3 cụm cấu trúc chính</summary>
+    public string PrefixGroup { get; set; } = string.Empty; // Đầu số (VD: 086 Viettel)
+    public string MiddleGroup { get; set; } = string.Empty; // Thân giữa (VD: Gánh 919)
+    public string TailGroup { get; set; } = string.Empty;   // Đuôi số (VD: 2776)
+    public int TotalPoints { get; set; } = 5;               // Tổng nút (1-10)
 }
 
 public class SimCategoryFeature
@@ -46,7 +52,7 @@ public class SimCategoryFeature
 public class SimMathValuationResult
 {
     public decimal BaselinePrice { get; set; }
-    public decimal BasePriceStandard { get; set; } = 200000m;
+    public decimal BasePriceStandard { get; set; } = 150000m;
     public float PrefixFactor { get; set; } = 1.0f;
     public float RhythmFactor { get; set; } = 1.0f;
     public float CategoryFactor { get; set; } = 1.0f;
@@ -55,13 +61,14 @@ public class SimMathValuationResult
 }
 
 /// <summary>
-/// Phản hồi cấu trúc JSON từ NVIDIA LLM (Tầng 4)
+/// Phản hồi cấu trúc JSON từ AI LLM (Tầng 4)
 /// </summary>
 public class AiValuationLlmResponse
 {
     public decimal SuggestedPrice { get; set; }
     public decimal MinPrice { get; set; }
     public decimal MaxPrice { get; set; }
+    public int TotalPoints { get; set; } = 5;
     public float ConfidenceScore { get; set; } = 0.9f;
     public float MarketMultiplier { get; set; } = 1.0f;
     public string RhythmRecommendation { get; set; } = string.Empty;
@@ -69,7 +76,7 @@ public class AiValuationLlmResponse
     public List<string> CategoryCodes { get; set; } = new();
     public string ValuationReasoning { get; set; } = string.Empty;
     public string FengShuiSummary { get; set; } = string.Empty;
-    public string EngineSource { get; set; } = "NVIDIA_CLOUD_LLM"; // "NVIDIA_CLOUD_LLM" | "LOCAL_FALLBACK_ENGINE"
+    public string EngineSource { get; set; } = "SEMANTIC_KERNEL_GEMINI";
     public long ExecutionTimeMs { get; set; }
 }
 
