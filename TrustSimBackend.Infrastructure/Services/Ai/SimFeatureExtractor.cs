@@ -329,28 +329,62 @@ public class SimFeatureExtractor : ISimFeatureExtractor
         if (Regex.IsMatch(clean, @"(\d)\1{4}$"))
         {
             var digit = clean[^1];
-            AddIfNotExists(new SimCategoryFeature
+            bool isVintagePrefix = clean.StartsWith("098") || clean.StartsWith("090") || clean.StartsWith("091") || clean.StartsWith("097");
+            bool isSuperVipDigit = digit == '6' || digit == '8' || digit == '9';
+
+            if (isVintagePrefix && isSuperVipDigit)
             {
-                CategoryCode = "NGU_QUY",
-                CategoryName = $"Ngũ Quý {digit}",
-                Multiplier = 7.0f,
-                ScoreContribution = 0.95f,
-                Description = "5 chữ số cuối giống nhau liên tiếp"
-            });
+                AddIfNotExists(new SimCategoryFeature
+                {
+                    CategoryCode = "NGU_QUY_VIP_DAU_CO",
+                    CategoryName = $"Ngũ Quý {digit} Đầu Cổ VIP",
+                    Multiplier = 18.0f,
+                    ScoreContribution = 1.0f,
+                    Description = $"Ngũ quý {digit} (Ngũ Đại Cát) kết hợp đầu số cổ Tam Đại Nhà Mạng đẳng cấp Siêu VIP tiền tỷ"
+                });
+            }
+            else
+            {
+                AddIfNotExists(new SimCategoryFeature
+                {
+                    CategoryCode = "NGU_QUY",
+                    CategoryName = $"Ngũ Quý {digit}",
+                    Multiplier = isSuperVipDigit ? 10.0f : 7.0f,
+                    ScoreContribution = 0.95f,
+                    Description = "5 chữ số cuối giống nhau liên tiếp"
+                });
+            }
         }
 
         // Tứ quý (4 số đuôi giống nhau)
         if (Regex.IsMatch(clean, @"(\d)\1{3}$"))
         {
             var digit = clean[^1];
-            AddIfNotExists(new SimCategoryFeature
+            bool isVintagePrefix = clean.StartsWith("098") || clean.StartsWith("090") || clean.StartsWith("091") || clean.StartsWith("097");
+            bool isSuperVipDigit = digit == '6' || digit == '8' || digit == '9';
+
+            if (isVintagePrefix && isSuperVipDigit)
             {
-                CategoryCode = "TU_QUY",
-                CategoryName = $"Tứ Quý {digit}",
-                Multiplier = 4.0f,
-                ScoreContribution = 0.9f,
-                Description = "4 chữ số đuôi giống nhau biểu tượng quyền uy"
-            });
+                AddIfNotExists(new SimCategoryFeature
+                {
+                    CategoryCode = "TU_QUY_VIP_DAU_CO",
+                    CategoryName = $"Tứ Quý {digit} Đầu Cổ VIP",
+                    Multiplier = 8.0f,
+                    ScoreContribution = 0.95f,
+                    Description = $"Tứ Quý {digit} kết hợp đầu cổ danh gia vọng tộc"
+                });
+            }
+            else
+            {
+                AddIfNotExists(new SimCategoryFeature
+                {
+                    CategoryCode = "TU_QUY",
+                    CategoryName = $"Tứ Quý {digit}",
+                    Multiplier = isSuperVipDigit ? 5.5f : 4.0f,
+                    ScoreContribution = 0.9f,
+                    Description = "4 chữ số đuôi giống nhau biểu tượng quyền uy"
+                });
+            }
         }
 
         // Sảnh tiến Rồng 6 số (VD: 456789, 123456)

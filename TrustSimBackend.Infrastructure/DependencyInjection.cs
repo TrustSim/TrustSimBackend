@@ -11,6 +11,8 @@ using TrustSimBackend.Infrastructure.Persistence;
 using TrustSimBackend.Infrastructure.Persistence.Repositories;
 using TrustSimBackend.Infrastructure.Services;
 using TrustSimBackend.Infrastructure.Services.Ai;
+using TrustSimBackend.Infrastructure.Services.Financial;
+using TrustSimBackend.Infrastructure.BackgroundServices;
 
 namespace TrustSimBackend.Infrastructure;
 
@@ -81,6 +83,11 @@ public static class DependencyInjection
         services.AddScoped<ISimValuationRepository, SimValuationRepository>();
         services.AddScoped<IAiConsultationSessionRepository, AiConsultationSessionRepository>();
 
+        // Financial Double-Entry Ledger Repositories
+        services.AddScoped<ILedgerJournalRepository, LedgerJournalRepository>();
+        services.AddScoped<ILedgerEntryRepository, LedgerEntryRepository>();
+        services.AddScoped<IPaymentIntentRepository, PaymentIntentRepository>();
+
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();
         services.AddScoped<ITelcoVerificationService, MockTelcoVerificationService>();
@@ -90,6 +97,14 @@ public static class DependencyInjection
         services.AddScoped<ICookieService, CookieService>();
         services.AddScoped<ISePayService, SePayService>();
         services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
+
+        // Financial Integrity & Cryptographic Ledger Engine
+        services.AddSingleton<IFinancialSigningService, EcdsaFinancialSigningService>();
+        services.AddScoped<ILedgerService, DoubleEntryLedgerService>();
+        services.AddScoped<ILedgerIntegrityVerifier, LedgerIntegrityVerifier>();
+        services.AddScoped<IIdempotencyService, IdempotencyService>();
+        services.AddScoped<IMockBankPayoutGatewayService, MockBankPayoutGatewayService>();
+        services.AddHostedService<LedgerIntegrityCheckWorker>();
 
         // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
         services.AddScoped<IBulkDataService, BulkDataService>();
