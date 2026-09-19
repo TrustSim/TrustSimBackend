@@ -44,6 +44,9 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable, IDisposable
     public IDocumentChunkRepository DocumentChunks => _serviceProvider.GetRequiredService<IDocumentChunkRepository>();
     public ISimValuationRepository SimValuations => _serviceProvider.GetRequiredService<ISimValuationRepository>();
     public IAiConsultationSessionRepository AiConsultationSessions => _serviceProvider.GetRequiredService<IAiConsultationSessionRepository>();
+    public ILedgerJournalRepository LedgerJournals => _serviceProvider.GetRequiredService<ILedgerJournalRepository>();
+    public ILedgerEntryRepository LedgerEntries => _serviceProvider.GetRequiredService<ILedgerEntryRepository>();
+    public IPaymentIntentRepository PaymentIntents => _serviceProvider.GetRequiredService<IPaymentIntentRepository>();
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

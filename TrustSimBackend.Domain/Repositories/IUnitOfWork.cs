@@ -31,6 +31,9 @@ public interface IUnitOfWork
     IDocumentChunkRepository DocumentChunks { get; }
     ISimValuationRepository SimValuations { get; }
     IAiConsultationSessionRepository AiConsultationSessions { get; }
+    ILedgerJournalRepository LedgerJournals { get; }
+    ILedgerEntryRepository LedgerEntries { get; }
+    IPaymentIntentRepository PaymentIntents { get; }
 
     // Lưu các thay đổi vào DB và trả về số dòng bị ảnh hưởng
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

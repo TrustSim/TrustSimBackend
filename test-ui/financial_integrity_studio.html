@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustSim - Financial Integrity & Cryptographic Ledger Studio</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.75);
+            --bg-card-hover: rgba(31, 41, 55, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(59, 130, 246, 0.3);
+
+            --primary: #3b82f6;
+            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            --cyan: #06b6d4;
+            --cyan-gradient: linear-gradient(135deg, #06b6d4 0%, #0e7490 100%);
+            --emerald: #10b981;
+            --emerald-gradient: linear-gradient(135deg, #10b981 0%, #047857 100%);
+            --amber: #f59e0b;
+            --amber-gradient: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+            --rose: #f43f5e;
+            --rose-gradient: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+            --purple: #8b5cf6;
+            --purple-gradient: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-dim: #6b7280;
+
+            --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.04) 0%, transparent 60%);
+            background-attachment: fixed;
+            line-height: 1.5;
+        }
+
+        /* Container */
+        .app-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+
+        /* Header Bar */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 16px 24px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 24px;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-md);
+            background: var(--primary-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .brand-title h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff 40%, var(--cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .api-config-group {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 4px 8px;
+            gap: 6px;
+        }
+
+        .api-config-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .api-config-group input {
+            background: transparent;
+            border: none;
+            color: var(--cyan);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            width: 180px;
+            outline: none;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+            font-family: var(--font-main);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-emerald {
+            background: var(--emerald-gradient);
+            color: white;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-rose {
+            background: var(--rose-gradient);
+            color: white;
+            box-shadow: 0 4px 14px rgba(244, 63, 94, 0.35);
+        }
+
+        .btn-purple {
+            background: var(--purple-gradient);
+            color: white;
+            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-outline {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.78rem;
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-green {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-red {
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            animation: pulse-red 2s infinite;
+        }
+
+        .badge-blue {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .badge-amber {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.75;
+                transform: scale(1.02);
+            }
+        }
+
+        /* KPI Grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 18px 20px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .kpi-card.kpi-wallet::before {
+            background: var(--cyan);
+        }
+
+        .kpi-card.kpi-bank::before {
+            background: var(--emerald);
+        }
+
+        .kpi-card.kpi-chain::before {
+            background: var(--purple);
+        }
+
+        .kpi-card.kpi-audit::before {
+            background: var(--amber);
+        }
+
+        .kpi-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .kpi-title {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .kpi-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+        }
+
+        .kpi-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            letter-spacing: -0.03em;
+            margin-bottom: 4px;
+        }
+
+        .kpi-sub {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Navigation Tabs */
+        .tabs-header {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            color: #fff;
+            background: var(--bg-card-hover);
+            border-color: var(--border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .tab-btn.active.tab-cyan {
+            border-bottom: 2px solid var(--cyan);
+        }
+
+        .tab-btn.active.tab-emerald {
+            border-bottom: 2px solid var(--emerald);
+        }
+
+        .tab-btn.active.tab-purple {
+            border-bottom: 2px solid var(--purple);
+        }
+
+        .tab-btn.active.tab-rose {
+            border-bottom: 2px solid var(--rose);
+        }
+
+        .tab-btn.active.tab-blue {
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Tab Content Panel */
+        .tab-panel {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Grid Layout inside Tab */
+        .content-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 960px) {
+            .content-grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Section */
+        .section-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 24px;
+        }
+
+        .section-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .section-card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+
+        .form-control.mono {
+            font-family: var(--font-mono);
+        }
+
+        /* Quick Amount Badges */
+        .quick-amounts {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .amount-chip {
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .amount-chip:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--primary);
+            color: #fff;
+        }
+
+        /* Table */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-muted);
+            padding: 12px 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .text-mono {
+            font-family: var(--font-mono);
+        }
+
+        .text-emerald {
+            color: #34d399;
+        }
+
+        .text-rose {
+            color: #fb7185;
+        }
+
+        .text-cyan {
+            color: #22d3ee;
+        }
+
+        .text-amber {
+            color: #fbbf24;
+        }
+
+        .text-purple {
+            color: #a78bfa;
+        }
+
+        /* Hash Display Tooltip */
+        .hash-truncate {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 140px;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+
+        /* Tamper Demo Callout */
+        .tamper-demo-box {
+            background: radial-gradient(circle at 10% 20%, rgba(244, 63, 94, 0.12) 0%, rgba(17, 24, 39, 0.9) 100%);
+            border: 1px solid rgba(244, 63, 94, 0.4);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 0 30px rgba(244, 63, 94, 0.15);
+        }
+
+        .tamper-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .tamper-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #fda4af;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tamper-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            max-width: 650px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modalPop {
+            from {
+                transform: scale(0.95);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Toast notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            min-width: 300px;
+            max-width: 420px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .toast.toast-success {
+            border-left: 4px solid var(--emerald);
+        }
+
+        .toast.toast-error {
+            border-left: 4px solid var(--rose);
+        }
+
+        .toast.toast-info {
+            border-left: 4px solid var(--cyan);
+        }
+
+        .toast.toast-warning {
+            border-left: 4px solid var(--amber);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* QR Code Container */
+        .qr-display-box {
+            background: #fff;
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: inline-block;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            margin: 0 auto;
+        }
+
+        .qr-display-box img {
+            max-width: 220px;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .syntax-box {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            margin-top: 14px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="brand-section">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+                <div class="brand-title">
+                    <h1>TrustSim Financial Integrity Studio</h1>
+                    <p>Double-Entry Ledger • SHA-256 Hash Chain • ECDsa P-256 Signing • Mock Bank Payout</p>
+                </div>
+            </div>
+
+            <div class="header-controls">
+                <div class="api-config-group">
+                    <label><i class="fa-solid fa-server"></i> API:</label>
+                    <input type="text" id="apiUrlInput"
+                        value="https://unostentatiously-featheredged-jonna.ngrok-free.dev" placeholder="API Base URL">
+                    <button class="btn btn-outline btn-sm" onclick="pingServer()" title="Kiểm tra kết nối">
+                        <i class="fa-solid fa-bolt"></i>
+                    </button>
+                </div>
+
+                <div id="authStatusBadge">
+                    <button class="btn btn-outline btn-sm" onclick="openLoginModal()">
+                        <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+                    </button>
+                </div>
+
+                <button class="btn btn-purple btn-sm" onclick="quickLogin('admin', 'Admin@123456')">
+                    <i class="fa-solid fa-user-shield"></i> Quick Admin
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="quickLogin('user01', 'Password123@')">
+                    <i class="fa-solid fa-user"></i> Quick User
+                </button>
+            </div>
+        </header>
+
+        <!-- Top KPI Dashboard -->
+        <div class="kpi-grid">
+            <!-- My Wallet Balance -->
+            <div class="kpi-card kpi-wallet">
+                <div class="kpi-header">
+                    <span class="kpi-title">VÍ CỦA TÔI (USER_AVAILABLE)</span>
+                    <span class="kpi-icon"><i class="fa-solid fa-wallet text-cyan"></i></span>
+                </div>
+                <div class="kpi-value text-cyan" id="kpiAvailableBalance">0 ₫</div>
+                <div class="kpi-sub">
+                    <span>Phong tỏa (USER_LOCKED):</span>
+                    <span class="text-amber font-mono" id="kpiLockedBalance">0 ₫</span>
+                </div>
+            </div>
+
+            <!-- Platform Bank Balance -->
+            <div class="kpi-card kpi-bank">
+                <div class="kpi-header">
+                    <span class="kpi-title">TÀI KHOẢN NGÂN HÀNG SÀN (TK 1010)</span>
+                    <span class="kpi-icon"><i class="fa-solid fa-building-columns text-emerald"></i></span>
+                </div>
+                <div class="kpi-value text-emerald" id="kpiBankBalance">--- ₫</div>
+                <div class="kpi-sub">
+                    <span>Tiền thực tế tại SePay / Gateway</span>
+                    <span class="badge badge-green" id="kpiBankStatus">Khớp 100%</span>
+                </div>
+            </div>
+
+            <!-- Hash Chain Status -->
+            <div class="kpi-card kpi-chain">
+                <div class="kpi-header">
+                    <span class="kpi-title">CHUỖI KHỐI HASH CHAIN</span>
+                    <span class="kpi-icon"><i class="fa-solid fa-link text-purple"></i></span>
+                </div>
+                <div class="kpi-value text-purple" id="kpiChainBlocks">0 Blocks</div>
+                <div class="kpi-sub">
+                    <span>Trạng thái toàn vẹn:</span>
+                    <span class="badge badge-green" id="kpiChainStatus">GREEN - VALID</span>
+                </div>
+            </div>
+
+            <!-- Accounting Equation -->
+            <div class="kpi-card kpi-audit">
+                <div class="kpi-header">
+                    <span class="kpi-title">BẤT BIẾN KẾ TOÁN (Σ NỢ = Σ CÓ)</span>
+                    <span class="kpi-icon"><i class="fa-solid fa-scale-balanced text-amber"></i></span>
+                </div>
+                <div class="kpi-value text-amber" id="kpiAuditBalance">CÂN BẰNG</div>
+                <div class="kpi-sub">
+                    <span>Kiểm toán số dư toàn sàn</span>
+                    <span class="badge badge-green" id="kpiAuditStatus">0 LỆCH</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs-header">
+            <button class="tab-btn active tab-cyan" onclick="switchTab('tab-deposit')">
+                <i class="fa-solid fa-qrcode"></i> 1. Nạp tiền (Deposit Intent)
+            </button>
+            <button class="tab-btn tab-emerald" onclick="switchTab('tab-withdraw')">
+                <i class="fa-solid fa-money-bill-transfer"></i> 2. Rút tiền 2 Pha & Payout Sandbox
+            </button>
+            <button class="tab-btn tab-purple" onclick="switchTab('tab-journals')">
+                <i class="fa-solid fa-book"></i> 3. Chứng từ Sổ cái Kép (Journals)
+            </button>
+            <button class="tab-btn tab-rose" onclick="switchTab('tab-blockchain')">
+                <i class="fa-solid fa-cubes-stacked"></i> 4. Chuỗi khối & Demo Gian lận Hội đồng
+            </button>
+            <button class="tab-btn tab-blue" onclick="switchTab('tab-history')">
+                <i class="fa-solid fa-clock-rotate-left"></i> 5. Lịch sử Ví cá nhân
+            </button>
+        </div>
+
+        <!-- ==================== TAB 1: DEPOSIT ==================== -->
+        <div id="tab-deposit" class="tab-panel active">
+            <div class="content-grid-2">
+                <!-- Deposit Form -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <i class="fa-solid fa-circle-dollar-to-slot text-cyan"></i>
+                            Khởi tạo Payment Intent Nạp tiền
+                        </div>
+                        <span class="badge badge-blue">Nghiệp vụ 3.5.1</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số tiền nạp (VNĐ)</label>
+                        <input type="number" id="depositAmountInput" class="form-control mono" value="1000000"
+                            step="50000" min="10000">
+                        <div class="quick-amounts">
+                            <span class="amount-chip" onclick="setDepositAmount(100000)">100.000 ₫</span>
+                            <span class="amount-chip" onclick="setDepositAmount(500000)">500.000 ₫</span>
+                            <span class="amount-chip" onclick="setDepositAmount(1000000)">1.000.000 ₫</span>
+                            <span class="amount-chip" onclick="setDepositAmount(5000000)">5.000.000 ₫</span>
+                            <span class="amount-chip" onclick="setDepositAmount(10000000)">10.000.000 ₫</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Khóa chống lặp (Idempotency Key - Tùy chọn)</label>
+                        <input type="text" id="depositIdempotencyInput" class="form-control mono"
+                            placeholder="Tự sinh nếu để trống">
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 8px;"
+                        onclick="createDepositIntent()">
+                        <i class="fa-solid fa-qrcode"></i> Tạo Intent & Sinh mã VietQR SePay
+                    </button>
+                </div>
+
+                <!-- Deposit Result / QR Display -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <i class="fa-solid fa-receipt text-emerald"></i>
+                            Thông tin Thanh toán VietQR & Webhook Simulator
+                        </div>
+                        <span id="depositStatusBadge" class="badge badge-amber">Chờ khởi tạo</span>
+                    </div>
+
+                    <div id="depositResultArea" style="text-align: center; color: var(--text-dim); padding: 20px;">
+                        <i class="fa-solid fa-qrcode" style="font-size: 48px; margin-bottom: 12px; opacity: 0.3;"></i>
+                        <p>Vui lòng nhập số tiền và bấm "Tạo Intent" để nhận mã VietQR thanh toán.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: WITHDRAW ==================== -->
+        <div id="tab-withdraw" class="tab-panel">
+            <div class="content-grid-2">
+                <!-- Phase 1: Withdraw Request -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <i class="fa-solid fa-lock text-amber"></i>
+                            Pha 1: Yêu cầu Rút tiền & Khóa số dư
+                        </div>
+                        <span class="badge badge-amber">Nợ 2010 / Có 2020</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số tiền rút (VNĐ) - Tối thiểu 50.000 ₫</label>
+                        <input type="number" id="wdAmountInput" class="form-control mono" value="500000" step="50000"
+                            min="50000">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ngân hàng nhận</label>
+                        <select id="wdBankCodeInput" class="form-control">
+                            <option value="VCB">Vietcombank (VCB)</option>
+                            <option value="TCB">Techcombank (TCB)</option>
+                            <option value="MB">MBBank (MB)</option>
+                            <option value="ACB">ACB Bank (ACB)</option>
+                            <option value="ICB">VietinBank (CTG)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Số tài khoản ngân hàng</label>
+                        <input type="text" id="wdAccountNumberInput" class="form-control mono" value="1029384756"
+                            placeholder="Nhập số tài khoản">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tên chủ tài khoản (Không dấu)</label>
+                        <input type="text" id="wdAccountHolderInput" class="form-control" value="NGUYEN VAN A"
+                            placeholder="VD: NGUYEN VAN A">
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%;" onclick="submitWithdrawPhase1()">
+                        <i class="fa-solid fa-lock"></i> Gửi Yêu Cầu Rút Tiền (Khóa Số Dư Pha 1)
+                    </button>
+                </div>
+
+                <!-- Phase 2: Bank Payout Sandbox Simulator -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <i class="fa-solid fa-server text-purple"></i>
+                            Pha 2: Mock Bank Payout Simulator (Sandbox)
+                        </div>
+                        <span class="badge badge-purple">Callback Webhook</span>
+                    </div>
+
+                    <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
+                        Giả lập phản hồi từ Cổng chi hộ Ngân hàng: <strong>Pha 2A (Thành công - Nợ 2020 / Có
+                            1010)</strong> hoặc <strong>Pha 2B (Thất bại - Tự hoàn tiền Nợ 2020 / Có 2010)</strong>.
+                    </p>
+
+                    <div class="form-group">
+                        <label>Mã giao dịch rút tiền cần giả lập (Transaction Code)</label>
+                        <input type="text" id="simWdCodeInput" class="form-control mono"
+                            placeholder="VD: WD260919123456">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+                        <button class="btn btn-emerald" onclick="simulateBankPayout(true)">
+                            <i class="fa-solid fa-check-circle"></i> Pha 2A: Chi Trả THÀNH CÔNG
+                        </button>
+                        <button class="btn btn-rose" onclick="simulateBankPayout(false)">
+                            <i class="fa-solid fa-ban"></i> Pha 2B: THẤT BẠI (Tự Hoàn)
+                        </button>
+                    </div>
+
+                    <div id="payoutSimResult" style="margin-top: 16px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: JOURNALS ==================== -->
+        <div id="tab-journals" class="tab-panel">
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title">
+                        <i class="fa-solid fa-book-bookmark text-purple"></i>
+                        Sổ cái Chứng từ Kế toán Ghi kép (Ledger Journals)
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-outline btn-sm" onclick="loadLedgerJournals()">
+                            <i class="fa-solid fa-rotate"></i> Làm mới
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Chứng Từ</th>
+                                <th>Nghiệp Vụ</th>
+                                <th>Tổng Tiền (VNĐ)</th>
+                                <th>Thời Điểm Ghi Sổ</th>
+                                <th>Trạng Thái</th>
+                                <th>Chữ Ký Số SignedHash</th>
+                                <th>Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="journalsTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-dim);">Đang tải dữ liệu
+                                    chứng từ...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 4: BLOCKCHAIN & LIVE TAMPER DEMO ==================== -->
+        <div id="tab-blockchain" class="tab-panel">
+            <!-- Live Tamper Demo Box (Hero Section) -->
+            <div class="tamper-demo-box">
+                <div class="tamper-header">
+                    <div class="tamper-title">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        KỊCH BẢN TRÌNH DIỄN HỘI ĐỒNG: LIVE TAMPER DETECTION DEMO
+                    </div>
+                    <span class="badge badge-red"><i class="fa-solid fa-shield-halved"></i> Proof of Integrity</span>
+                </div>
+                <p class="tamper-desc">
+                    Chứng minh cơ chế bảo toàn tài chính bất biến: Khi DBA hoặc kẻ tấn công can thiệp trực tiếp bằng SQL
+                    sửa số tiền trong Database, thuật toán băm SHA-256 kết hợp Chữ ký số ECDsa P-256 sẽ <strong>ngay lập
+                        tức phát hiện đứt gãy mắt xích</strong> và hiển thị báo động đỏ tức thì!
+                </p>
+
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-rose" onclick="triggerSimulateTamper()">
+                        <i class="fa-solid fa-bomb"></i> 💥 BẤM ĐỂ MÔ PHỎNG SỬA LÉN 1 BYTE SQL
+                    </button>
+                    <button class="btn btn-emerald" onclick="runVerifyChain()">
+                        <i class="fa-solid fa-shield-check"></i> 🔍 Quét Toàn Chuỗi Thời Gian Thực
+                    </button>
+                    <button class="btn btn-purple" onclick="runFullAudit()">
+                        <i class="fa-solid fa-scale-balanced"></i> 📊 Đối Soát Số Dư Toàn Sàn
+                    </button>
+                </div>
+
+                <div id="tamperLiveAlertArea" style="margin-top: 16px;"></div>
+            </div>
+
+            <!-- Hash Chain Explorer Table -->
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title">
+                        <i class="fa-solid fa-link text-cyan"></i>
+                        Danh sách Mắt xích Chuỗi khối Sổ cái (Hash Chain Blocks)
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="loadHashChainEntries()">
+                        <i class="fa-solid fa-rotate"></i> Cập nhật chuỗi
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Seq #</th>
+                                <th>Tài Khoản Kế Toán</th>
+                                <th>Nợ / Có</th>
+                                <th>Số Tiền (VNĐ)</th>
+                                <th>PrevHash (SHA-256)</th>
+                                <th>EntryHash (SHA-256)</th>
+                                <th>Chữ Ký Số ECDsa</th>
+                                <th>Thời Điểm</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hashChainTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: var(--text-dim);">Đang tải danh sách
+                                    mắt xích...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 5: HISTORY ==================== -->
+        <div id="tab-history" class="tab-panel">
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title">
+                        <i class="fa-solid fa-list-check text-cyan"></i>
+                        Lịch sử Biến động Số dư Ví Cá nhân
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="loadWalletTransactions()">
+                        <i class="fa-solid fa-rotate"></i> Tải lại
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã Giao Dịch</th>
+                                <th>Loại</th>
+                                <th>Số Tiền (VNĐ)</th>
+                                <th>Số Dư Trước</th>
+                                <th>Số Dư Sau</th>
+                                <th>Trạng Thái</th>
+                                <th>Mô Tả / Ngân Hàng</th>
+                                <th>Thời Gian</th>
+                            </tr>
+                        </thead>
+                        <tbody id="walletTxTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: var(--text-dim);">Đang tải lịch sử
+                                    giao dịch ví...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 style="font-size: 1.1rem; font-weight: 700;"><i class="fa-solid fa-lock text-cyan"></i> Đăng nhập Hệ
+                    thống TrustSim</h3>
+                <button class="btn btn-outline btn-sm" onclick="closeModal('loginModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tên đăng nhập hoặc Email</label>
+                    <input type="text" id="loginUsernameInput" class="form-control" value="admin"
+                        placeholder="admin hoặc user01">
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu</label>
+                    <input type="password" id="loginPasswordInput" class="form-control" value="Password123@">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('loginModal')">Đóng</button>
+                <button class="btn btn-primary" onclick="handleManualLogin()">Đăng nhập</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal Detail Modal -->
+    <div class="modal-overlay" id="journalDetailModal">
+        <div class="modal-card" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 style="font-size: 1.1rem; font-weight: 700;"><i class="fa-solid fa-file-invoice text-purple"></i>
+                    Chi Tiết Chứng Từ Kế Toán Ghi Kép</h3>
+                <button class="btn btn-outline btn-sm" onclick="closeModal('journalDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="journalDetailBody">
+                Đang tải chi tiết...
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal('journalDetailModal')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <script>
+        // App State
+        let authToken = localStorage.getItem('trustsim_token') || '';
+        let currentUser = JSON.parse(localStorage.getItem('trustsim_user') || 'null');
+        let lastCreatedTransactionCode = '';
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            updateAuthBadge();
+            refreshAllData();
+        });
+
+        function getApiUrl() {
+            return document.getElementById('apiUrlInput').value.replace(/\/+$/, '');
+        }
+
+        // Universal API Fetcher with Ngrok & Bearer Support
+        async function apiFetch(endpoint, options = {}) {
+            const url = `${getApiUrl()}${endpoint}`;
+            const headers = {
+                'ngrok-skip-browser-warning': 'true',
+                ...(options.headers || {})
+            };
+
+            if (authToken && !headers['Authorization']) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+
+            return fetch(url, {
+                ...options,
+                headers
+            });
+        }
+
+        // Helper: Toast
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const iconMap = {
+                success: 'fa-circle-check text-emerald',
+                error: 'fa-circle-exclamation text-rose',
+                warning: 'fa-triangle-exclamation text-amber',
+                info: 'fa-circle-info text-cyan'
+            };
+
+            toast.innerHTML = `
+            <i class="fa-solid ${iconMap[type] || iconMap.info}" style="font-size: 1.2rem; margin-top: 2px;"></i>
+            <div style="flex: 1;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">${type.toUpperCase()}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">${message}</div>
+            </div>
+        `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // Format Currency
+        function formatVND(amount) {
+            return (amount || 0).toLocaleString('vi-VN') + ' ₫';
+        }
+
+        // Format Date
+        function formatDate(dateStr) {
+            if (!dateStr) return '---';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN');
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+
+            const targetBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+            if (targetBtn) targetBtn.classList.add('active');
+
+            const targetPanel = document.getElementById(tabId);
+            if (targetPanel) targetPanel.classList.add('active');
+
+            if (tabId === 'tab-journals') loadLedgerJournals();
+            if (tabId === 'tab-blockchain') loadHashChainEntries();
+            if (tabId === 'tab-history') loadWalletTransactions();
+        }
+
+        // Modals
+        function openLoginModal() { document.getElementById('loginModal').classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        // Ping Server
+        async function pingServer() {
+            try {
+                const res = await apiFetch('/api/Wallets/me');
+                showToast(`Kết nối Backend thành công! HTTP ${res.status}`, 'success');
+                refreshAllData();
+            } catch (err) {
+                showToast(`Lỗi kết nối Backend: ${err.message}`, 'error');
+            }
+        }
+
+        // Auth Handlers
+        async function quickLogin(username, password) {
+            try {
+                const res = await apiFetch('/api/Auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userNameOrEmail: username, password: password })
+                });
+                const data = await res.json();
+                const isSuccess = res.ok && (data.success || data.isSuccess);
+
+                if (isSuccess && data.data) {
+                    authToken = data.data.token || data.data.accessToken;
+                    currentUser = {
+                        userName: data.data.userName || username,
+                        roleName: data.data.role || (username.toLowerCase().includes('admin') ? 'ADMIN' : 'USER'),
+                        email: data.data.email,
+                        fullName: data.data.fullName
+                    };
+                    localStorage.setItem('trustsim_token', authToken);
+                    localStorage.setItem('trustsim_user', JSON.stringify(currentUser));
+                    showToast(`Đăng nhập thành công với vai trò: ${currentUser.roleName} (${currentUser.userName})`, 'success');
+                    updateAuthBadge();
+                    refreshAllData();
+                } else {
+                    showToast(data.message || 'Đăng nhập thất bại', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi đăng nhập: ${err.message}`, 'error');
+            }
+        }
+
+        async function handleManualLogin() {
+            const u = document.getElementById('loginUsernameInput').value;
+            const p = document.getElementById('loginPasswordInput').value;
+            closeModal('loginModal');
+            await quickLogin(u, p);
+        }
+
+        function logout() {
+            authToken = '';
+            currentUser = null;
+            localStorage.removeItem('trustsim_token');
+            localStorage.removeItem('trustsim_user');
+            updateAuthBadge();
+            showToast('Đã đăng xuất.', 'info');
+            refreshAllData();
+        }
+
+        function updateAuthBadge() {
+            const badge = document.getElementById('authStatusBadge');
+            if (authToken && currentUser) {
+                badge.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge badge-green"><i class="fa-solid fa-user-check"></i> ${currentUser.userName} (${currentUser.roleName || 'USER'})</span>
+                    <button class="btn btn-outline btn-sm" onclick="logout()" title="Đăng xuất"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
+            `;
+            } else {
+                badge.innerHTML = `
+                <button class="btn btn-outline btn-sm" onclick="openLoginModal()">
+                    <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+                </button>
+            `;
+            }
+        }
+
+        // Refresh Dashboard Data
+        async function refreshAllData() {
+            await loadMyWallet();
+            await runVerifyChain(false);
+        }
+
+        // Load My Wallet
+        async function loadMyWallet() {
+            if (!authToken) {
+                document.getElementById('kpiAvailableBalance').textContent = 'Chưa đăng nhập';
+                document.getElementById('kpiLockedBalance').textContent = '0 ₫';
+                return;
+            }
+
+            try {
+                const res = await apiFetch('/api/Wallets/me');
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    document.getElementById('kpiAvailableBalance').textContent = formatVND(data.data.availableBalance);
+                    document.getElementById('kpiLockedBalance').textContent = formatVND(data.data.lockedBalance);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Tab 1: Deposit Handlers
+        function setDepositAmount(val) {
+            document.getElementById('depositAmountInput').value = val;
+        }
+
+        async function createDepositIntent() {
+            if (!authToken) {
+                showToast('Vui lòng đăng nhập để nạp tiền.', 'warning');
+                openLoginModal();
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('depositAmountInput').value);
+            const idempotencyKey = document.getElementById('depositIdempotencyInput').value || null;
+
+            try {
+                const res = await apiFetch('/api/Wallets/deposit-intent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount, idempotencyKey })
+                });
+
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const intent = data.data;
+                    const txCode = intent.intentCode.replace('PI-', '');
+                    lastCreatedTransactionCode = txCode;
+
+                    document.getElementById('depositStatusBadge').className = 'badge badge-blue';
+                    document.getElementById('depositStatusBadge').textContent = intent.statusName;
+
+                    document.getElementById('depositResultArea').innerHTML = `
+                    <div style="text-align: center;">
+                        <div class="qr-display-box">
+                            <img src="${intent.qrCodeUrl || 'https://qr.sepay.vn/assets/img/mock-qr.png'}" alt="VietQR SePay">
+                            <div style="font-size: 0.78rem; font-weight: 700; color: #111827; margin-top: 6px;">QUÉT MÃ VIETQR ĐỂ THANH TOÁN</div>
+                        </div>
+
+                        <div class="syntax-box">
+                            <div><strong>Số tiền:</strong> <span class="text-cyan">${formatVND(intent.amount)}</span></div>
+                            <div style="margin-top: 4px;"><strong>Cú pháp Chuyển khoản:</strong> <span class="text-emerald" style="font-size: 1.1rem; font-weight: 700;">${txCode}</span></div>
+                            <div style="margin-top: 4px; font-size: 0.75rem; color: var(--text-muted);">Mã Intent: ${intent.intentCode}</div>
+                        </div>
+
+                        <div style="margin-top: 16px;">
+                            <button class="btn btn-emerald" style="width: 100%;" onclick="simulateSepayWebhook('${txCode}', ${intent.amount})">
+                                <i class="fa-solid fa-bolt"></i> ⚡ GIẢ LẬP SEPAY WEBHOOK NẠP TIỀN THÀNH CÔNG
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                    showToast(`Đã tạo Payment Intent: ${intent.intentCode}`, 'success');
+                } else {
+                    showToast(data.message || 'Tạo Intent thất bại', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi tạo Intent: ${err.message}`, 'error');
+            }
+        }
+
+        async function simulateSepayWebhook(code, amount) {
+            try {
+                const payload = {
+                    id: Math.floor(Math.random() * 900000) + 100000,
+                    gateway: "MBBank",
+                    transactionDate: new Date().toISOString(),
+                    accountNumber: "1029384756",
+                    code: code,
+                    content: `${code} nap tien vao vi TrustSim`,
+                    transferType: "in",
+                    transferAmount: amount,
+                    accumulated: 105000000,
+                    subAccount: null,
+                    referenceCode: "REF-" + Math.floor(Math.random() * 900000)
+                };
+
+                const res = await apiFetch('/api/Wallets/sepay-webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Apikey trustsim_sepay_secret_key_2026_very_secure'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess)) {
+                    showToast(`Nạp tiền thành công qua SePay Webhook! Đã ghi sổ cái kép Nợ 1010 / Có 2010.`, 'success');
+                    document.getElementById('depositStatusBadge').className = 'badge badge-green';
+                    document.getElementById('depositStatusBadge').textContent = 'SUCCEEDED';
+                    await refreshAllData();
+                } else {
+                    showToast(data.message || 'Lỗi xử lý webhook', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi gọi webhook: ${err.message}`, 'error');
+            }
+        }
+
+        // Tab 2: Withdraw Handlers
+        async function submitWithdrawPhase1() {
+            if (!authToken) {
+                showToast('Vui lòng đăng nhập để rút tiền.', 'warning');
+                openLoginModal();
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('wdAmountInput').value);
+            const bankCode = document.getElementById('wdBankCodeInput').value;
+            const bankName = document.getElementById('wdBankCodeInput').options[document.getElementById('wdBankCodeInput').selectedIndex].text;
+            const accountNumber = document.getElementById('wdAccountNumberInput').value;
+            const accountHolder = document.getElementById('wdAccountHolderInput').value;
+
+            try {
+                const res = await apiFetch('/api/Wallets/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount,
+                        bankName: bankName,
+                        bankAccountNumber: accountNumber,
+                        bankAccountName: accountHolder
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const tx = data.data;
+                    document.getElementById('simWdCodeInput').value = tx.transactionCode;
+                    showToast(`Pha 1 thành công: Đã khóa ${formatVND(amount)} vào USER_LOCKED. Mã GD: ${tx.transactionCode}`, 'success');
+                    await refreshAllData();
+                } else {
+                    showToast(data.message || 'Rút tiền thất bại', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi rút tiền: ${err.message}`, 'error');
+            }
+        }
+
+        async function simulateBankPayout(isSuccess) {
+            const code = document.getElementById('simWdCodeInput').value.trim();
+            if (!code) {
+                showToast('Vui lòng nhập mã giao dịch rút tiền (VD: WD260919...)', 'warning');
+                return;
+            }
+
+            try {
+                const res = await apiFetch('/api/MockBankPayout/simulate-callback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transactionCode: code,
+                        isSuccess: isSuccess,
+                        failureReason: isSuccess ? null : 'Tài khoản thụ hưởng không tồn tại tại ngân hàng đích.'
+                    })
+                });
+
+                const data = await res.json();
+                const resultBox = document.getElementById('payoutSimResult');
+
+                if (res.ok && (data.success || data.isSuccess)) {
+                    if (isSuccess) {
+                        resultBox.innerHTML = `
+                        <div class="syntax-box" style="border-color: var(--emerald);">
+                            <span class="badge badge-green">Pha 2A Hoàn Tất</span>
+                            <div style="margin-top: 6px; color: #34d399; font-weight: 600;">Chi trả thành công! Sổ cái đã ghi: Nợ 2020 (Phong tỏa) / Có 1010 (Ngân hàng).</div>
+                        </div>
+                    `;
+                        showToast('Bank Payout THÀNH CÔNG (Pha 2A)!', 'success');
+                    } else {
+                        resultBox.innerHTML = `
+                        <div class="syntax-box" style="border-color: var(--rose);">
+                            <span class="badge badge-red">Pha 2B Thất Bại & Đã Hoàn Tiền</span>
+                            <div style="margin-top: 6px; color: #fda4af; font-weight: 600;">Payout thất bại! Sổ cái tự động hoàn tiền: Nợ 2020 (Phong tỏa) / Có 2010 (Khả dụng).</div>
+                        </div>
+                    `;
+                        showToast('Bank Payout THẤT BẠI - Đã tự động hoàn tiền (Pha 2B)!', 'warning');
+                    }
+                    await refreshAllData();
+                } else {
+                    showToast(data.message || 'Lỗi giả lập Payout', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi gọi Sandbox Payout: ${err.message}`, 'error');
+            }
+        }
+
+        // Tab 3: Ledger Journals
+        async function loadLedgerJournals() {
+            if (!authToken) return;
+            try {
+                const res = await apiFetch('/api/Wallets/admin/ledger/journals?pageIndex=1&pageSize=30');
+                const data = await res.json();
+                const tbody = document.getElementById('journalsTableBody');
+
+                if (res.ok && (data.success || data.isSuccess) && data.data?.items?.length > 0) {
+                    tbody.innerHTML = data.data.items.map(j => `
+                    <tr>
+                        <td class="text-mono text-cyan"><strong>${j.journalCode}</strong></td>
+                        <td><span class="badge badge-blue">${j.transactionTypeName}</span></td>
+                        <td class="text-mono text-emerald"><strong>${formatVND(j.totalAmount)}</strong></td>
+                        <td style="font-size: 0.78rem;">${formatDate(j.postedAt)}</td>
+                        <td><span class="badge badge-green">${j.statusName}</span></td>
+                        <td><span class="hash-truncate" title="${j.signedHash || ''}">${j.signedHash || '---'}</span></td>
+                        <td>
+                            <button class="btn btn-outline btn-sm" onclick="viewJournalDetail('${j.id}')">
+                                <i class="fa-solid fa-eye"></i> Chi tiết
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Chưa có chứng từ nào được ghi nhận.</td></tr>`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function viewJournalDetail(journalId) {
+            try {
+                const res = await apiFetch(`/api/Wallets/admin/ledger/journals/${journalId}`);
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const j = data.data;
+                    const modalBody = document.getElementById('journalDetailBody');
+                    modalBody.innerHTML = `
+                    <div style="margin-bottom: 16px; background: rgba(0,0,0,0.3); padding: 14px; border-radius: var(--radius-md);">
+                        <div style="display: flex; justify-content: space-between;">
+                            <div><strong>Mã chứng từ:</strong> <span class="text-cyan">${j.journalCode}</span></div>
+                            <div><strong>Nghiệp vụ:</strong> <span class="badge badge-blue">${j.transactionTypeName}</span></div>
+                        </div>
+                        <div style="margin-top: 6px;"><strong>Mô tả:</strong> ${j.description || '---'}</div>
+                        <div style="margin-top: 6px;"><strong>Chữ ký số ECDsa:</strong> <span class="hash-truncate" style="max-width: 320px;">${j.signedHash || '---'}</span></div>
+                    </div>
+
+                    <h4 style="font-size: 0.95rem; margin-bottom: 10px; font-weight: 700;">Danh Sách Các Dòng Bút Toán (Σ Nợ = Σ Có):</h4>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Seq #</th>
+                                    <th>Tài Khoản Kế Toán</th>
+                                    <th>Nợ / Có</th>
+                                    <th>Số Tiền (VNĐ)</th>
+                                    <th>EntryHash (SHA-256)</th>
+                                    <th>Chữ Ký Số</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(j.entries || []).map(e => `
+                                    <tr>
+                                        <td class="text-mono">${e.sequenceNumber}</td>
+                                        <td><strong>TK ${e.accountTypeCode}</strong> (${e.accountTypeName})</td>
+                                        <td><span class="badge ${e.entryTypeName === 'DEBIT' ? 'badge-amber' : 'badge-green'}">${e.entryTypeName}</span></td>
+                                        <td class="text-mono"><strong>${formatVND(e.amount)}</strong></td>
+                                        <td><span class="hash-truncate" title="${e.entryHash}">${e.entryHash}</span></td>
+                                        <td><span class="hash-truncate" title="${e.signature}">${e.signature}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                    document.getElementById('journalDetailModal').classList.add('active');
+                }
+            } catch (err) {
+                showToast(`Lỗi xem chi tiết: ${err.message}`, 'error');
+            }
+        }
+
+        // Tab 4: Blockchain & Live Tamper Demo
+        async function runVerifyChain(notify = true) {
+            if (!authToken) return;
+            try {
+                const res = await apiFetch('/api/Wallets/admin/ledger/verify-chain?fromSequence=1&limit=10000', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const report = data.data;
+                    document.getElementById('kpiChainBlocks').textContent = `${report.totalEntriesScanned} Blocks`;
+
+                    if (report.isChainValid && report.isSignatureValid) {
+                        document.getElementById('kpiChainStatus').className = 'badge badge-green';
+                        document.getElementById('kpiChainStatus').textContent = 'GREEN - VALID';
+                        if (notify) showToast(`Chuỗi khối bảo toàn toàn vẹn 100% (${report.totalEntriesScanned} mắt xích, ${report.executionTimeMs}ms).`, 'success');
+                    } else {
+                        document.getElementById('kpiChainStatus').className = 'badge badge-red';
+                        document.getElementById('kpiChainStatus').textContent = 'RED - TAMPER DETECTED';
+                        if (notify) showToast(`CẢNH BÁO: Phát hiện đứt gãy hoặc gian lận dữ liệu! (${report.anomalies?.length || 1} lỗi)`, 'error');
+                    }
+                    return report;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function triggerSimulateTamper() {
+            if (!authToken) {
+                showToast('Vui lòng đăng nhập tài khoản Admin để thực hiện Demo.', 'warning');
+                openLoginModal();
+                return;
+            }
+
+            try {
+                const res = await apiFetch('/api/Wallets/admin/ledger/simulate-tamper-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sequenceNumber: 0, tamperedAmount: 99000000 })
+                });
+
+                const data = await res.json();
+                const alertArea = document.getElementById('tamperLiveAlertArea');
+
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const r = data.data;
+                    alertArea.innerHTML = `
+                    <div style="background: rgba(244, 63, 94, 0.15); border: 1px solid var(--rose); border-radius: var(--radius-md); padding: 16px; animation: modalPop 0.3s ease;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="color: #fb7185; font-weight: 800; font-size: 1.05rem;">
+                                <i class="fa-solid fa-bell"></i> ${r.detectionStatus} (PHÁT HIỆN GIAN LẬN THỜI GIAN THỰC)
+                            </div>
+                            <span class="badge badge-red">Mắt xích #${r.sequenceNumber}</span>
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-main); margin-bottom: 6px;">
+                            <strong>Thao tác can thiệp:</strong> Cố tình sửa cột <code>Amount</code> từ <strong>${formatVND(r.originalAmount)}</strong> thành <strong>${formatVND(r.tamperedAmount)}</strong> trực tiếp trong DB.
+                        </div>
+                        <div style="font-size: 0.82rem; color: var(--text-main); margin-bottom: 6px;">
+                            <strong>Kết quả kiểm toán:</strong> Mã băm SHA-256 bị sai lệch & Chữ ký số ECDsa không khớp Public Key.
+                        </div>
+                        <div style="font-size: 0.8rem; color: #a78bfa; font-style: italic; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 6px; margin-top: 6px;">
+                            ${r.thesisExplanation}
+                        </div>
+                    </div>
+                `;
+
+                    showToast(`🚨 BÁO ĐỘNG ĐỎ: Đã phát hiện mắt xích #${r.sequenceNumber} bị giả mạo!`, 'error', 6000);
+                    document.getElementById('kpiChainStatus').className = 'badge badge-red';
+                    document.getElementById('kpiChainStatus').textContent = 'RED - TAMPER DETECTED';
+                } else {
+                    showToast(data.message || 'Lỗi chạy demo', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi mô phỏng: ${err.message}`, 'error');
+            }
+        }
+
+        async function runFullAudit() {
+            if (!authToken) return;
+            try {
+                const res = await apiFetch('/api/Wallets/admin/ledger/audit');
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const r = data.data;
+                    document.getElementById('kpiAuditBalance').textContent = r.isAccountingEquationBalanced ? 'CÂN BẰNG' : 'LỆCH';
+                    document.getElementById('kpiAuditStatus').className = r.isBalanceReconciled ? 'badge badge-green' : 'badge badge-red';
+                    document.getElementById('kpiAuditStatus').textContent = r.isBalanceReconciled ? '0 LỆCH' : 'CÓ LỆCH SỐ DƯ';
+                    showToast('Báo cáo đối soát tài chính toàn sàn: Hoàn toàn cân bằng!', 'success');
+                }
+            } catch (err) {
+                showToast(`Lỗi đối soát: ${err.message}`, 'error');
+            }
+        }
+
+        async function loadHashChainEntries() {
+            if (!authToken) return;
+            try {
+                const res = await apiFetch('/api/Wallets/admin/ledger/journals?pageIndex=1&pageSize=20');
+                const data = await res.json();
+                const tbody = document.getElementById('hashChainTableBody');
+
+                if (res.ok && (data.success || data.isSuccess) && data.data?.items?.length > 0) {
+                    const allEntries = [];
+                    data.data.items.forEach(j => {
+                        if (j.entries) allEntries.push(...j.entries);
+                    });
+
+                    allEntries.sort((a, b) => b.sequenceNumber - a.sequenceNumber);
+
+                    tbody.innerHTML = allEntries.map(e => `
+                    <tr>
+                        <td class="text-mono text-cyan"><strong>#${e.sequenceNumber}</strong></td>
+                        <td><strong>TK ${e.accountTypeCode}</strong> (${e.accountTypeName})</td>
+                        <td><span class="badge ${e.entryTypeName === 'DEBIT' ? 'badge-amber' : 'badge-green'}">${e.entryTypeName}</span></td>
+                        <td class="text-mono text-emerald"><strong>${formatVND(e.amount)}</strong></td>
+                        <td><span class="hash-truncate" title="${e.prevHash}">${e.prevHash}</span></td>
+                        <td><span class="hash-truncate" title="${e.entryHash}">${e.entryHash}</span></td>
+                        <td><span class="hash-truncate" title="${e.signature}">${e.signature}</span></td>
+                        <td style="font-size: 0.78rem;">${formatDate(e.createdAt)}</td>
+                    </tr>
+                `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim);">Chưa có mắt xích nào trong chuỗi.</td></tr>`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Tab 5: Wallet Transactions History
+        async function loadWalletTransactions() {
+            if (!authToken) return;
+            try {
+                const res = await apiFetch('/api/Wallets/transactions?pageIndex=1&pageSize=20');
+                const data = await res.json();
+                const tbody = document.getElementById('walletTxTableBody');
+
+                if (res.ok && (data.success || data.isSuccess) && data.data?.items?.length > 0) {
+                    tbody.innerHTML = data.data.items.map(t => `
+                    <tr>
+                        <td class="text-mono text-cyan"><strong>${t.transactionCode}</strong></td>
+                        <td><span class="badge ${t.walletTransactionType === 'TOP_UP' ? 'badge-green' : 'badge-amber'}">${t.walletTransactionType}</span></td>
+                        <td class="text-mono"><strong>${formatVND(t.amount)}</strong></td>
+                        <td class="text-mono text-dim">${formatVND(t.balanceBefore)}</td>
+                        <td class="text-mono text-emerald">${formatVND(t.balanceAfter)}</td>
+                        <td><span class="badge ${t.transactionStatus === 'COMPLETED' ? 'badge-green' : (t.transactionStatus === 'PENDING' ? 'badge-amber' : 'badge-red')}">${t.transactionStatus}</span></td>
+                        <td style="font-size: 0.8rem;">${t.description || t.destinationBankName || '---'}</td>
+                        <td style="font-size: 0.78rem;">${formatDate(t.createdAt)}</td>
+                    </tr>
+                `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim);">Chưa có lịch sử giao dịch ví.</td></tr>`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+
+</html>

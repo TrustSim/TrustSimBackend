@@ -149,7 +149,8 @@ public class SimNumberRepository : ISimNumberRepository
         {
             var cleanCarrier = carrier.Trim();
             query = query.Where(s => s.PhonePrefix != null && s.PhonePrefix.SimCarrier != null &&
-                (s.PhonePrefix.SimCarrier.CarrierName.Contains(cleanCarrier) || s.PhonePrefix.SimCarrier.CarrierCode.Contains(cleanCarrier)));
+                (EF.Functions.ILike(s.PhonePrefix.SimCarrier.CarrierName, $"%{cleanCarrier}%") || 
+                 EF.Functions.ILike(s.PhonePrefix.SimCarrier.CarrierCode, $"%{cleanCarrier}%")));
         }
 
         if (!string.IsNullOrWhiteSpace(prefix))

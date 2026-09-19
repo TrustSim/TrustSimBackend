@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text.Json;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;

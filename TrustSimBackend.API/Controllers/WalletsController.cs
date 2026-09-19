@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Financial.Commands;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Application.Features.Financial.Queries;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.API.Controllers;
@@ -215,6 +217,91 @@ public class WalletsController : BaseApiController
         var query = new AdminGetAllTransactionsQuery(userId, type, status, pageIndex, pageSize);
         var result = await Mediator.Send(query);
         return Ok(ApiResponse<PagedResult<WalletTransactionDto>>.SuccessResult(result, "Lấy lịch sử giao dịch toàn sàn thành công."));
+    }
+
+    /// <summary>
+    /// [Payment Intent] Tạo yêu cầu nạp tiền chuẩn Idempotent Intent -> Trả về thông tin VietQR và trạng thái Intent
+    /// </summary>
+    [HttpPost("deposit-intent")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<PaymentIntentDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateDepositIntent([FromBody] CreateDepositIntentRequest request)
+    {
+        var command = new CreateDepositIntentCommand(CurrentUserId, request.Amount, request.IdempotencyKey);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<PaymentIntentDto>.SuccessResult(result, "Tạo Payment Intent nạp tiền thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Quét và kiểm tra tính toàn vẹn chuỗi khối Hash Chain SHA-256 &amp; Chữ ký số ECDsa thời gian thực
+    /// </summary>
+    [HttpPost("admin/ledger/verify-chain")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<LedgerIntegrityReportDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> VerifyLedgerChain([FromQuery] long fromSequence = 1, [FromQuery] int limit = 10000)
+    {
+        var result = await Mediator.Send(new VerifyLedgerChainCommand(fromSequence, limit));
+        var msg = result.IsChainValid && result.IsSignatureValid
+            ? "Chuỗi khối Sổ cái BẢO TOÀN TOÀN VẸN 100% (Green - Valid)."
+            : "CẢNH BÁO: Phát hiện dấu hiệu đứt gãy hoặc dữ liệu sổ cái đã bị chỉnh sửa trái phép (Red - Tamper Detected)!";
+        return Ok(ApiResponse<LedgerIntegrityReportDto>.SuccessResult(result, msg));
+    }
+
+    /// <summary>
+    /// [Admin] Báo cáo đối soát tài chính toàn sàn (Sổ cái kép vs Materialized Balance tất cả ví người dùng)
+    /// </summary>
+    [HttpGet("admin/ledger/audit")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<LedgerIntegrityReportDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLedgerAuditReport()
+    {
+        var result = await Mediator.Send(new GetLedgerIntegrityReportQuery());
+        return Ok(ApiResponse<LedgerIntegrityReportDto>.SuccessResult(result, "Lấy báo cáo kiểm toán toàn vẹn tài chính thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Tra cứu danh sách chứng từ kế toán ghi kép (phân trang và bộ lọc)
+    /// </summary>
+    [HttpGet("admin/ledger/journals")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<LedgerJournalDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetLedgerJournals(
+        [FromQuery] LedgerTransactionType? transactionType,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new GetLedgerJournalsQuery(transactionType, fromDate, toDate, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<LedgerJournalDto>>.SuccessResult(result, "Lấy danh sách chứng từ kế toán thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Xem chi tiết một chứng từ kế toán và toàn bộ các dòng Nợ / Có kèm Hash &amp; Chữ ký số
+    /// </summary>
+    [HttpGet("admin/ledger/journals/{id:guid}")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<LedgerJournalDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetLedgerJournalDetail([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new GetLedgerJournalDetailQuery(id));
+        return Ok(ApiResponse<LedgerJournalDto>.SuccessResult(result, "Lấy chi tiết chứng từ kế toán thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Demo Hội đồng: Mô phỏng hành vi DBA cố tình sửa 1 byte SQL và kiểm chứng hệ thống báo động đỏ tức thì
+    /// </summary>
+    [HttpPost("admin/ledger/simulate-tamper-test")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<TamperSimulationResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SimulateTamperTest([FromBody] SimulateTamperRequest request)
+    {
+        var command = new SimulateTamperTestCommand(request.SequenceNumber, request.TamperedAmount);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<TamperSimulationResultDto>.SuccessResult(result, "Mô phỏng can thiệp dữ liệu và kiểm tra toàn vẹn hoàn tất."));
     }
 
     /// <summary>

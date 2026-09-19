@@ -7,6 +7,7 @@ using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.System;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Interceptors;
 
 namespace TrustSimBackend.Infrastructure.Persistence;
 
@@ -48,6 +49,9 @@ public class TrustSimDbContext : DbContext
     public DbSet<Wallet> Wallets => Set<Wallet>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<AuctionTransaction> AuctionTransactions => Set<AuctionTransaction>();
+    public DbSet<LedgerJournal> LedgerJournals => Set<LedgerJournal>();
+    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+    public DbSet<PaymentIntent> PaymentIntents => Set<PaymentIntent>();
     #endregion
 
     #region Auction DbSets
@@ -98,6 +102,9 @@ public class TrustSimDbContext : DbContext
         
         // Kích hoạt tự động chuyển đổi tên Entity và Property sang snake_case
         optionsBuilder.UseSnakeCaseNamingConvention();
+
+        // Kích hoạt bảo vệ tính bất biến của sổ cái (Append-Only)
+        optionsBuilder.AddInterceptors(new LedgerImmutabilityInterceptor());
     }
 
     // Thực thi Interface IUnitOfWork

@@ -253,16 +253,16 @@ public static class DbSeeder
 
         var usersData = new[]
         {
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000001"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000001"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000001"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000001"), UserName = "admin",               Email = "admin@trustsim.vn",          Role = UserRole.ADMIN,      FullName = "Tổng Quản Trị Hệ Thống",          Phone = "0900000001", Identity = "001088000001", Dob = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m,          Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000002"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000002"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000002"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000002"), UserName = "consultant_01",       Email = "consultant01@trustsim.vn",  Role = UserRole.CONSULTANT, FullName = "Lê Hoàng Chuyên Viên",              Phone = "0900000002", Identity = "079092000002", Dob = new DateTime(1992, 5, 15, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m,          Locked = 0m, HasPki = false },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000003"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000003"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000003"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000003"), UserName = "seller_vip_phuquy",   Email = "phuquy.sim@gmail.com",       Role = UserRole.USER,       FullName = "Trần Phú Quý (SIM Phú Quý)",       Phone = "0909999001", Identity = "001085009999", Dob = new DateTime(1985, 10, 20, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 500000000m, Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000004"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000004"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000004"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000004"), UserName = "seller_daiphat",      Email = "daiphat.telecom@gmail.com",  Role = UserRole.USER,       FullName = "Nguyễn Đại Phát (Đại Phát Telecom)",Phone = "0912333002", Identity = "079087008888", Dob = new DateTime(1987, 3, 12, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 250000000m, Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000005"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000005"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000005"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000005"), UserName = "bidder_dai_gia",      Email = "hoangnam.invest@gmail.com",  Role = UserRole.USER,       FullName = "Phạm Hoàng Nam (Đầu Tư BĐS)",      Phone = "0988777003", Identity = "001080007777", Dob = new DateTime(1980, 7, 8, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1100000000m, Locked = 100000000m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000006"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000006"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000006"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000006"), UserName = "bidder_kinh_doanh",  Email = "minhtri.bds@gmail.com",      Role = UserRole.USER,       FullName = "Vũ Minh Trí (Kinh Doanh)",         Phone = "0903444004", Identity = "079090006666", Dob = new DateTime(1990, 11, 25, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 140000000m, Locked = 210000000m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000007"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000007"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000007"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000007"), UserName = "bidder_phong_thuy",  Email = "quangduc.fengshui@gmail.com",Role = UserRole.USER,       FullName = "Đặng Quang Đức (Phong Thủy Gia)",  Phone = "0935555005", Identity = "048083005555", Dob = new DateTime(1983, 9, 9, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 170000000m, Locked = 10000000m, HasPki = false },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000008"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000008"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000008"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000008"), UserName = "user_ekyc_pending",  Email = "thanhha.new@gmail.com",      Role = UserRole.USER,       FullName = "Bùi Thanh Hà",                     Phone = "0977111006", Identity = "001098004444", Dob = new DateTime(1998, 12, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.PENDING_VERIFICATION, Available = 50000000m, Locked = 0m, HasPki = false },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000009"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000009"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000009"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000009"), UserName = "user_ekyc_rejected", Email = "vietcuong.fake@gmail.com",     Role = UserRole.USER,       FullName = "Ngô Việt Cường",                    Phone = "0944222007", Identity = "040095003333", Dob = new DateTime(1995, 4, 4, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.REJECTED, Available = 0m,          Locked = 0m, HasPki = false },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000010"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000010"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000010"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000010"), UserName = "user_suspicious_bot", Email = "spambidder99@botmail.com",   Role = UserRole.USER,       FullName = "Bot Nghi Vấn Spam",                Phone = "0966000008", Identity = "001200002222", Dob = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m,          Locked = 15000000m, HasPki = false }
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000001"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000001"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000001"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000001"), UserName = "admin",               Email = "admin@trustsim.vn",          Role = UserRole.ADMIN,      FullName = "Tổng Quản Trị Hệ Thống",          Phone = "0900000001", Identity = "001088000001", Dob = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000002"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000002"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000002"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000002"), UserName = "consultant_01",       Email = "consultant01@trustsim.vn",  Role = UserRole.CONSULTANT, FullName = "Lê Hoàng Chuyên Viên",              Phone = "0900000002", Identity = "079092000002", Dob = new DateTime(1992, 5, 15, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000003"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000003"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000003"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000003"), UserName = "seller_vip_phuquy",   Email = "phuquy.sim@gmail.com",       Role = UserRole.USER,       FullName = "Trần Phú Quý (SIM Phú Quý)",       Phone = "0909999001", Identity = "001085009999", Dob = new DateTime(1985, 10, 20, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000004"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000004"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000004"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000004"), UserName = "seller_daiphat",      Email = "daiphat.telecom@gmail.com",  Role = UserRole.USER,       FullName = "Nguyễn Đại Phát (Đại Phát Telecom)",Phone = "0912333002", Identity = "079087008888", Dob = new DateTime(1987, 3, 12, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000005"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000005"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000005"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000005"), UserName = "bidder_dai_gia",      Email = "hoangnam.invest@gmail.com",  Role = UserRole.USER,       FullName = "Phạm Hoàng Nam (Đầu Tư BĐS)",      Phone = "0988777003", Identity = "001080007777", Dob = new DateTime(1980, 7, 8, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000006"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000006"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000006"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000006"), UserName = "bidder_kinh_doanh",  Email = "minhtri.bds@gmail.com",      Role = UserRole.USER,       FullName = "Vũ Minh Trí (Kinh Doanh)",         Phone = "0903444004", Identity = "079090006666", Dob = new DateTime(1990, 11, 25, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000007"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000007"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000007"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000007"), UserName = "bidder_phong_thuy",  Email = "quangduc.fengshui@gmail.com",Role = UserRole.USER,       FullName = "Đặng Quang Đức (Phong Thủy Gia)",  Phone = "0935555005", Identity = "048083005555", Dob = new DateTime(1983, 9, 9, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000008"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000008"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000008"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000008"), UserName = "user_ekyc_pending",  Email = "thanhha.new@gmail.com",      Role = UserRole.USER,       FullName = "Bùi Thanh Hà",                     Phone = "0977111006", Identity = "001098004444", Dob = new DateTime(1998, 12, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.PENDING_VERIFICATION, Available = 0m, Locked = 0m, HasPki = false },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000009"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000009"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000009"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000009"), UserName = "user_ekyc_rejected", Email = "vietcuong.fake@gmail.com",     Role = UserRole.USER,       FullName = "Ngô Việt Cường",                    Phone = "0944222007", Identity = "040095003333", Dob = new DateTime(1995, 4, 4, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.REJECTED, Available = 0m, Locked = 0m, HasPki = false },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000010"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000010"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000010"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000010"), UserName = "user_suspicious_bot", Email = "spambidder99@botmail.com",   Role = UserRole.USER,       FullName = "Bot Nghi Vấn Spam",                Phone = "0966000008", Identity = "001200002222", Dob = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false }
         };
 
         foreach (var u in usersData)
@@ -643,27 +643,27 @@ Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ gi�
                     Id = Guid.Parse("dc000000-0000-0000-0000-000000000002"),
                     DocumentId = doc1Id,
                     ChunkIndex = 1,
-                    TokenCount = 320,
-                    MetadataJson = "{\"title\":\"Ma trận Định giá Dòng SIM Siêu VIP\",\"keywords\":[\"bat_quy\",\"luc_quy\",\"ngu_quy\",\"tu_quy\",\"bang_gia\"]}",
-                    Content = "Bát quý (8 số trùng lặp): Mức giá dao động từ 1.0 tỷ đến trên 5.0 tỷ VND. Bát quý 88888888 hoặc 99999999 thuộc nhóm di sản vô giá. Lục quý (6 số trùng lặp cuối): Dao động từ 300 triệu đến 1.5 tỷ VND tùy thuộc vào chữ số (Lục quý 8, 9, 6 cao hơn lục quý 0, 4, 7). Ngũ quý (5 số trùng lặp cuối): Dao động từ 80 triệu đến 350 triệu VND. Tứ quý (4 số trùng lặp cuối): Dao động từ 15 triệu đến 150 triệu VND. Tứ quý kết hợp đầu số cổ luôn đạt mức giá trần."
+                    TokenCount = 380,
+                    MetadataJson = "{\"title\":\"Ma trận Định giá Dòng SIM Siêu VIP\",\"keywords\":[\"bat_quy\",\"luc_quy\",\"ngu_quy\",\"tu_quy\",\"simthanglong\",\"chosim24h\",\"bang_gia\"]}",
+                    Content = "Ma trận định giá thị trường thực tế (Tham chiếu sàn Sim Thăng Long simthanglong.vn, Chợ Sim 24h): Bát quý (8 số trùng lặp): Mức giá dao động từ 15 tỷ đến trên 35 tỷ VND. Lục quý (6 số trùng lặp cuối): Dao động từ 4.0 tỷ đến 15 tỷ VND tùy thuộc vào chữ số và đầu mạng (Lục quý 8, 9, 6 đầu cổ 098/090/091 đạt đỉnh giá). Ngũ quý (5 số trùng lặp cuối): Phân cấp rõ rệt: Ngũ quý 6, 8, 9 kết hợp đầu cổ 098/090/091 (như 098.56.88888, 098.x.88888) có giá niêm yết showroom/đại lý từ 1.8 tỷ đến 2.3 tỷ VND (giá tham chiếu thực tế tại simthanglong.vn: ~1.888.000.000 đ), giá giao dịch P2P từ 1.3 tỷ đến 1.7 tỷ VND, giá thợ thu mua nhanh 900 triệu đến 1.2 tỷ VND; Ngũ quý 2, 3, 5, 7 có giá từ 300 triệu đến 700 triệu VND; Ngũ quý 0, 1, 4 đầu mới dao động từ 100 triệu đến 250 triệu VND. Tứ quý (4 số đuôi): Tứ quý 6666, 8888, 9999 đầu cổ 098/090/091 có giá từ 400 triệu đến 900 triệu VND, đầu mới từ 150 triệu đến 400 triệu VND; Tứ quý 1, 2, 3, 5, 7 từ 50 triệu đến 200 triệu VND."
                 },
                 new()
                 {
                     Id = Guid.Parse("dc000000-0000-0000-0000-000000000003"),
                     DocumentId = doc1Id,
                     ChunkIndex = 2,
-                    TokenCount = 260,
+                    TokenCount = 290,
                     MetadataJson = "{\"title\":\"Định giá SIM Doanh nhân & Sảnh tiến\",\"keywords\":[\"sanh_tien\",\"6789\",\"taxi\",\"tam_hoa_kep\"]}",
-                    Content = "Sảnh tiến Rồng 6 số (VD: 456789, 123456): Biểu tượng của sự thăng tiến không ngừng, định giá từ 50 triệu đến 250 triệu VND. Sảnh 6789 ('San bằng tất cả'): Dòng số kinh điển của giới kinh doanh, giá trị từ 15 triệu đến 80 triệu VND. Taxi 3 Cặp (ABABAB hoặc ABCABC): Dễ nhớ tuyệt đối cho hotline doanh nghiệp, giá trị từ 20 triệu đến 90 triệu VND. Tam hoa kép (AAABBB): Định giá từ 18 triệu đến 60 triệu VND."
+                    Content = "Sảnh tiến Rồng 6 số (VD: 456789, 123456): Biểu tượng của sự thăng tiến không ngừng, định giá từ 800 triệu đến 2.5 tỷ VND với đầu cổ 098/090/091. Sảnh tiến 6789 ('San bằng tất cả'): Dòng số kinh điển của giới kinh doanh, giá trị từ 150 triệu đến 400 triệu VND đầu cổ, đầu mới từ 40 triệu đến 120 triệu VND. Đại Taxi 4 Cặp (86.86.86.86, 68.68.68.68): Định giá từ 1.5 tỷ đến 6 tỷ VND. Taxi 3 Cặp (ABABAB hoặc ABCABC): Dễ nhớ tuyệt đối cho hotline doanh nghiệp, giá trị từ 50 triệu đến 250 triệu VND. Tam hoa kép (AAABBB): Định giá từ 30 triệu đến 120 triệu VND."
                 },
                 new()
                 {
                     Id = Guid.Parse("dc000000-0000-0000-0000-000000000004"),
                     DocumentId = doc1Id,
                     ChunkIndex = 3,
-                    TokenCount = 240,
-                    MetadataJson = "{\"title\":\"Thanh khoản & Biên độ Giá Thị trường\",\"keywords\":[\"min_price\",\"max_price\",\"suggested_price\",\"thanh_khoan\"]}",
-                    Content = "Giá trị giao dịch thực tế phụ thuộc vào chu kỳ thanh khoản: Mức giá tối thiểu (MinPrice): Giá thanh lý nhanh trong vòng 24h (chiết khấu 15% - 20% so với giá đề xuất). Mức giá đề xuất (SuggestedPrice): Mức giá giao dịch cân bằng tối ưu trên sàn đấu giá TrustSim. Mức giá tối đa (MaxPrice): Mức giá kỳ vọng cao khi gặp đúng khách hàng tìm kiếm số trùng năm sinh, biển số hoặc hợp phong thủy đặc thù."
+                    TokenCount = 260,
+                    MetadataJson = "{\"title\":\"Thanh khoản & 3 Kênh Giao dịch Thị trường\",\"keywords\":[\"min_price\",\"max_price\",\"suggested_price\",\"thanh_khoan\",\"simthanglong\"]}",
+                    Content = "Biên độ giá 3 kênh giao dịch thực tế: Kênh 1 - Giá Niêm Yết Showroom/Đại Lý Lớn (MaxPrice): Giá bán lẻ chính thức tại các hệ thống như Sim Thăng Long, Chợ Sim 24h, hỗ trợ bảo hành trọn đời và trả góp. Kênh 2 - Giá Giao Dịch Chợ Tự Do P2P (SuggestedPrice): Giá chuyển nhượng trực tiếp giữa các người dùng hoặc bán thẳng cho doanh nhân, phản ánh giá trị thực tế hợp lý nhất. Kênh 3 - Giá Thợ Thu Mua Nhanh 24h (MinPrice): Giá thợ hoặc thương lái sẵn sàng chi tiền mặt thu mua trong 24h (chiết khấu an toàn 25% - 35% so với giá P2P)."
                 },
                 new()
                 {
@@ -953,62 +953,6 @@ Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ gi�
             ConfirmedAt = DateTime.UtcNow.AddDays(-2)
         };
         await context.AuctionResults.AddAsync(res);
-
-        // 7. Auction Transactions & Deposits (37000000-... & 38000000-...)
-        var walletBidderDaiGia = await context.Wallets.FirstAsync(w => w.UserAccountId == bidderDaiGia);
-        var walletBidderKinhDoanh = await context.Wallets.FirstAsync(w => w.UserAccountId == bidderKinhDoanh);
-
-        var at1 = new AuctionTransaction
-        {
-            Id = Guid.Parse("37000000-0000-0000-0000-000000000001"),
-            WalletId = walletBidderDaiGia.Id,
-            TransactionStatus = TransactionStatus.COMPLETED,
-            AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_LOCK,
-            Amount = 100000000m,
-            CreatedAt = DateTime.UtcNow.AddDays(-2),
-            CompletedAt = DateTime.UtcNow.AddDays(-2),
-            BalanceBefore = 1200000000m,
-            BalanceAfter = 1100000000m
-        };
-
-        var at2 = new AuctionTransaction
-        {
-            Id = Guid.Parse("37000000-0000-0000-0000-000000000002"),
-            WalletId = walletBidderKinhDoanh.Id,
-            TransactionStatus = TransactionStatus.COMPLETED,
-            AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_LOCK,
-            Amount = 20000000m,
-            CreatedAt = DateTime.UtcNow.AddDays(-6),
-            CompletedAt = DateTime.UtcNow.AddDays(-6),
-            BalanceBefore = 350000000m,
-            BalanceAfter = 330000000m
-        };
-
-        await context.AuctionTransactions.AddRangeAsync(at1, at2);
-
-        var dep1 = new AuctionDeposit
-        {
-            Id = Guid.Parse("38000000-0000-0000-0000-000000000001"),
-            ParticipantId = ap1.Id,
-            DepositCode = "DEP-20260901-001",
-            DepositAmount = 100000000m,
-            DepositStatus = DepositStatus.LOCKED,
-            AuctionTransactionId = at1.Id
-        };
-
-        var dep2 = new AuctionDeposit
-        {
-            Id = Guid.Parse("38000000-0000-0000-0000-000000000002"),
-            ParticipantId = ap5.Id,
-            DepositCode = "DEP-20260828-002",
-            DepositAmount = 20000000m,
-            DepositStatus = DepositStatus.APPLIED_TO_ESCROW,
-            AppliedtoEscrowedAt = DateTime.UtcNow.AddDays(-2),
-            AuctionTransactionId = at2.Id
-        };
-
-        await context.AuctionDeposits.AddRangeAsync(dep1, dep2);
-
         await context.SaveChangesAsync();
     }
 
@@ -1023,7 +967,6 @@ Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ gi�
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
         var bidderKinhDoanh = Guid.Parse("11000000-0000-0000-0000-000000000006");
         var sim02 = Guid.Parse("21000000-0000-0000-0000-000000000002");
-        var dep2Id = Guid.Parse("38000000-0000-0000-0000-000000000002");
 
         // 1. TradeTransaction (41000000-...)
         var trade = new TradeTransaction
@@ -1046,10 +989,10 @@ Một số SIM có ngũ hành tương sinh với bản mệnh gia chủ sẽ gi�
         var escrow = new Escrow
         {
             Id = Guid.Parse("42000000-0000-0000-0000-000000000001"),
-            EscrowAmount = 210000000m,
+            EscrowAmount = 0m,
             EscrowStatus = EscrowStatus.HELD,
             HeldAt = DateTime.UtcNow.AddDays(-2),
-            AuctionDepositId = dep2Id,
+            AuctionDepositId = null,
             TradeTransactionId = trade.Id
         };
         await context.Escrows.AddAsync(escrow);

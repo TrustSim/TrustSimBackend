@@ -9,21 +9,25 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 /// <summary>
-/// Xử lý Webhook tự động từ SePay: xác thực Token, đối soát mã giao dịch, kiểm tra Idempotency và cộng tiền vào ví an toàn.
+/// Xử lý Webhook tự động từ SePay: xác thực Token, đối soát mã giao dịch, kiểm tra Idempotency
+/// và ghi nhận dòng tiền qua Sổ cái Ghi kép (Double-Entry Ledger) có gắn mã băm Hash Chain SHA-256.
 /// </summary>
 public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWebhookCommand, bool>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISePayService _sePayService;
+    private readonly ILedgerService _ledgerService;
     private readonly ILogger<ProcessSepayWebhookCommandHandler> _logger;
 
     public ProcessSepayWebhookCommandHandler(
         IUnitOfWork unitOfWork,
         ISePayService sePayService,
+        ILedgerService ledgerService,
         ILogger<ProcessSepayWebhookCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _sePayService = sePayService;
+        _ledgerService = ledgerService;
         _logger = logger;
     }
 
@@ -59,7 +63,7 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
             return true;
         }
 
-        // 4. Tìm giao dịch trong Database (hỗ trợ cả trích xuất lẫn Code nguyên bản)
+        // 4. Tìm giao dịch trong Database
         var transaction = await _unitOfWork.WalletTransactions.GetByTransactionCodeAsync(transactionCode, cancellationToken);
         if (transaction == null && !string.IsNullOrWhiteSpace(payload.Code))
         {
@@ -86,7 +90,7 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
             return false;
         }
 
-        // 7. Lấy ví người dùng và cộng tiền theo số tiền thực nhận
+        // 7. Lấy ví người dùng
         var wallet = transaction.Wallet ?? await _unitOfWork.Wallets.GetByIdAsync(transaction.WalletId, cancellationToken);
         if (wallet == null)
         {
@@ -95,25 +99,44 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
         }
 
         var amountToCredit = payload.TransferAmount;
+        var externalId = payload.Id.ToString();
+        var idempotencyKey = $"SEPAY-{payload.Id}";
+
         transaction.Amount = amountToCredit;
         transaction.BalanceBefore = wallet.AvailableBalance;
-        wallet.AvailableBalance += amountToCredit;
-        wallet.LockVersion++;
-        transaction.BalanceAfter = wallet.AvailableBalance;
 
+        // 8. Ghi sổ cái kép bất biến (Nợ 1010 / Có 2010), nối chuỗi SHA-256 Hash Chain & ký số ECDsa
+        var journal = await _ledgerService.PostDepositAsync(
+            wallet.Id,
+            amountToCredit,
+            transactionCode,
+            externalId,
+            idempotencyKey,
+            cancellationToken);
+
+        transaction.BalanceAfter = wallet.AvailableBalance;
         transaction.TransactionStatus = TransactionStatus.COMPLETED;
         transaction.CompletedAt = DateTime.UtcNow;
-        transaction.ExternalTransactionId = payload.Id.ToString();
-        transaction.Description = $"Nạp tiền thành công qua SePay ({payload.Gateway} - GD #{payload.Id})";
+        transaction.ExternalTransactionId = externalId;
+        transaction.Description = $"Nạp tiền thành công qua SePay ({payload.Gateway} - GD #{payload.Id}) - Chứng từ #{journal.JournalCode}";
 
-        _unitOfWork.Wallets.Update(wallet);
         _unitOfWork.WalletTransactions.Update(transaction);
+
+        // 9. Cập nhật PaymentIntent nếu có
+        var paymentIntent = await _unitOfWork.PaymentIntents.GetByCodeAsync($"PI-{transactionCode}", cancellationToken);
+        if (paymentIntent != null && paymentIntent.Status != PaymentIntentStatus.SUCCEEDED)
+        {
+            paymentIntent.Status = PaymentIntentStatus.SUCCEEDED;
+            paymentIntent.ExternalTransactionId = externalId;
+            paymentIntent.SucceededAt = DateTime.UtcNow;
+            _unitOfWork.PaymentIntents.Update(paymentIntent);
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "[SePay Webhook] Nạp tiền THÀNH CÔNG cho ví '{WalletId}'. Số tiền: {Amount:N0} VNĐ. Số dư mới: {NewBalance:N0} VNĐ.",
-            wallet.Id, amountToCredit, wallet.AvailableBalance);
+            "[SePay Webhook] Nạp tiền THÀNH CÔNG cho ví '{WalletId}'. Số tiền: {Amount:N0} VNĐ. Số dư mới: {NewBalance:N0} VNĐ. Chứng từ sổ cái: '{JournalCode}'.",
+            wallet.Id, amountToCredit, wallet.AvailableBalance, journal.JournalCode);
 
         return true;
     }
