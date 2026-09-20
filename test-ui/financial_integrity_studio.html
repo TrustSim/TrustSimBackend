@@ -1466,7 +1466,7 @@
             const idempotencyKey = document.getElementById('depositIdempotencyInput').value || null;
 
             try {
-                const res = await apiFetch('/api/Wallets/deposit-intent', {
+                const res = await apiFetch('/api/Wallets/deposit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount, idempotencyKey })
@@ -1475,11 +1475,20 @@
                 const data = await res.json();
                 if (res.ok && (data.success || data.isSuccess) && data.data) {
                     const intent = data.data;
-                    const txCode = intent.intentCode.replace('PI-', '');
+                    const txCode = intent.transactionCode 
+                        || intent.transferContent 
+                        || (intent.intentCode ? intent.intentCode.replace('PI-', '') : '')
+                        || ('TS' + Date.now());
                     lastCreatedTransactionCode = txCode;
 
-                    document.getElementById('depositStatusBadge').className = 'badge badge-blue';
-                    document.getElementById('depositStatusBadge').textContent = intent.statusName;
+                    const statusBadge = document.getElementById('depositStatusBadge');
+                    if (statusBadge) {
+                        statusBadge.className = 'badge badge-blue';
+                        statusBadge.textContent = intent.statusName || 'PENDING';
+                    }
+
+                    const expTime = intent.expiredAt || intent.expiresAt;
+                    const expStr = expTime ? new Date(expTime).toLocaleTimeString('vi-VN') : '30 phút';
 
                     document.getElementById('depositResultArea').innerHTML = `
                     <div style="text-align: center;">
@@ -1491,7 +1500,7 @@
                         <div class="syntax-box">
                             <div><strong>Số tiền:</strong> <span class="text-cyan">${formatVND(intent.amount)}</span></div>
                             <div style="margin-top: 4px;"><strong>Cú pháp Chuyển khoản:</strong> <span class="text-emerald" style="font-size: 1.1rem; font-weight: 700;">${txCode}</span></div>
-                            <div style="margin-top: 4px; font-size: 0.75rem; color: var(--text-muted);">Mã Intent: ${intent.intentCode}</div>
+                            <div style="margin-top: 4px; font-size: 0.75rem; color: var(--text-muted);">Mã GD: ${txCode} | Hạn thanh toán: ${expStr}</div>
                         </div>
 
                         <div style="margin-top: 16px;">
@@ -1502,9 +1511,9 @@
                     </div>
                 `;
 
-                    showToast(`Đã tạo Payment Intent: ${intent.intentCode}`, 'success');
+                    showToast(`Đã tạo yêu cầu nạp tiền: ${txCode}`, 'success');
                 } else {
-                    showToast(data.message || 'Tạo Intent thất bại', 'error');
+                    showToast(data.message || 'Tạo yêu cầu nạp tiền thất bại', 'error');
                 }
             } catch (err) {
                 showToast(`Lỗi tạo Intent: ${err.message}`, 'error');
@@ -1569,10 +1578,12 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        amount,
-                        bankName: bankName,
-                        bankAccountNumber: accountNumber,
-                        bankAccountName: accountHolder
+                        amount: amount,
+                        destinationBankCode: bankCode,
+                        destinationBankName: bankName,
+                        destinationAccountNumber: accountNumber,
+                        destinationAccountHolderName: accountHolder,
+                        note: `Rút tiền về ${bankName} (${accountNumber})`
                     })
                 });
 
@@ -1801,16 +1812,57 @@
         }
 
         async function runFullAudit() {
-            if (!authToken) return;
+            if (!authToken) {
+                showToast('Vui lòng đăng nhập tài khoản Admin để đối soát.', 'warning');
+                openLoginModal();
+                return;
+            }
             try {
                 const res = await apiFetch('/api/Wallets/admin/ledger/audit');
                 const data = await res.json();
                 if (res.ok && (data.success || data.isSuccess) && data.data) {
                     const r = data.data;
-                    document.getElementById('kpiAuditBalance').textContent = r.isAccountingEquationBalanced ? 'CÂN BẰNG' : 'LỆCH';
-                    document.getElementById('kpiAuditStatus').className = r.isBalanceReconciled ? 'badge badge-green' : 'badge badge-red';
-                    document.getElementById('kpiAuditStatus').textContent = r.isBalanceReconciled ? '0 LỆCH' : 'CÓ LỆCH SỐ DƯ';
-                    showToast('Báo cáo đối soát tài chính toàn sàn: Hoàn toàn cân bằng!', 'success');
+                    const hasFraud = r.hasFraudDetected || r.isFraudDetected || !r.isBalanceReconciled || !r.isChainValid || !r.isSignatureValid || !r.isAccountingEquationBalanced;
+                    
+                    document.getElementById('kpiAuditBalance').textContent = r.isAccountingEquationBalanced ? 'CÂN BẰNG' : 'LỆCH BẤT BIẾN';
+                    
+                    if (hasFraud) {
+                        document.getElementById('kpiAuditStatus').className = 'badge badge-red';
+                        document.getElementById('kpiAuditStatus').textContent = '🚨 PHÁT HIỆN GIAN LẬN';
+                        
+                        const unbalances = (r.reconciliations || []).filter(x => !x.isBalanced);
+                        const alertArea = document.getElementById('tamperLiveAlertArea');
+                        if (alertArea) {
+                            alertArea.innerHTML = `
+                            <div style="background: rgba(244, 63, 94, 0.15); border: 1px solid var(--rose); border-radius: var(--radius-md); padding: 16px; animation: modalPop 0.3s ease;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <div style="color: #fb7185; font-weight: 800; font-size: 1.05rem;">
+                                        <i class="fa-solid fa-triangle-exclamation"></i> 🚨 BÁO ĐỘNG ĐỎ: PHÁT HIỆN GIAN LẬN / LỆCH SỐ DƯ TÀI CHÍNH!
+                                    </div>
+                                    <span class="badge badge-red">${unbalances.length} Tài khoản lệch</span>
+                                </div>
+                                <div style="font-size: 0.82rem; color: var(--text-main); margin-bottom: 6px;">
+                                    ${r.fraudAlertMessage || 'Phát hiện số dư trong bảng Wallets không khớp với Sổ cái kép (Double-Entry Ledger)!'}
+                                </div>
+                                <div style="margin-top: 8px; max-height: 200px; overflow-y: auto;">
+                                    ${unbalances.map(u => `
+                                        <div style="background: rgba(0,0,0,0.3); padding: 6px 10px; border-radius: 4px; margin-bottom: 4px; font-size: 0.78rem; display: flex; justify-content: space-between;">
+                                            <span><strong>${u.accountName}</strong> (${u.accountCode}):</span>
+                                            <span>Snapshot: <strong class="text-rose">${formatVND(u.snapshotBalance)}</strong> | Sổ cái: <strong class="text-emerald">${formatVND(u.ledgerCalculatedBalance)}</strong> | Lệch: <strong class="text-rose">${formatVND(u.discrepancy)}</strong></span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            `;
+                        }
+                        showToast(`🚨 CẢNH BÁO GIAN LẬN: Phát hiện lệch số dư tại ${unbalances.length} tài khoản!`, 'error', 8000);
+                    } else {
+                        document.getElementById('kpiAuditStatus').className = 'badge badge-green';
+                        document.getElementById('kpiAuditStatus').textContent = '0 LỆCH';
+                        showToast('Báo cáo đối soát tài chính toàn sàn: Hoàn toàn cân bằng (0 Lệch)!', 'success');
+                    }
+                } else {
+                    showToast(data.message || 'Lỗi đối soát', 'error');
                 }
             } catch (err) {
                 showToast(`Lỗi đối soát: ${err.message}`, 'error');

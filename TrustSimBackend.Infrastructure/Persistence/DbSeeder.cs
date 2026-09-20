@@ -18,8 +18,8 @@ namespace TrustSimBackend.Infrastructure.Persistence;
 /// </summary>
 public static class DbSeeder
 {
-    // Hash mật khẩu "Password123@"
-    private const string DefaultPasswordHash = "$2a$11$iZkkUucIpQldqKA4b4ArAupta/5ymSRsySEswzhGnRlBILSJkqyHC";
+    // Hash mật khẩu "Password123@" theo chuẩn ASP.NET Core Identity PBKDF2
+    private static readonly string DefaultPasswordHash = new PasswordHasher<UserAccount>().HashPassword(null!, "Password123@");
 
     public static async Task SeedAsync(TrustSimDbContext context)
     {
@@ -275,6 +275,19 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedAccountsProfilesAndWalletsAsync(TrustSimDbContext context)
     {
+        // Tự động nâng cấp các tài khoản đang lưu mã băm BCrypt cũ sang chuẩn ASP.NET Core Identity
+        var legacyUsers = await context.UserAccounts
+            .Where(u => u.PasswordHash != null && u.PasswordHash.StartsWith("$2"))
+            .ToListAsync();
+        if (legacyUsers.Count > 0)
+        {
+            foreach (var lu in legacyUsers)
+            {
+                lu.PasswordHash = DefaultPasswordHash;
+            }
+            await context.SaveChangesAsync();
+        }
+
         if (await context.UserAccounts.AnyAsync(u => u.UserName == "seller_vip_phuquy")) return;
 
         var usersData = new[]

@@ -14,15 +14,38 @@ public class EcdsaFinancialSigningService : IFinancialSigningService, IDisposabl
     private readonly string _publicKeyPem;
     private readonly ILogger<EcdsaFinancialSigningService> _logger;
 
+    private const string KeyFileName = "financial_hsm_key.pem";
+
     public EcdsaFinancialSigningService(ILogger<EcdsaFinancialSigningService> logger)
     {
         _logger = logger;
-
-        // Khởi tạo cặp khóa ECDsa NIST P-256 (secp256r1)
         _ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        _publicKeyPem = _ecdsa.ExportSubjectPublicKeyInfoPem();
 
-        _logger.LogInformation("[Financial HSM] Đã khởi tạo thành công Master Financial Signing Authority (ECDsa P-256).");
+        var keysDir = Path.Combine(AppContext.BaseDirectory, "Keys");
+        Directory.CreateDirectory(keysDir);
+        var keyFilePath = Path.Combine(keysDir, KeyFileName);
+
+        try
+        {
+            if (File.Exists(keyFilePath))
+            {
+                var pemContent = File.ReadAllText(keyFilePath);
+                _ecdsa.ImportFromPem(pemContent);
+                _logger.LogInformation("[Financial HSM] Đã nạp thành công Master Financial Signing Key từ file '{KeyPath}'.", keyFilePath);
+            }
+            else
+            {
+                var privateKeyPem = _ecdsa.ExportECPrivateKeyPem();
+                File.WriteAllText(keyFilePath, privateKeyPem);
+                _logger.LogInformation("[Financial HSM] Đã sinh và lưu trữ mới Master Financial Signing Key tại '{KeyPath}'.", keyFilePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Financial HSM] Không thể đọc/ghi file khóa '{KeyPath}'. Sử dụng khóa tạm thời trong bộ nhớ: {Message}", keyFilePath, ex.Message);
+        }
+
+        _publicKeyPem = _ecdsa.ExportSubjectPublicKeyInfoPem();
     }
 
     public Task<string> SignHashAsync(string hashHex, CancellationToken cancellationToken = default)
