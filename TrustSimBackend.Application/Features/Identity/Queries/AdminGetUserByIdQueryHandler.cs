@@ -23,8 +23,8 @@ public class AdminGetUserByIdQueryHandler : IRequestHandler<AdminGetUserByIdQuer
         return new AdminUserDetailDto
         {
             Id = user.Id,
-            UserName = user.UserName,
-            Email = user.UserEmail,
+            UserName = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             Role = user.Role,
             IsActive = !user.IsDeleted,
             FullName = user.UserProfile?.FullName ?? string.Empty,

@@ -25,17 +25,5 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .Matches(@"[a-z]").WithMessage("Mật khẩu phải chứa ít nhất 1 chữ thường.")
             .Matches(@"[0-9]").WithMessage("Mật khẩu phải chứa ít nhất 1 chữ số.")
             .Matches(@"[\!\?\*\@\#\$\%\^\&\+\=]").WithMessage("Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!?*@#$%^&+=).");
-
-        RuleFor(v => v.FullName)
-            .NotEmpty().WithMessage("Họ và tên không được để trống.")
-            .MaximumLength(150).WithMessage("Họ và tên không vượt quá 150 ký tự.");
-
-        RuleFor(v => v.PhoneNumber)
-            .NotEmpty().WithMessage("Số điện thoại không được để trống.")
-            .Matches(@"^(0|\+84)(3|5|7|8|9)[0-9]{8}$").WithMessage("Số điện thoại không đúng định dạng di động Việt Nam (VD: 0981234567).");
-
-        RuleFor(v => v.IdentityNumber)
-            .NotEmpty().WithMessage("Số CCCD/CMND không được để trống.")
-            .Matches(@"^([0-9]{9}|[0-9]{12})$").WithMessage("Số CCCD/CMND phải gồm chính xác 9 hoặc 12 chữ số.");
     }
 }

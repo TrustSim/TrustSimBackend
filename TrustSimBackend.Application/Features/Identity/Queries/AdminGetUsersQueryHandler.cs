@@ -28,8 +28,8 @@ public class AdminGetUsersQueryHandler : IRequestHandler<AdminGetUsersQuery, Pag
         var dtos = users.Select(u => new AdminUserDetailDto
         {
             Id = u.Id,
-            UserName = u.UserName,
-            Email = u.UserEmail,
+            UserName = u.UserName ?? string.Empty,
+            Email = u.Email ?? string.Empty,
             Role = u.Role,
             IsActive = !u.IsDeleted,
             FullName = u.UserProfile?.FullName ?? string.Empty,

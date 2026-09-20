@@ -29,8 +29,8 @@ public class AdminExportUsersQueryHandler : IRequestHandler<AdminExportUsersQuer
 
         var rows = users.Select(u => new UserExcelExportRow
         {
-            UserName = u.UserName,
-            Email = u.UserEmail,
+            UserName = u.UserName ?? string.Empty,
+            Email = u.Email ?? string.Empty,
             FullName = u.UserProfile?.FullName ?? string.Empty,
             PhoneNumber = u.UserProfile?.PhoneNumber ?? string.Empty,
             IdentityNumber = u.UserProfile?.IdentityNumber ?? string.Empty,

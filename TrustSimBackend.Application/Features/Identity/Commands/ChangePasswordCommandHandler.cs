@@ -1,47 +1,38 @@
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 using TrustSimBackend.Application.Common.Exceptions;
-using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Domain.Entities.Identity;
-using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Identity.Commands;
 
 /// <summary>
-/// Xử lý nghiệp vụ đổi mật khẩu tài khoản.
+/// Xử lý nghiệp vụ đổi mật khẩu tài khoản qua ASP.NET Core Identity UserManager.
 /// </summary>
 public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordCommand, bool>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IPasswordHasher _passwordHasher;
+    private readonly UserManager<UserAccount> _userManager;
 
-    public ChangePasswordCommandHandler(
-        IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher)
+    public ChangePasswordCommandHandler(UserManager<UserAccount> userManager)
     {
-        _unitOfWork = unitOfWork;
-        _passwordHasher = passwordHasher;
+        _userManager = userManager;
     }
 
     public async Task<bool> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
     {
-        var user = await _unitOfWork.Users.GetByIdAsync(request.UserId, cancellationToken);
+        var user = await _userManager.FindByIdAsync(request.UserId.ToString());
         if (user == null)
         {
             throw new NotFoundException(nameof(UserAccount), request.UserId);
         }
 
-        // 1. Kiểm tra mật khẩu hiện tại
-        var isCurrentPasswordValid = _passwordHasher.VerifyPassword(request.CurrentPassword, user.PassWordHash);
-        if (!isCurrentPasswordValid)
+        // Đổi mật khẩu qua UserManager (tự động kiểm tra mật khẩu cũ và băm mật khẩu mới)
+        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
         {
-            throw new BadRequestException("Mật khẩu hiện tại không chính xác.");
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            throw new BadRequestException($"Đổi mật khẩu không thành công: {errors}");
         }
-
-        // 2. Băm mật khẩu mới và cập nhật
-        user.PassWordHash = _passwordHasher.HashPassword(request.NewPassword);
-        _unitOfWork.Users.Update(user);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;
     }

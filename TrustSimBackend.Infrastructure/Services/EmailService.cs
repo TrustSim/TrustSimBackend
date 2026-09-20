@@ -73,6 +73,14 @@ public class EmailService : IEmailService
 
             mimeMessage.Body = bodyBuilder.ToMessageBody();
 
+            // Dev-Mode Fallback: Nếu chưa cấu hình Username hoặc Password trong appsettings.json, ghi log cảnh báo và bỏ qua gửi SMTP thật
+            if (string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password))
+            {
+                _logger.LogWarning(">>> [EmailService DEV-MOCK] Chưa cấu hình SMTP Username/Password trong appsettings.json. Bỏ qua gửi SMTP thật. Email gửi tới {Recipients}: Tiêu đề='{Subject}'",
+                    string.Join(", ", message.To), message.Subject);
+                return true;
+            }
+
             using var client = new SmtpClient();
             client.Timeout = _settings.TimeoutSeconds * 1000;
 

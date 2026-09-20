@@ -44,9 +44,58 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
             verification.UserProfile.VerificationStatus = request.Status;
             verification.UserProfile.UpdatedDate = DateTime.UtcNow;
 
-            // Nếu Admin phê duyệt, tự động khởi tạo/kích hoạt cặp khóa ký số PKI cho người dùng
+            // Nếu Admin phê duyệt, tự động đồng bộ thông tin CCCD vào UserProfile và kích hoạt cặp khóa ký số PKI cho người dùng
             if (request.Status == VerificationStatus.VERIFIED)
             {
+                // 1. Đồng bộ thông tin bóc tách từ ảnh CCCD (OcrRawData) vào UserProfile nếu có
+                if (!string.IsNullOrWhiteSpace(verification.OcrRawData))
+                {
+                    try
+                    {
+                        using var doc = global::System.Text.Json.JsonDocument.Parse(verification.OcrRawData);
+                        if (doc.RootElement.TryGetProperty("extractedInfo", out var info))
+                        {
+                            if (info.TryGetProperty("fullName", out var nameProp) && nameProp.GetString() is { } name && !string.IsNullOrWhiteSpace(name))
+                            {
+                                verification.UserProfile.FullName = name.Trim();
+                            }
+
+                            if (info.TryGetProperty("identityNumber", out var idProp) && idProp.GetString() is { } id && !string.IsNullOrWhiteSpace(id))
+                            {
+                                verification.UserProfile.IdentityNumber = id.Trim();
+                            }
+
+                            if (info.TryGetProperty("dateOfBirth", out var dobProp) && dobProp.GetString() is { } dobStr && !string.IsNullOrWhiteSpace(dobStr))
+                            {
+                                if (DateTime.TryParseExact(dobStr.Trim(), new[] { "dd/MM/yyyy", "yyyy-MM-dd", "d/M/yyyy" }, 
+                                    global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedDob))
+                                {
+                                    verification.UserProfile.DateOfBirth = DateTime.SpecifyKind(parsedDob, DateTimeKind.Utc);
+                                }
+                            }
+
+                            if (info.TryGetProperty("placeOfResidence", out var resProp) && resProp.GetString() is { } res && !string.IsNullOrWhiteSpace(res))
+                            {
+                                verification.UserProfile.Address = res.Trim();
+                            }
+                            else if (info.TryGetProperty("address", out var addrProp) && addrProp.GetString() is { } addr && !string.IsNullOrWhiteSpace(addr))
+                            {
+                                verification.UserProfile.Address = addr.Trim();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Bỏ qua lỗi parse JSON nếu dữ liệu lưu thô ở phiên bản cũ không chuẩn JSON
+                    }
+                }
+
+                // 2. Cập nhật ảnh đại diện từ FaceSelfieUrl nếu hồ sơ chưa có ảnh
+                if (string.IsNullOrEmpty(verification.UserProfile.AvatarImg) && !string.IsNullOrEmpty(verification.FaceSelfieUrl))
+                {
+                    verification.UserProfile.AvatarImg = verification.FaceSelfieUrl;
+                }
+
                 var user = await _unitOfWork.Users.GetByIdAsync(verification.UserProfile.UserAccountId, cancellationToken);
                 if (user != null)
                 {

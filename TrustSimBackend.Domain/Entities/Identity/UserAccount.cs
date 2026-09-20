@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using TrustSimBackend.Domain.Base;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.Auctions;
@@ -9,26 +10,40 @@ using TrustSimBackend.Domain.Entities.System;
 namespace TrustSimBackend.Domain.Entities.Identity
 {
     /// <summary>
-    /// Đại diện cho tài khoản đăng nhập của người dùng trong hệ thống TrustSim.
-    /// Chứa thông tin xác thực (username, password hash) và vai trò người dùng.
+    /// Đại diện cho tài khoản đăng nhập của người dùng trong hệ thống TrustSim kế thừa từ ASP.NET Core Identity.
+    /// Chứa thông tin xác thực, bảo mật, vai trò và quản lý phiên.
     /// Liên kết 1-1 với <see cref="UserProfile"/> (thông tin cá nhân) và <see cref="UserSecurityProfile"/> (khóa ký số).
     /// </summary>
-    public class UserAccount : FullAuditableEntity
+    public class UserAccount : IdentityUser<Guid>, IAuditlog, ISoftDelete
     {
-
-        /// <summary>Tên đăng nhập duy nhất của người dùng (không phân biệt hoa thường).</summary>
-        public string UserName { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Địa chỉ email của người dùng
-        /// </summary>
-        public string UserEmail {get;set;}= string.Empty;
-
-        /// <summary>Mật khẩu đã được băm (BCrypt/Argon2). Không bao giờ lưu mật khẩu thuần văn bản.</summary>
-        public string PassWordHash { get; set; } = string.Empty;
+        /// <summary>Trạng thái hoạt động của tài khoản (true = hoạt động, false = bị khóa/vô hiệu hóa).</summary>
+        public bool IsActive { get; set; } = true;
 
         /// <summary>Vai trò của người dùng trong hệ thống: USER, ADMIN, hoặc CONSULTANT.</summary>
         public UserRole Role { get; set; } = UserRole.USER;
+
+        /// <summary>Thuộc tính ánh xạ tương thích ngược với UserEmail.</summary>
+        public string UserEmail 
+        { 
+            get => Email ?? string.Empty; 
+            set => Email = value; 
+        }
+
+        /// <summary>Thuộc tính ánh xạ tương thích ngược với PassWordHash.</summary>
+        public string PassWordHash 
+        { 
+            get => PasswordHash ?? string.Empty; 
+            set => PasswordHash = value; 
+        }
+
+        // --- Audit & Soft Delete Implementation ---
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public string? CreatedBy { get; set; }
+        public DateTime UpdatedDate { get; set; }
+        public string? UpdatedBy { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedDate { get; set; }
+        public string? DeletedBy { get; set; }
 
         // --- Navigation Properties ---
         /// <summary>Thông tin cá nhân (họ tên, CCCD, địa chỉ...) liên kết 1-1 với tài khoản này.</summary>

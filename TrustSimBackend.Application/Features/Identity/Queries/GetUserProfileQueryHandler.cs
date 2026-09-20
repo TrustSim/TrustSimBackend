@@ -31,8 +31,8 @@ public class GetUserProfileQueryHandler : IRequestHandler<GetUserProfileQuery, U
         return new UserProfileDto
         {
             UserId = user.Id,
-            UserName = user.UserName,
-            Email = user.UserEmail,
+            UserName = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             FullName = user.UserProfile?.FullName ?? string.Empty,
             PhoneNumber = user.UserProfile?.PhoneNumber ?? string.Empty,
             Address = user.UserProfile?.Address ?? string.Empty,
