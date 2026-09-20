@@ -22,7 +22,8 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         var user = await _unitOfWork.Users.GetByIdAsync(request.Id, cancellationToken);
         if (user == null) throw new NotFoundException($"Không tìm thấy tài khoản người dùng với ID '{request.Id}'.");
 
-        user.UserEmail = request.Email.Trim().ToLower();
+        user.Email = request.Email.Trim().ToLowerInvariant();
+        user.NormalizedEmail = user.Email.ToUpperInvariant();
         user.Role = request.Role;
         user.UpdatedDate = DateTime.UtcNow;
 
@@ -33,19 +34,20 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
                 Id = Guid.NewGuid(),
                 UserAccountId = user.Id,
                 FullName = request.FullName.Trim(),
-                Email = request.Email.Trim().ToLower(),
+                Email = request.Email.Trim().ToLowerInvariant(),
                 PhoneNumber = request.PhoneNumber.Trim(),
                 IdentityNumber = request.IdentityNumber?.Trim() ?? string.Empty,
                 DateOfBirth = request.DateOfBirth ?? new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Address = request.Address?.Trim() ?? string.Empty,
                 VerificationStatus = VerificationStatus.PENDING_VERIFICATION,
-                CreatedDate = DateTime.UtcNow
+                CreatedDate = DateTime.UtcNow,
+                IsActive = true
             };
         }
         else
         {
             user.UserProfile.FullName = request.FullName.Trim();
-            user.UserProfile.Email = request.Email.Trim().ToLower();
+            user.UserProfile.Email = request.Email.Trim().ToLowerInvariant();
             user.UserProfile.PhoneNumber = request.PhoneNumber.Trim();
             user.UserProfile.IdentityNumber = request.IdentityNumber?.Trim() ?? string.Empty;
             if (request.DateOfBirth.HasValue) user.UserProfile.DateOfBirth = request.DateOfBirth.Value;
@@ -59,8 +61,8 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         return new AdminUserDetailDto
         {
             Id = user.Id,
-            UserName = user.UserName,
-            Email = user.UserEmail,
+            UserName = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             Role = user.Role,
             IsActive = !user.IsDeleted,
             FullName = user.UserProfile.FullName,

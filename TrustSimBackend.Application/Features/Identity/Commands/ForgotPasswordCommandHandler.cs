@@ -1,47 +1,52 @@
 using MediatR;
+using Microsoft.AspNetCore.Identity;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
-using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Domain.Entities.Identity;
 
 namespace TrustSimBackend.Application.Features.Identity.Commands;
 
 /// <summary>
-/// Xử lý yêu cầu quên mật khẩu (Sinh mã OTP và gửi email xác thực).
+/// Xử lý yêu cầu quên mật khẩu:
+/// 1. Kiểm tra tài khoản tồn tại qua UserManager.
+/// 2. Sinh mã OTP bảo mật và gửi email xác thực qua OtpService.
 /// </summary>
 public class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswordCommand, string>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IEmailService _emailService;
+    private readonly UserManager<UserAccount> _userManager;
+    private readonly IOtpService _otpService;
 
     public ForgotPasswordCommandHandler(
-        IUnitOfWork unitOfWork,
-        IEmailService emailService)
+        UserManager<UserAccount> userManager,
+        IOtpService otpService)
     {
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
+        _userManager = userManager;
+        _otpService = otpService;
     }
 
     public async Task<string> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _unitOfWork.Users.GetByEmailAsync(normalizedEmail, cancellationToken);
+        var user = await _userManager.FindByEmailAsync(normalizedEmail);
 
-        if (user == null)
+        if (user == null || !user.IsActive)
         {
-            throw new BadRequestException("Không tìm thấy tài khoản tương ứng với Email này.");
+            throw new BadRequestException("Không tìm thấy tài khoản tương ứng với Email này hoặc tài khoản đã bị khóa.");
         }
 
-        var resetCode = Random.Shared.Next(100000, 999999).ToString();
-
-        // Gửi email chứa mã OTP xác thực đặt lại mật khẩu
-        await _emailService.SendOtpEmailAsync(
+        // Sinh mã OTP và gửi qua Email với mục đích ForgotPassword
+        var sendResult = await _otpService.GenerateAndSendEmailOtpAsync(
             normalizedEmail,
-            resetCode,
-            "đặt lại mật khẩu",
+            "ForgotPassword",
             expiryMinutes: 5,
             cancellationToken: cancellationToken);
 
-        return resetCode;
+        if (!sendResult.IsSuccess)
+        {
+            throw new BadRequestException(sendResult.Message);
+        }
+
+        return sendResult.Message;
     }
 }

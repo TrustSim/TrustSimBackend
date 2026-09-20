@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Entities.Dispute;
@@ -11,7 +13,7 @@ using TrustSimBackend.Infrastructure.Persistence.Interceptors;
 
 namespace TrustSimBackend.Infrastructure.Persistence;
 
-public class TrustSimDbContext : DbContext
+public class TrustSimDbContext : IdentityDbContext<UserAccount, IdentityRole<Guid>, Guid>
 {
     public TrustSimDbContext(DbContextOptions<TrustSimDbContext> options) : base(options)
     {
@@ -85,6 +87,15 @@ public class TrustSimDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Ánh xạ lại các bảng Identity về tên chuẩn snake_case
+        modelBuilder.Entity<UserAccount>().ToTable("user_account");
+        modelBuilder.Entity<IdentityRole<Guid>>().ToTable("role");
+        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable("user_role");
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("user_claim");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("user_login");
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("role_claim");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("user_token");
 
         // Kích hoạt extension pgvector trên PostgreSQL
         modelBuilder.HasPostgresExtension("vector");

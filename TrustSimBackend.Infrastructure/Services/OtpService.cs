@@ -310,6 +310,8 @@ public class OtpService : IOtpService
             IsConsumed = false
         }, expiryTime);
 
+        _logger.LogInformation(">>> [TrustSim Email OTP] Sinh mã OTP cho {Email}: {OtpCode} (Mục đích: {Purpose})", normalizedEmail, otpCode, purpose);
+
         var sent = await _emailService.SendOtpEmailAsync(normalizedEmail, otpCode, purpose, expiryMinutes, cancellationToken);
         if (!sent)
         {

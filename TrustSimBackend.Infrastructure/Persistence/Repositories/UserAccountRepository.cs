@@ -31,7 +31,7 @@ public class UserAccountRepository : IUserAccountRepository
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
             .Include(u => u.UserSecurityProfile)
-            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
+            .FirstOrDefaultAsync(u => u.UserName != null && EF.Functions.ILike(u.UserName, userName), cancellationToken);
     }
 
     public async Task<UserAccount?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
@@ -40,7 +40,7 @@ public class UserAccountRepository : IUserAccountRepository
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
             .Include(u => u.UserSecurityProfile)
-            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
+            .FirstOrDefaultAsync(u => u.Email != null && EF.Functions.ILike(u.Email, email), cancellationToken);
     }
 
     public async Task<UserAccount?> GetByUserNameOrEmailAsync(string identifier, CancellationToken cancellationToken = default)
@@ -49,19 +49,19 @@ public class UserAccountRepository : IUserAccountRepository
             .Include(u => u.UserProfile)
             .Include(u => u.Wallet)
             .Include(u => u.UserSecurityProfile)
-            .FirstOrDefaultAsync(u => EF.Functions.ILike(u.UserName, identifier) || EF.Functions.ILike(u.UserEmail, identifier), cancellationToken);
+            .FirstOrDefaultAsync(u => (u.UserName != null && EF.Functions.ILike(u.UserName, identifier)) || (u.Email != null && EF.Functions.ILike(u.Email, identifier)), cancellationToken);
     }
 
     public async Task<bool> ExistsByUserNameAsync(string userName, CancellationToken cancellationToken = default)
     {
         return await _context.UserAccounts
-            .AnyAsync(u => EF.Functions.ILike(u.UserName, userName), cancellationToken);
+            .AnyAsync(u => u.UserName != null && EF.Functions.ILike(u.UserName, userName), cancellationToken);
     }
 
     public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
         return await _context.UserAccounts
-            .AnyAsync(u => EF.Functions.ILike(u.UserEmail, email), cancellationToken);
+            .AnyAsync(u => u.Email != null && EF.Functions.ILike(u.Email, email), cancellationToken);
     }
 
     public async Task<bool> ExistsByIdentityNumberAsync(string identityNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default)
@@ -103,8 +103,8 @@ public class UserAccountRepository : IUserAccountRepository
         {
             var kw = keyword.Trim().ToLower();
             query = query.Where(u =>
-                u.UserName.ToLower().Contains(kw) ||
-                u.UserEmail.ToLower().Contains(kw) ||
+                (u.UserName != null && u.UserName.ToLower().Contains(kw)) ||
+                (u.Email != null && u.Email.ToLower().Contains(kw)) ||
                 (u.UserProfile != null && u.UserProfile.FullName.ToLower().Contains(kw)) ||
                 (u.UserProfile != null && u.UserProfile.PhoneNumber.Contains(kw)));
         }

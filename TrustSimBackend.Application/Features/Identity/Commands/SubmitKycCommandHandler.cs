@@ -52,7 +52,7 @@ public class SubmitKycCommandHandler : IRequestHandler<SubmitKycCommand, Identit
             Id = verification.Id,
             UserProfileId = verification.UserProfileId,
             UserAccountId = user.Id,
-            UserName = user.UserName,
+            UserName = user.UserName ?? string.Empty,
             FullName = user.UserProfile.FullName,
             IdentityNumber = user.UserProfile.IdentityNumber,
             VerificationStatus = verification.VerificationStatus,

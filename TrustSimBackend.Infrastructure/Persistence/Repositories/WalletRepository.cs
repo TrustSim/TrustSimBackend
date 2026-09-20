@@ -51,8 +51,8 @@ public class WalletRepository : IWalletRepository
         {
             var kw = keyword.Trim().ToLower();
             query = query.Where(w =>
-                (w.UserAccount != null && w.UserAccount.UserName.ToLower().Contains(kw)) ||
-                (w.UserAccount != null && w.UserAccount.UserEmail.ToLower().Contains(kw)) ||
+                (w.UserAccount != null && w.UserAccount.UserName != null && w.UserAccount.UserName.ToLower().Contains(kw)) ||
+                (w.UserAccount != null && w.UserAccount.Email != null && w.UserAccount.Email.ToLower().Contains(kw)) ||
                 (w.UserAccount != null && w.UserAccount.UserProfile != null && w.UserAccount.UserProfile.FullName.ToLower().Contains(kw)));
         }
 

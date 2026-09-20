@@ -120,8 +120,8 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
         return new AuthResponseDto
         {
             UserId = user.Id,
-            UserName = user.UserName,
-            Email = user.UserEmail,
+            UserName = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             FullName = user.UserProfile?.FullName ?? string.Empty,
             PhoneNumber = user.UserProfile?.PhoneNumber ?? string.Empty,
             Role = user.Role.ToString(),

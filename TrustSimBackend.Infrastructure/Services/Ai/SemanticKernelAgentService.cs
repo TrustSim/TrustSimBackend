@@ -938,13 +938,23 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
         public string Role { get; set; } = string.Empty;
 
         [JsonPropertyName("content")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? Content { get; set; }
 
         [JsonPropertyName("tool_calls")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<OpenAiToolCall>? ToolCalls { get; set; }
 
         [JsonPropertyName("tool_call_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? ToolCallId { get; set; }
+
+        [JsonPropertyName("extra_content")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? ExtraContent { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     private class OpenAiToolCall
@@ -957,6 +967,13 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
 
         [JsonPropertyName("function")]
         public OpenAiFunctionCall Function { get; set; } = new();
+
+        [JsonPropertyName("extra_content")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? ExtraContent { get; set; }
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     private class OpenAiFunctionCall
@@ -966,6 +983,9 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
 
         [JsonPropertyName("arguments")]
         public string Arguments { get; set; } = "{}";
+
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? ExtensionData { get; set; }
     }
 
     private static readonly object[] AgentTools = new object[]

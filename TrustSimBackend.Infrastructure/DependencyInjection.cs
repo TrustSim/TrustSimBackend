@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +7,7 @@ using Microsoft.SemanticKernel;
 using TrustSimBackend.Application.Ai.Plugins;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Repositories;
 using TrustSimBackend.Infrastructure.Persistence;
 using TrustSimBackend.Infrastructure.Persistence.Repositories;
@@ -50,6 +52,28 @@ public static class DependencyInjection
                         errorCodesToAdd: null);
                 });
         });
+
+        // ─── 2.1. ASP.NET Core Identity ──────────────────────────────────────────
+        services.AddIdentity<UserAccount, IdentityRole<Guid>>(options =>
+        {
+            // Password Policy
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequiredLength = 8;
+
+            // Lockout Policy
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
+
+            // User Policy
+            options.User.RequireUniqueEmail = true;
+            options.SignIn.RequireConfirmedEmail = false;
+        })
+        .AddEntityFrameworkStores<TrustSimDbContext>()
+        .AddDefaultTokenProviders();
 
         // ─── 3. UnitOfWork ───────────────────────────────────────────
         services.AddScoped<IUnitOfWork, UnitOfWork>();

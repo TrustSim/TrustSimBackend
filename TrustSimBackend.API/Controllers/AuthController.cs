@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Identity.Commands;
@@ -12,34 +11,27 @@ namespace TrustSimBackend.API.Controllers;
 public class AuthController : BaseApiController
 {
     /// <summary>
-    /// Đăng ký tài khoản người dùng mới (Tự động thiết lập HttpOnly Cookie accessToken và refreshToken)
+    /// Bước 1 Đăng ký: Gửi thông tin đăng ký (userName, email, password), hệ thống lưu tạm và tự động gửi mã OTP qua Email. Chưa tạo tài khoản vào DB.
     /// </summary>
     [HttpPost("register")]
-    [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<RegisterInitiatedDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Register([FromBody] RegisterUserCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Đăng ký tài khoản thành công."));
+        return Ok(ApiResponse<RegisterInitiatedDto>.SuccessResult(result, result.Message));
     }
 
     /// <summary>
-    /// Gửi mã OTP xác thực tới địa chỉ Email (dùng trước bước đăng ký để xác minh email tồn tại).
+    /// Bước 2 Đăng ký: Xác thực mã Email OTP. Khi xác thực thành công, hệ thống chính thức tạo tài khoản vào DB, thiết lập HttpOnly Cookies và tự động đăng nhập.
     /// </summary>
-    [HttpPost("send-email-otp")]
-    [ProducesResponseType(typeof(ApiResponse<SendOtpResponseDto>), StatusCodes.Status200OK)]
+    [HttpPost("verify-email")]
+    [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> SendEmailOtp([FromBody] SendEmailOtpCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailCommand command)
     {
-        var result = await Mediator.Send(command, cancellationToken);
-        if (!result.IsSuccess)
-        {
-            return result.CooldownSeconds > 0
-                ? StatusCode(StatusCodes.Status429TooManyRequests, ApiResponse<SendOtpResponseDto>.FailureResult(result.Message))
-                : BadRequest(ApiResponse<SendOtpResponseDto>.FailureResult(result.Message));
-        }
-        return Ok(ApiResponse<SendOtpResponseDto>.SuccessResult(result, result.Message));
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Xác thực email và tạo tài khoản thành công."));
     }
 
     /// <summary>
@@ -55,15 +47,15 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Làm mới Access Token bằng Refresh Token (Tự động lấy từ HttpOnly Cookie hoặc qua Request Body)
+    /// Làm mới Access Token (Tự động trích xuất Refresh Token từ HttpOnly Cookie / Context hiện tại, không yêu cầu truyền Body)
     /// </summary>
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> RefreshToken([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] RefreshTokenCommand? command)
+    public async Task<IActionResult> RefreshToken()
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-        var cmd = (command ?? new RefreshTokenCommand()) with { IpAddress = ipAddress };
+        var cmd = new RefreshTokenCommand(IpAddress: ipAddress);
         var result = await Mediator.Send(cmd);
         return Ok(ApiResponse<AuthResponseDto>.SuccessResult(result, "Làm mới Access Token thành công."));
     }
@@ -141,7 +133,7 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Đổi mật khẩu tài khoản (Yêu cầu xác thực qua Middleware)
+    /// Đổi mật khẩu tài khoản dành cho người dùng đang đăng nhập (Yêu cầu nhập mật khẩu hiện tại)
     /// </summary>
     [HttpPut("change-password")]
     [Authorize]
@@ -169,7 +161,7 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Yêu cầu gửi mã xác thực khi quên mật khẩu
+    /// Bước 1 Quên mật khẩu: Gửi mã OTP xác thực tới Email của người dùng
     /// </summary>
     [HttpPost("forgot-password")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
@@ -181,7 +173,7 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Đặt lại mật khẩu mới bằng mã xác thực đã nhận
+    /// Bước 2 Quên mật khẩu: Xác thực mã OTP và đặt lại mật khẩu mới cho tài khoản
     /// </summary>
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]

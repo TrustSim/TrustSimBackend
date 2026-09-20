@@ -70,8 +70,8 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
         return new UserProfileDto
         {
             UserId = user.Id,
-            UserName = user.UserName,
-            Email = user.UserEmail,
+            UserName = user.UserName ?? string.Empty,
+            Email = user.Email ?? string.Empty,
             FullName = user.UserProfile.FullName,
             PhoneNumber = user.UserProfile.PhoneNumber,
             Address = user.UserProfile.Address,

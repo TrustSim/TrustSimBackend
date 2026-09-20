@@ -15,12 +15,12 @@ public class UserProfile : FullAuditableEntity
     /// <summary>ID của tài khoản đăng nhập liên kết 1-1 với hồ sơ này.</summary>
     public Guid UserAccountId { get; set; }
 
-    // --- Thông tin cá nhân ---
+    // --- Thông tin cá nhân (Tùy chọn khi đăng ký, cập nhật qua Profile/eKYC) ---
     /// <summary>Họ và tên đầy đủ của người dùng (theo giấy tờ tùy thân).</summary>
     public string FullName { get; set; } = string.Empty;
 
     /// <summary>Ngày tháng năm sinh của người dùng.</summary>
-    public DateTime DateOfBirth { get; set; }
+    public DateTime? DateOfBirth { get; set; }
 
     /// <summary>Địa chỉ email liên lạc của người dùng.</summary>
     public string Email { get; set; } = string.Empty;

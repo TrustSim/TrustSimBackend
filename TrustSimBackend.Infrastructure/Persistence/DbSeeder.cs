@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Ai;
 using TrustSimBackend.Domain.Entities.Auctions;
@@ -17,11 +18,14 @@ namespace TrustSimBackend.Infrastructure.Persistence;
 /// </summary>
 public static class DbSeeder
 {
-    // BCrypt Hash của mật khẩu "Password123@" (WorkFactor: 11)
+    // Hash mật khẩu "Password123@"
     private const string DefaultPasswordHash = "$2a$11$iZkkUucIpQldqKA4b4ArAupta/5ymSRsySEswzhGnRlBILSJkqyHC";
 
     public static async Task SeedAsync(TrustSimDbContext context)
     {
+        // 0. Seed ASP.NET Identity Roles
+        await SeedRolesAsync(context);
+
         // 1. Level 0: Bảng danh mục cơ bản & Documents
         await SeedMasterCatalogAsync(context);
 
@@ -245,6 +249,28 @@ public static class DbSeeder
     }
 
     // ─────────────────────────────────────────────────────────────
+    //  0. ASP.NET Core Identity Roles (ADMIN, USER, CONSULTANT)
+    // ─────────────────────────────────────────────────────────────
+    private static async Task SeedRolesAsync(TrustSimDbContext context)
+    {
+        var roles = new[] { "ADMIN", "USER", "CONSULTANT" };
+        foreach (var roleName in roles)
+        {
+            if (!await context.Roles.AnyAsync(r => r.NormalizedName == roleName))
+            {
+                await context.Roles.AddAsync(new IdentityRole<Guid>
+                {
+                    Id = Guid.NewGuid(),
+                    Name = roleName,
+                    NormalizedName = roleName,
+                    ConcurrencyStamp = Guid.NewGuid().ToString()
+                });
+            }
+        }
+        await context.SaveChangesAsync();
+    }
+
+    // ─────────────────────────────────────────────────────────────
     //  3. Level 0 & 1: 10 Tài khoản, Hồ sơ, Cặp khóa PKI & Ví tiền
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedAccountsProfilesAndWalletsAsync(TrustSimDbContext context)
@@ -274,8 +300,13 @@ public static class DbSeeder
             {
                 Id = u.Id,
                 UserName = u.UserName,
-                UserEmail = u.Email,
-                PassWordHash = DefaultPasswordHash,
+                NormalizedUserName = u.UserName.ToUpperInvariant(),
+                Email = u.Email,
+                NormalizedEmail = u.Email.ToUpperInvariant(),
+                EmailConfirmed = true,
+                PasswordHash = DefaultPasswordHash,
+                SecurityStamp = Guid.NewGuid().ToString(),
+                ConcurrencyStamp = Guid.NewGuid().ToString(),
                 Role = u.Role,
                 IsActive = true
             };

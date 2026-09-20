@@ -1,158 +1,89 @@
 using MediatR;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Memory;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
-using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Enums;
-using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Identity.Commands;
 
 /// <summary>
-/// Xử lý nghiệp vụ đăng ký tài khoản người dùng mới:
-/// 1. Kiểm tra tính duy nhất (Username, Email, SĐT, CCCD).
-/// 2. Băm mật khẩu an toàn.
-/// 3. Khởi tạo UserAccount, UserProfile và Wallet.
-/// 4. Sinh JWT Access Token & Refresh Token.
-/// 5. Lưu Refresh Token và thiết lập HttpOnly Cookies.
-/// 6. Trả về thông tin AuthResponseDto.
+/// Xử lý nghiệp vụ đăng ký tài khoản người dùng mới (Bước 1):
+/// 1. Kiểm tra tính duy nhất (Username, Email) qua UserManager.
+/// 2. Lưu thông tin đăng ký tạm thời vào MemoryCache (TTL: 10 phút).
+/// 3. Sinh và gửi mã Email OTP tới địa chỉ email của người dùng.
+/// 4. Chưa tạo bất kỳ bản ghi nào trong Database cho đến khi Verify Email thành công ở Bước 2.
 /// </summary>
-public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, AuthResponseDto>
+public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, RegisterInitiatedDto>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly IJwtTokenGenerator _jwtTokenGenerator;
-    private readonly ICookieService _cookieService;
+    private readonly UserManager<UserAccount> _userManager;
+    private readonly IOtpService _otpService;
+    private readonly IMemoryCache _cache;
 
     public RegisterUserCommandHandler(
-        IUnitOfWork unitOfWork,
-        IPasswordHasher passwordHasher,
-        IJwtTokenGenerator jwtTokenGenerator,
-        ICookieService cookieService)
+        UserManager<UserAccount> userManager,
+        IOtpService otpService,
+        IMemoryCache cache)
     {
-        _unitOfWork = unitOfWork;
-        _passwordHasher = passwordHasher;
-        _jwtTokenGenerator = jwtTokenGenerator;
-        _cookieService = cookieService;
+        _userManager = userManager;
+        _otpService = otpService;
+        _cache = cache;
     }
 
-    public async Task<AuthResponseDto> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
+    public async Task<RegisterInitiatedDto> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
         var normalizedUserName = request.UserName.Trim();
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var normalizedPhone = request.PhoneNumber.Trim();
-        var normalizedIdentity = request.IdentityNumber.Trim();
 
-        // 1. Kiểm tra Username đã tồn tại chưa
-        if (await _unitOfWork.Users.ExistsByUserNameAsync(normalizedUserName, cancellationToken))
+        // 1. Kiểm tra tính duy nhất của Username
+        var existingByUserName = await _userManager.FindByNameAsync(normalizedUserName);
+        if (existingByUserName != null)
         {
             throw new BadRequestException($"Tên đăng nhập '{normalizedUserName}' đã được sử dụng.");
         }
 
-        // 2. Kiểm tra Email đã tồn tại chưa
-        if (await _unitOfWork.Users.ExistsByEmailAsync(normalizedEmail, cancellationToken))
+        // 2. Kiểm tra tính duy nhất của Email
+        var existingByEmail = await _userManager.FindByEmailAsync(normalizedEmail);
+        if (existingByEmail != null)
         {
             throw new BadRequestException($"Email '{normalizedEmail}' đã được sử dụng.");
         }
 
-        // 3. Kiểm tra Số điện thoại đã tồn tại chưa
-        if (await _unitOfWork.Users.ExistsByPhoneNumberAsync(normalizedPhone, cancellationToken: cancellationToken))
+        // 3. Lưu thông tin đăng ký tạm thời vào MemoryCache (TTL 10 phút)
+        var pendingRegistration = new PendingRegistrationModel
         {
-            throw new BadRequestException($"Số điện thoại '{normalizedPhone}' đã được đăng ký bởi tài khoản khác.");
-        }
-
-        // 4. Kiểm tra CCCD đã tồn tại chưa
-        if (await _unitOfWork.Users.ExistsByIdentityNumberAsync(normalizedIdentity, cancellationToken: cancellationToken))
-        {
-            throw new BadRequestException($"Số CCCD/CMND '{normalizedIdentity}' đã được đăng ký bởi tài khoản khác.");
-        }
-
-        // 5. Băm mật khẩu
-        var passwordHash = _passwordHasher.HashPassword(request.Password);
-
-        // 6. Tạo UserAccount
-        var userAccountId = Guid.NewGuid();
-        var userAccount = new UserAccount
-        {
-            Id = userAccountId,
             UserName = normalizedUserName,
-            UserEmail = normalizedEmail,
-            PassWordHash = passwordHash,
-            Role = UserRole.USER,
-            IsActive = true
-        };
-
-        // 7. Tạo UserProfile liên kết
-        var userProfile = new UserProfile
-        {
-            Id = Guid.NewGuid(),
-            UserAccountId = userAccountId,
-            FullName = request.FullName.Trim(),
             Email = normalizedEmail,
-            PhoneNumber = normalizedPhone,
-            IdentityNumber = normalizedIdentity,
-            DateOfBirth = request.DateOfBirth ?? new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            Address = request.Address?.Trim() ?? string.Empty,
-            AvatarImg = string.Empty,
-            VerificationStatus = VerificationStatus.PENDING_VERIFICATION
+            Password = request.Password,
+            CreatedAtUtc = DateTime.UtcNow
         };
-        userAccount.UserProfile = userProfile;
 
-        // 8. Tạo Wallet mặc định liên kết
-        var wallet = new Wallet
+        var cacheKey = $"registration:pending:{normalizedEmail}";
+        _cache.Set(cacheKey, pendingRegistration, TimeSpan.FromMinutes(10));
+
+        // 4. Sinh và gửi mã OTP qua Email
+        var otpResult = await _otpService.GenerateAndSendEmailOtpAsync(
+            normalizedEmail,
+            OtpPurpose.Registration.ToString(),
+            expiryMinutes: 10,
+            cancellationToken: cancellationToken);
+
+        if (!otpResult.IsSuccess)
         {
-            Id = Guid.NewGuid(),
-            UserAccountId = userAccountId,
-            AvailableBalance = 0,
-            LockedBalance = 0,
-            WalletStatus = WalletStatus.ACTIVE,
-            LockVersion = 0
-        };
-        userAccount.Wallet = wallet;
+            _cache.Remove(cacheKey);
+            throw new BadRequestException(otpResult.Message);
+        }
 
-        // 9. Lưu UserAccount xuống DB
-        await _unitOfWork.Users.AddAsync(userAccount, cancellationToken);
-
-        // 10. Tạo Access Token và Refresh Token
-        var tokenResult = _jwtTokenGenerator.GenerateTokens(userAccount, userProfile);
-
-        // 11. Lưu Refresh Token vào DB
-        var refreshTokenEntity = new Domain.Entities.Identity.RefreshToken
+        // 5. Trả về thông báo khởi tạo đăng ký thành công
+        return new RegisterInitiatedDto
         {
-            Id = Guid.NewGuid(),
-            UserAccountId = userAccountId,
-            Token = tokenResult.RefreshToken,
-            JwtId = tokenResult.JwtId,
-            ExpiresAt = tokenResult.RefreshTokenExpiresAt,
-            IsUsed = false,
-            IsRevoked = false
-        };
-        await _unitOfWork.RefreshTokens.AddAsync(refreshTokenEntity, cancellationToken);
-
-        // 12. Commit Transaction
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        // 13. Ghi HttpOnly Cookies
-        _cookieService.SetAuthCookies(
-            tokenResult.AccessToken,
-            tokenResult.AccessTokenExpiresAt,
-            tokenResult.RefreshToken,
-            tokenResult.RefreshTokenExpiresAt
-        );
-
-        // 14. Trả về kết quả DTO
-        return new AuthResponseDto
-        {
-            UserId = userAccount.Id,
-            UserName = userAccount.UserName,
-            Email = userAccount.UserEmail,
-            FullName = userProfile.FullName,
-            PhoneNumber = userProfile.PhoneNumber,
-            Role = userAccount.Role.ToString(),
-            Token = tokenResult.AccessToken,
-            ExpiresAt = tokenResult.AccessTokenExpiresAt
+            Email = normalizedEmail,
+            Message = "Mã xác thực OTP đã được gửi tới email của bạn. Vui lòng nhập mã OTP để hoàn tất đăng ký tài khoản.",
+            CooldownSeconds = otpResult.CooldownSeconds,
+            ExpiryMinutes = otpResult.ExpiryMinutes
         };
     }
 }

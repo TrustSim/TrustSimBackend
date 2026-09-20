@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TrustSim AI Studio - Thẩm Định Giá & Tư Vấn SIM Số Đẹp</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --bg-dark: #070b14;
@@ -40,7 +43,7 @@
 
     body {
       background-color: var(--bg-dark);
-      background-image: 
+      background-image:
         radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
         radial-gradient(at 100% 0%, rgba(129, 140, 248, 0.12) 0px, transparent 50%),
         radial-gradient(at 50% 100%, rgba(251, 191, 36, 0.06) 0px, transparent 50%);
@@ -169,8 +172,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
     }
 
     /* Main Container */
@@ -195,8 +205,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* Cards */
@@ -242,11 +259,35 @@
       letter-spacing: 0.03em;
     }
 
-    .badge-primary { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
-    .badge-gold { background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
-    .badge-emerald { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
-    .badge-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
-    .badge-rose { background: rgba(251, 113, 133, 0.15); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.3); }
+    .badge-primary {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge-gold {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+    }
+
+    .badge-emerald {
+      background: rgba(52, 211, 153, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .badge-purple {
+      background: rgba(168, 85, 247, 0.15);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    .badge-rose {
+      background: rgba(251, 113, 133, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(251, 113, 133, 0.3);
+    }
 
     /* Forms */
     .form-group {
@@ -376,7 +417,9 @@
     }
 
     @media (max-width: 1024px) {
-      .grid-2, .grid-3 {
+
+      .grid-2,
+      .grid-3 {
         grid-template-columns: 1fr;
       }
     }
@@ -668,8 +711,15 @@
     }
 
     @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
     }
 
     .chat-input-bar {
@@ -717,6 +767,7 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Top Navigation Bar -->
@@ -765,8 +816,9 @@
           <form id="valuation-form" onsubmit="handleValuate(event)">
             <div class="form-group">
               <label class="form-label">Số điện thoại cần định giá (10 chữ số):</label>
-              <input type="text" id="sim-input" class="form-control" placeholder="Ví dụ: 0869192776 hoặc 0986868686" value="0869192776" required />
-              
+              <input type="text" id="sim-input" class="form-control" placeholder="Ví dụ: 0869192776 hoặc 0986868686"
+                value="0869192776" required />
+
               <div class="chip-container">
                 <span class="chip" onclick="setSimNumber('0869192776')">086.919.2776 (Gánh 919)</span>
                 <span class="chip" onclick="setSimNumber('0986868686')">098.686.8686 (Đại Taxi 86)</span>
@@ -783,23 +835,32 @@
 
           <!-- Core Principle Guide -->
           <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle);">
-            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Quy Chuẩn Định Giá 3 Kênh Minh Bạch:</h4>
+            <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem;">Quy Chuẩn Định Giá 3 Kênh
+              Minh Bạch:</h4>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div
+                style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
                 <div style="font-size: 0.8rem; color: #38bdf8; font-weight: 700;">1. Bóc Tách 3 Cụm Cấu Trúc</div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Đầu số nhà mạng + Thân giữa + Cụm đuôi + Tổng nút (1-10)</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Đầu số nhà mạng + Thân giữa + Cụm đuôi + Tổng
+                  nút (1-10)</div>
               </div>
-              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div
+                style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
                 <div style="font-size: 0.8rem; color: #fbbf24; font-weight: 700;">2. Tri Thức RAG Thị Trường</div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Truy vấn quy chuẩn định giá, phong thủy từ DB vector</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Truy vấn quy chuẩn định giá, phong thủy từ DB
+                  vector</div>
               </div>
-              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div
+                style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
                 <div style="font-size: 0.8rem; color: #34d399; font-weight: 700;">3. Gemini AI LLM Reasoning</div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Lập luận chuyên sâu 4 phần giải trình cơ sở định giá</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Lập luận chuyên sâu 4 phần giải trình cơ sở
+                  định giá</div>
               </div>
-              <div style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div
+                style="background: rgba(10, 16, 30, 0.8); padding: 0.75rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
                 <div style="font-size: 0.8rem; color: #c084fc; font-weight: 700;">4. Phân Kênh Giao Dịch</div>
-                <div style="font-size: 0.75rem; color: var(--text-dim);">Giá Mua Mới Đại lý, Chợ Tự do P2P & Thợ Thu Mua 24h</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim);">Giá Mua Mới Đại lý, Chợ Tự do P2P & Thợ Thu Mua
+                  24h</div>
               </div>
             </div>
           </div>
@@ -821,7 +882,7 @@
           </div>
 
           <div id="valuation-data" style="display: none;">
-            
+
             <!-- Structure Badges (Prefix, Middle, Tail, TotalPoints) -->
             <div class="structure-bar">
               <div class="structure-item">
@@ -887,7 +948,9 @@
             <!-- Full AI Reasoning -->
             <div>
               <label class="form-label">Bài Giải Trình Thẩm Định Chuyên Sâu (Gemini AI & RAG):</label>
-              <div id="res-ai-rationale" style="background: rgba(9, 14, 26, 0.9); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1.1rem; font-size: 0.9rem; line-height: 1.7; color: #cbd5e1; white-space: pre-wrap;"></div>
+              <div id="res-ai-rationale"
+                style="background: rgba(9, 14, 26, 0.9); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1.1rem; font-size: 0.9rem; line-height: 1.7; color: #cbd5e1; white-space: pre-wrap;">
+              </div>
             </div>
 
           </div>
@@ -929,37 +992,47 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Ngân sách từ (VNĐ):</label>
-              <input type="number" id="budget-min" class="form-control" placeholder="Tùy chọn" step="500000" oninput="updateBudgetHelper()" />
+              <input type="number" id="budget-min" class="form-control" placeholder="Tùy chọn" step="500000"
+                oninput="updateBudgetHelper()" />
             </div>
             <div class="form-group">
               <label class="form-label">Đến (VNĐ):</label>
-              <input type="number" id="budget-max" class="form-control" placeholder="Tùy chọn" step="500000" oninput="updateBudgetHelper()" />
+              <input type="number" id="budget-max" class="form-control" placeholder="Tùy chọn" step="500000"
+                oninput="updateBudgetHelper()" />
             </div>
           </div>
 
-          <div id="budget-helper-text" style="display: none; font-size: 0.78rem; color: var(--primary); background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem;"></div>
+          <div id="budget-helper-text"
+            style="display: none; font-size: 0.78rem; color: var(--primary); background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem;">
+          </div>
 
-          <div class="form-group" style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+          <div class="form-group"
+            style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
             <label class="form-label">Chế độ Streaming (SSE):</label>
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 0.85rem; color: var(--text-muted);">Real-time SSE Token Stream</span>
-              <input type="checkbox" id="stream-toggle" checked style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" />
+              <input type="checkbox" id="stream-toggle" checked
+                style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" />
             </div>
           </div>
 
           <div style="margin-top: 1.25rem;">
             <label class="form-label">Câu hỏi gợi ý nhanh:</label>
             <div class="chip-container">
-              <span class="chip" onclick="setChatMessage('Tôi sinh năm 2004 thuộc mệnh gì và nên chọn số phong thủy thế nào?')">
+              <span class="chip"
+                onclick="setChatMessage('Tôi sinh năm 2004 thuộc mệnh gì và nên chọn số phong thủy thế nào?')">
                 🔮 Tôi sinh 2004 mệnh gì?
               </span>
-              <span class="chip" onclick="setChatMessage('Tìm giúp tôi số SIM Viettel hoặc Vina trong tầm giá dưới 5 triệu đồng.')">
+              <span class="chip"
+                onclick="setChatMessage('Tìm giúp tôi số SIM Viettel hoặc Vina trong tầm giá dưới 5 triệu đồng.')">
                 🎯 Tìm SIM tầm giá dưới 5tr
               </span>
-              <span class="chip" onclick="setChatMessage('Hiện tại trên sàn có các phiên đấu giá SIM VIP nào đang diễn ra?')">
+              <span class="chip"
+                onclick="setChatMessage('Hiện tại trên sàn có các phiên đấu giá SIM VIP nào đang diễn ra?')">
                 🏆 Các phiên đấu giá SIM VIP
               </span>
-              <span class="chip" onclick="setChatMessage('Quy trình ký quỹ Escrow và thanh toán nạp tiền ví SePay diễn ra như thế nào?')">
+              <span class="chip"
+                onclick="setChatMessage('Quy trình ký quỹ Escrow và thanh toán nạp tiền ví SePay diễn ra như thế nào?')">
                 🛡️ Ký quỹ Escrow & Ví SePay
               </span>
             </div>
@@ -974,13 +1047,15 @@
         <div class="chat-container">
           <div class="chat-header">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <div class="avatar" style="background: linear-gradient(135deg, #38bdf8, #818cf8); color: #070b14;">AI</div>
+              <div class="avatar" style="background: linear-gradient(135deg, #38bdf8, #818cf8); color: #070b14;">AI
+              </div>
               <div>
                 <div style="font-weight: 700; font-size: 0.95rem;">TrustSim AI Consultant</div>
                 <div style="font-size: 0.75rem; color: var(--emerald);">● Semantic Kernel & Google Gemini Active</div>
               </div>
             </div>
-            <div id="session-id-display" style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-dim);">
+            <div id="session-id-display"
+              style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-dim);">
               Session: Chưa khởi tạo
             </div>
           </div>
@@ -990,8 +1065,9 @@
             <div class="message assistant">
               <div class="avatar">AI</div>
               <div class="message-bubble">
-                Xin chào quý khách! Tôi là <b>Trợ lý Chuyên gia SIM & Phong thủy TrustSim</b>.<br/>
-                Tôi có thể giúp quý khách giải đáp bản mệnh ngũ hành, tìm kiếm SIM phù hợp trong kho hàng thực tế, tra cứu phiên đấu giá VIP hoặc hướng dẫn quy trình ký quỹ giao dịch an toàn.<br/>
+                Xin chào quý khách! Tôi là <b>Trợ lý Chuyên gia SIM & Phong thủy TrustSim</b>.<br />
+                Tôi có thể giúp quý khách giải đáp bản mệnh ngũ hành, tìm kiếm SIM phù hợp trong kho hàng thực tế, tra
+                cứu phiên đấu giá VIP hoặc hướng dẫn quy trình ký quỹ giao dịch an toàn.<br />
                 Quý khách cần tư vấn nội dung gì hôm nay?
               </div>
             </div>
@@ -999,7 +1075,8 @@
 
           <!-- Input Bar -->
           <form class="chat-input-bar" onsubmit="handleSendChatMessage(event)">
-            <input type="text" id="chat-input" class="chat-input" placeholder="Nhập câu hỏi tư vấn... (Enter để gửi)" required autocomplete="off" />
+            <input type="text" id="chat-input" class="chat-input" placeholder="Nhập câu hỏi tư vấn... (Enter để gửi)"
+              required autocomplete="off" />
             <button type="submit" id="btn-send-chat" class="btn">
               <span>Gửi</span> 🚀
             </button>
@@ -1019,11 +1096,16 @@
           </div>
 
           <!-- Ingestion Mode Selector -->
-          <div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; background: rgba(9, 14, 26, 0.6); padding: 0.35rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-            <button id="tab-ingest-url-btn" type="button" class="tab-btn active" style="flex: 1; justify-content: center; padding: 0.45rem 0.5rem; font-size: 0.82rem;" onclick="switchIngestMode('url')">
+          <div
+            style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; background: rgba(9, 14, 26, 0.6); padding: 0.35rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <button id="tab-ingest-url-btn" type="button" class="tab-btn active"
+              style="flex: 1; justify-content: center; padding: 0.45rem 0.5rem; font-size: 0.82rem;"
+              onclick="switchIngestMode('url')">
               🔗 Đường Dẫn Web / Drive
             </button>
-            <button id="tab-ingest-upload-btn" type="button" class="tab-btn" style="flex: 1; justify-content: center; padding: 0.45rem 0.5rem; font-size: 0.82rem;" onclick="switchIngestMode('upload')">
+            <button id="tab-ingest-upload-btn" type="button" class="tab-btn"
+              style="flex: 1; justify-content: center; padding: 0.45rem 0.5rem; font-size: 0.82rem;"
+              onclick="switchIngestMode('upload')">
               📁 Tải Tệp (.PDF, .DOCX, .TXT)
             </button>
           </div>
@@ -1032,7 +1114,8 @@
           <form id="rag-url-form" onsubmit="handleIngestDocument(event)">
             <div class="form-group">
               <label class="form-label">Tên tài liệu / Tiêu đề:</label>
-              <input type="text" id="doc-name" class="form-control" placeholder="Ví dụ: Báo cáo Thị trường SIM 2026" required />
+              <input type="text" id="doc-name" class="form-control" placeholder="Ví dụ: Báo cáo Thị trường SIM 2026"
+                required />
             </div>
 
             <div class="form-group">
@@ -1047,7 +1130,8 @@
 
             <div class="form-group">
               <label class="form-label">Đường dẫn tài liệu:</label>
-              <input type="url" id="doc-url" class="form-control" placeholder="https://raw.githubusercontent.com/..." required />
+              <input type="url" id="doc-url" class="form-control" placeholder="https://raw.githubusercontent.com/..."
+                required />
             </div>
 
             <button type="submit" id="btn-ingest" class="btn btn-gold" style="width: 100%;">
@@ -1059,9 +1143,11 @@
           <form id="rag-upload-form" onsubmit="handleUploadDocument(event)" style="display: none;">
             <div class="form-group">
               <label class="form-label">Chọn tệp tài liệu (.PDF, .DOCX, .TXT, .MD):</label>
-              <input type="file" id="upload-file-input" class="form-control" accept=".pdf,.docx,.txt,.md,.html,.htm,.csv" required onchange="onFileSelected(this)" />
+              <input type="file" id="upload-file-input" class="form-control"
+                accept=".pdf,.docx,.txt,.md,.html,.htm,.csv" required onchange="onFileSelected(this)" />
               <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.35rem;">
-                Hệ thống tự động sử dụng <b>PdfPig Native Engine</b> trích xuất 100% nội dung PDF và vector hóa pgvector.
+                Hệ thống tự động sử dụng <b>PdfPig Native Engine</b> trích xuất 100% nội dung PDF và vector hóa
+                pgvector.
               </div>
             </div>
 
@@ -1092,7 +1178,8 @@
           <div class="card">
             <div class="card-header">
               <h2 class="card-title"><span>📡</span> Danh Sách Tri Thức RAG Trong DB</h2>
-              <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="loadAllDocuments()">
+              <button class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;"
+                onclick="loadAllDocuments()">
                 <span>🔄 Làm mới</span>
               </button>
             </div>
@@ -1112,22 +1199,27 @@
 
             <div class="form-group">
               <label class="form-label">Backend API Base URL:</label>
-              <input type="text" id="api-base-url" class="form-control" value="http://localhost:5130" onchange="saveSettings()" />
+              <input type="text" id="api-base-url" class="form-control" value="http://localhost:5130"
+                onchange="saveSettings()" />
             </div>
 
             <div class="form-group">
               <label class="form-label">Bearer JWT Token:</label>
-              <textarea id="jwt-token" class="form-control" rows="2" placeholder="Token tự động nạp khi bấm Đăng Nhập Nhanh..."></textarea>
+              <textarea id="jwt-token" class="form-control" rows="2"
+                placeholder="Token tự động nạp khi bấm Đăng Nhập Nhanh..."></textarea>
             </div>
 
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;" onclick="quickLogin('admin@trustsim.vn', 'Password123@')">
+              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;"
+                onclick="quickLogin('admin@trustsim.vn', 'Password123@')">
                 👑 Admin Login
               </button>
-              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;" onclick="quickLogin('phuquy.sim@gmail.com', 'Password123@')">
+              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;"
+                onclick="quickLogin('phuquy.sim@gmail.com', 'Password123@')">
                 🏪 Seller Login
               </button>
-              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;" onclick="quickLogin('minhtri.bds@gmail.com', 'Password123@')">
+              <button class="btn btn-secondary" style="flex: 1; font-size: 0.8rem; padding: 0.5rem;"
+                onclick="quickLogin('minhtri.bds@gmail.com', 'Password123@')">
                 👤 User Login
               </button>
             </div>
@@ -1177,7 +1269,7 @@
     function switchTab(tabId) {
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      
+
       const targetPanel = document.getElementById(tabId);
       if (targetPanel) targetPanel.classList.add('active');
 
@@ -1225,7 +1317,7 @@
     async function quickLogin(userNameOrEmail, password) {
       const msgDiv = document.getElementById('login-status-msg');
       msgDiv.innerHTML = `<span style="color: var(--primary);">⏳ Đang kết nối tới ${API_BASE}...</span>`;
-      
+
       try {
         const res = await fetch(`${API_BASE}/api/auth/login`, {
           method: 'POST',
@@ -1312,8 +1404,8 @@
         dataState.style.display = 'block';
 
         // 1. Structure breakdown
-        document.getElementById('res-struct-prefix').textContent = data.prefixGroup || `${phone.substring(0,3)} (${data.carrierName || 'Viễn thông'})`;
-        document.getElementById('res-struct-middle').textContent = data.middleGroup || phone.substring(3,6);
+        document.getElementById('res-struct-prefix').textContent = data.prefixGroup || `${phone.substring(0, 3)} (${data.carrierName || 'Viễn thông'})`;
+        document.getElementById('res-struct-middle').textContent = data.middleGroup || phone.substring(3, 6);
         document.getElementById('res-struct-tail').textContent = data.tailGroup || phone.substring(6);
         document.getElementById('res-struct-points').textContent = `${data.totalPoints || 5}/10 điểm`;
 
@@ -1449,14 +1541,14 @@
       const container = document.getElementById('chat-messages');
       const msgDiv = document.createElement('div');
       msgDiv.className = 'message assistant';
-      
+
       const avatarDiv = document.createElement('div');
       avatarDiv.className = 'avatar';
       avatarDiv.textContent = 'AI';
-      
+
       const bubbleDiv = document.createElement('div');
       bubbleDiv.className = 'message-bubble';
-      
+
       const toolBadgeSlot = document.createElement('div');
       const textSlot = document.createElement('div');
       textSlot.innerHTML = '<span class="cursor-blink"></span>';
@@ -1751,4 +1843,5 @@
     }
   </script>
 </body>
+
 </html>
