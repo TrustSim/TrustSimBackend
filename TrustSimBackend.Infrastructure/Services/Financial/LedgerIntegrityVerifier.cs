@@ -19,7 +19,7 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
     private readonly IFinancialSigningService _signingService;
     private readonly ILogger<LedgerIntegrityVerifier> _logger;
 
-    private const string GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000";
+
 
     public LedgerIntegrityVerifier(
         IUnitOfWork unitOfWork,
@@ -55,7 +55,7 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
 
         long expectedSequence = entries.First().SequenceNumber;
         string expectedPrevHash = entries.First().SequenceNumber == 1
-            ? GenesisPrevHash
+            ? LedgerHashHelper.GenesisPrevHash
             : entries.First().PrevHash;
 
         foreach (var entry in entries)
@@ -91,8 +91,16 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
             }
 
             // 3. Tính toán lại mã băm SHA-256 để kiểm tra can thiệp sửa đổi dữ liệu (Tamper Detection)
-            var rawPayload = $"{entry.SequenceNumber}:{entry.JournalId}:{entry.AccountType}:{entry.EntryType}:{entry.Amount:F2}:{entry.WalletId}:{entry.PrevHash}:{entry.CreatedAt:O}";
-            var recomputedHash = ComputeSha256Hex(rawPayload);
+            var rawPayload = LedgerHashHelper.BuildEntryPayload(
+                entry.SequenceNumber,
+                entry.JournalId,
+                entry.AccountType,
+                entry.EntryType,
+                entry.Amount,
+                entry.WalletId,
+                entry.PrevHash,
+                entry.CreatedAt);
+            var recomputedHash = LedgerHashHelper.ComputeSha256Hex(rawPayload);
 
             if (!string.Equals(entry.EntryHash, recomputedHash, StringComparison.OrdinalIgnoreCase))
             {
@@ -236,10 +244,5 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
         return report;
     }
 
-    private static string ComputeSha256Hex(string input)
-    {
-        using var sha256 = SHA256.Create();
-        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(hashBytes).ToLowerInvariant();
-    }
+
 }

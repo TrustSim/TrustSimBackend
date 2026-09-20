@@ -53,6 +53,32 @@ public class LedgerIntegrityReportDto
     public bool IsAccountingEquationBalanced { get; set; } = true;
 
     /// <summary>
+    /// Cờ tổng hợp phát hiện gian lận tài chính (True nếu có bất kỳ sự sai lệch nào về Hash Chain, Chữ ký số, Số dư ví hoặc Bất biến kế toán).
+    /// </summary>
+    public bool HasFraudDetected => !IsChainValid || !IsSignatureValid || !IsBalanceReconciled || !IsAccountingEquationBalanced;
+
+    /// <summary>
+    /// Alias phát hiện gian lận tài chính.
+    /// </summary>
+    public bool IsFraudDetected => HasFraudDetected;
+
+    /// <summary>
+    /// Trạng thái gian lận (CLEAN hoặc FRAUD_DETECTED).
+    /// </summary>
+    public string FraudStatus => HasFraudDetected ? "FRAUD_DETECTED" : "CLEAN";
+
+    /// <summary>
+    /// Chi tiết thông điệp cảnh báo gian lận tài chính.
+    /// </summary>
+    public string FraudAlertMessage => HasFraudDetected
+        ? "🚨 PHÁT HIỆN BẤT THƯỜNG / GIAN LẬN TÀI CHÍNH: " +
+          (!IsChainValid ? "Mắt xích Hash Chain bị đứt gãy; " : "") +
+          (!IsSignatureValid ? "Chữ ký số ECDsa không khớp Public Key; " : "") +
+          (!IsBalanceReconciled ? "Số dư bảng Wallets không khớp với Sổ cái kép; " : "") +
+          (!IsAccountingEquationBalanced ? "Phương trình kế toán sàn bị mất cân bằng; " : "")
+        : "✅ TOÀN BỘ HỆ THỐNG TÀI CHÍNH BẢO TOÀN TOÀN VẸN 100% (0 LỆCH, CHUỖI KHỐI HỢP LỆ).";
+
+    /// <summary>
     /// Tổng số lượng mắt xích đã quét.
     /// </summary>
     public long TotalEntriesScanned { get; set; }

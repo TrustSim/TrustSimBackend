@@ -75,6 +75,9 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<TrustSimDbContext>()
         .AddDefaultTokenProviders();
 
+        // Đăng ký PasswordHasher tùy biến hỗ trợ cả chuẩn Identity mới và tương thích ngược BCrypt cũ
+        services.AddScoped<IPasswordHasher<UserAccount>, CustomIdentityPasswordHasher>();
+
         // ─── 3. UnitOfWork ───────────────────────────────────────────
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 

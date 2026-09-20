@@ -18,7 +18,6 @@ public class DoubleEntryLedgerService : ILedgerService
     private readonly ILogger<DoubleEntryLedgerService> _logger;
 
     private static readonly SemaphoreSlim _chainLock = new(1, 1);
-    private const string GenesisPrevHash = "0000000000000000000000000000000000000000000000000000000000000000";
 
     public DoubleEntryLedgerService(
         IUnitOfWork unitOfWork,
@@ -59,7 +58,7 @@ public class DoubleEntryLedgerService : ILedgerService
         {
             var journalId = Guid.NewGuid();
             var journalCode = $"JRN-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
-            var now = DateTime.UtcNow;
+            var now = new DateTime((DateTime.UtcNow.Ticks / 10) * 10, DateTimeKind.Utc);
 
             var journal = new LedgerJournal
             {
@@ -78,7 +77,7 @@ public class DoubleEntryLedgerService : ILedgerService
             // Lấy mắt xích gần nhất để nối chuỗi
             var lastEntry = await _unitOfWork.LedgerEntries.GetLastEntryAsync(cancellationToken);
             var currentSequence = lastEntry?.SequenceNumber ?? 0;
-            var currentPrevHash = lastEntry?.EntryHash ?? GenesisPrevHash;
+            var currentPrevHash = lastEntry?.EntryHash ?? LedgerHashHelper.GenesisPrevHash;
 
             var createdEntries = new List<LedgerEntry>();
 
@@ -88,9 +87,17 @@ public class DoubleEntryLedgerService : ILedgerService
                 var entryId = Guid.NewGuid();
                 var createdAt = now;
 
-                // Tính toán chuỗi băm dữ liệu bản ghi
-                var rawPayload = $"{currentSequence}:{journalId}:{param.AccountType}:{param.EntryType}:{param.Amount:F2}:{param.WalletId}:{currentPrevHash}:{createdAt:O}";
-                var entryHash = ComputeSha256Hex(rawPayload);
+                // Tính toán chuỗi băm dữ liệu bản ghi bằng Helper chuẩn hóa
+                var rawPayload = LedgerHashHelper.BuildEntryPayload(
+                    currentSequence,
+                    journalId,
+                    param.AccountType,
+                    param.EntryType,
+                    param.Amount,
+                    param.WalletId,
+                    currentPrevHash,
+                    createdAt);
+                var entryHash = LedgerHashHelper.ComputeSha256Hex(rawPayload);
 
                 // Ký số ECDsa P-256 trên mã băm
                 var signature = await _signingService.SignHashAsync(entryHash, cancellationToken);
@@ -124,8 +131,8 @@ public class DoubleEntryLedgerService : ILedgerService
             }
 
             // Ký số toàn bộ chứng từ
-            var journalPayload = $"{journal.JournalCode}:{journal.TransactionType}:{journal.TotalAmount:F2}:{journal.PostedAt:O}:{journal.Entries.Count}";
-            var journalHash = ComputeSha256Hex(journalPayload);
+            var journalPayload = $"{journal.JournalCode}:{journal.TransactionType}:{journal.TotalAmount.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)}:{journal.PostedAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ss.ffffffZ}:{journal.Entries.Count}";
+            var journalHash = LedgerHashHelper.ComputeSha256Hex(journalPayload);
             journal.SignedHash = await _signingService.SignHashAsync(journalHash, cancellationToken);
 
             await _unitOfWork.LedgerJournals.AddAsync(journal, cancellationToken);
@@ -417,10 +424,5 @@ public class DoubleEntryLedgerService : ILedgerService
             cancellationToken);
     }
 
-    private static string ComputeSha256Hex(string input)
-    {
-        using var sha256 = SHA256.Create();
-        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(hashBytes).ToLowerInvariant();
-    }
+
 }
