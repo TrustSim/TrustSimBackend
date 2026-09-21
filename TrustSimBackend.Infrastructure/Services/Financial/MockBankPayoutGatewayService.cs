@@ -23,6 +23,23 @@ public class MockBankPayoutGatewayService : IMockBankPayoutGatewayService
         _logger = logger;
     }
 
+    public Task<string> RequestInstantPayoutAsync(
+        string bankCode,
+        string accountNumber,
+        string accountHolderName,
+        decimal amount,
+        string transactionCode,
+        CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation(
+            "[Mock Bank Gateway] Nhận lệnh chi hộ tức thời: Bank={Bank}, STK={Acc}, Chủ TK={Name}, Số tiền={Amount:N0} VNĐ, Mã GD={Code}",
+            bankCode, accountNumber, accountHolderName, amount, transactionCode);
+
+        // Giả lập cổng ngân hàng sinh mã đối soát external reference thành công
+        var externalRef = $"MOCK-PAYOUT-{bankCode}-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
+        return Task.FromResult(externalRef);
+    }
+
     public async Task<bool> SimulateBankPayoutCallbackAsync(
         string transactionCode,
         bool isSuccess,

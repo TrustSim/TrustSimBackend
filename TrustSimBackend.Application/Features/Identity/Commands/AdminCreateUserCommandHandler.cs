@@ -82,8 +82,6 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         }
 
         await _userManager.AddToRoleAsync(newUser, request.Role.ToString());
-        await _unitOfWork.Wallets.AddAsync(wallet, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new AdminUserDetailDto
         {

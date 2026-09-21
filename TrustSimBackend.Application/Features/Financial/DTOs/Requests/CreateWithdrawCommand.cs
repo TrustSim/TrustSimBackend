@@ -4,7 +4,7 @@ using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 
 /// <summary>
-/// Command yêu cầu rút tiền từ ví.
+/// Command MediatR xử lý yêu cầu rút tiền từ ví.
 /// </summary>
 public record CreateWithdrawCommand(
     decimal Amount,
@@ -12,6 +12,6 @@ public record CreateWithdrawCommand(
     string DestinationBankName,
     string DestinationAccountNumber,
     string DestinationAccountHolderName,
-    string? Note = null,
-    Guid UserId = default
+    string? Note,
+    Guid UserId
 ) : IRequest<WalletTransactionDto>;

@@ -1,20 +1,16 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Financial;
-using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 /// <summary>
-/// Command mô phỏng can thiệp dữ liệu bất hợp pháp (Live Tamper Detection Demo) phục vụ Hội đồng.
+/// Handler xử lý SimulateTamperTestCommand (Mô phỏng can thiệp dữ liệu và kiểm chứng báo động đỏ).
 /// </summary>
-public record SimulateTamperTestCommand(
-    long SequenceNumber = 0,
-    decimal TamperedAmount = 99_000_000m) : IRequest<TamperSimulationResultDto>;
-
 public class SimulateTamperTestCommandHandler : IRequestHandler<SimulateTamperTestCommand, TamperSimulationResultDto>
 {
     private readonly IUnitOfWork _unitOfWork;

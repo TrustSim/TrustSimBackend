@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Financial.Commands;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
+using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -18,6 +20,56 @@ public class MockBankPayoutController : BaseApiController
     public MockBankPayoutController(IMockBankPayoutGatewayService mockBankPayoutService)
     {
         _mockBankPayoutService = mockBankPayoutService;
+    }
+
+    /// <summary>
+    /// [Sandbox Demo - Cột Trái] Pha 1: Gửi yêu cầu rút tiền &amp; Khóa số dư (Nợ 2010 / Có 2020) -- Trạng thái PENDING
+    /// </summary>
+    [HttpPost("phase1-request")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<WalletTransactionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RequestWithdrawPhase1([FromBody] CreateWithdrawRequest request)
+    {
+        var command = new CreateWithdrawPhase1Command(
+            CurrentUserId,
+            request.Amount,
+            request.DestinationBankCode,
+            request.DestinationBankName,
+            request.DestinationAccountNumber,
+            request.DestinationAccountHolderName,
+            request.Note);
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<WalletTransactionDto>.SuccessResult(result, "Khởi tạo yêu cầu rút tiền Pha 1 và khóa số dư thành công (PENDING)."));
+    }
+
+    /// <summary>
+    /// [Sandbox Demo - Cột Phải Nút Xanh] Pha 2A: Giả lập ngân hàng chi trả THÀNH CÔNG (Nợ 2020 / Có 1010) -- Trạng thái COMPLETED
+    /// </summary>
+    [HttpPost("phase2a-success")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<WalletTransactionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SimulatePhase2aSuccess([FromBody] ProcessWithdrawSuccessRequest request)
+    {
+        var command = new ProcessWithdrawSuccessCommand(request.TransactionCode, request.ExternalBankRef);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<WalletTransactionDto>.SuccessResult(result, $"Pha 2A Hoàn tất: Chi trả thành công mã GD '{request.TransactionCode}' (COMPLETED)."));
+    }
+
+    /// <summary>
+    /// [Sandbox Demo - Cột Phải Nút Đỏ] Pha 2B: Giả lập ngân hàng chi trả THẤT BẠI &amp; Tự động hoàn tiền (Nợ 2020 / Có 2010) -- Trạng thái CANCELLED
+    /// </summary>
+    [HttpPost("phase2b-failed")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<WalletTransactionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SimulatePhase2bFailed([FromBody] ProcessWithdrawFailedRequest request)
+    {
+        var command = new ProcessWithdrawFailedCommand(request.TransactionCode, request.FailureReason);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<WalletTransactionDto>.SuccessResult(result, $"Pha 2B Hoàn tất: Giao dịch thất bại và đã tự động hoàn tiền về ví (CANCELLED)."));
     }
 
     /// <summary>

@@ -33,6 +33,10 @@ public class LedgerJournalRepository : ILedgerJournalRepository
 
     public async Task<LedgerJournal?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default)
     {
+        var local = _context.LedgerJournals.Local
+            .FirstOrDefault(j => j.IdempotencyKey == idempotencyKey);
+        if (local != null) return local;
+
         return await _context.LedgerJournals
             .Include(j => j.Entries.OrderBy(e => e.SequenceNumber))
             .FirstOrDefaultAsync(j => j.IdempotencyKey == idempotencyKey, cancellationToken);

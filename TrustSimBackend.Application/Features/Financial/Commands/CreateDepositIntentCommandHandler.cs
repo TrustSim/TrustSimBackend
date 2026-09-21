@@ -1,6 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
@@ -9,13 +10,8 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 /// <summary>
-/// Command khởi tạo Payment Intent nạp tiền và sinh mã VietQR.
+/// Handler xử lý CreateDepositIntentCommand (Khởi tạo Payment Intent nạp tiền và sinh mã VietQR).
 /// </summary>
-public record CreateDepositIntentCommand(
-    Guid UserId,
-    decimal Amount,
-    string? IdempotencyKey = null) : IRequest<PaymentIntentDto>;
-
 public class CreateDepositIntentCommandHandler : IRequestHandler<CreateDepositIntentCommand, PaymentIntentDto>
 {
     private readonly IUnitOfWork _unitOfWork;
