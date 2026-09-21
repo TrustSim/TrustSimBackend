@@ -1016,9 +1016,14 @@
                             placeholder="VD: NGUYEN VAN A">
                     </div>
 
-                    <button class="btn btn-primary" style="width: 100%;" onclick="submitWithdrawPhase1()">
-                        <i class="fa-solid fa-lock"></i> Gửi Yêu Cầu Rút Tiền (Khóa Số Dư Pha 1)
-                    </button>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+                        <button class="btn btn-primary" style="width: 100%;" onclick="submitWithdrawPhase1()">
+                            <i class="fa-solid fa-lock"></i> Gửi Yêu Cầu Rút Tiền (Khóa Số Dư Pha 1 Sandbox)
+                        </button>
+                        <button class="btn btn-emerald" style="width: 100%;" onclick="submitWithdrawInstant()">
+                            <i class="fa-solid fa-bolt"></i> ⚡ Rút Tiền Thực Tế Tức Thời (Tự Động 2 Pha Liền Nhau)
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Phase 2: Bank Payout Sandbox Simulator -->
@@ -1062,9 +1067,22 @@
                 <div class="section-card-header">
                     <div class="section-card-title">
                         <i class="fa-solid fa-book-bookmark text-purple"></i>
-                        Sổ cái Chứng từ Kế toán Ghi kép (Ledger Journals)
+                        Sổ cái Chứng từ Kế toán Ghi kép (10 Nghiệp vụ Sàn)
                     </div>
-                    <div style="display: flex; gap: 8px;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="journalTypeFilter" class="form-control" style="width: auto; padding: 4px 10px; font-size: 0.8rem;" onchange="loadLedgerJournals()">
+                            <option value="">-- Tất cả 10 nghiệp vụ --</option>
+                            <option value="TOP_UP">NV 1: Nạp tiền (TOP_UP)</option>
+                            <option value="WITHDRAW_LOCK">NV 2: Khóa rút Pha 1 (WITHDRAW_LOCK)</option>
+                            <option value="WITHDRAW_COMPLETED">NV 3: Chi trả rút Pha 2A (WITHDRAW_COMPLETED)</option>
+                            <option value="WITHDRAW_REFUND">NV 4: Rút thất bại hoàn Pha 2B (WITHDRAW_REFUND)</option>
+                            <option value="AUCTION_DEPOSIT_LOCK">NV 5: Khóa cọc đấu giá (AUCTION_DEPOSIT_LOCK)</option>
+                            <option value="AUCTION_DEPOSIT_RELEASED">NV 6: Hoàn cọc không trúng (AUCTION_DEPOSIT_RELEASED)</option>
+                            <option value="AUCTION_DEPOSIT_FORFEITED">NV 7: Tịch thu cọc vi phạm (AUCTION_DEPOSIT_FORFEITED)</option>
+                            <option value="ESCROW_HOLD">NV 8: Ký quỹ Escrow thắng (ESCROW_HOLD)</option>
+                            <option value="ESCROW_RELEASE">NV 9: Giải ngân Escrow bán SIM (ESCROW_RELEASE)</option>
+                            <option value="ESCROW_REFUND">NV 10: Hoàn Escrow về Buyer (ESCROW_REFUND)</option>
+                        </select>
                         <button class="btn btn-outline btn-sm" onclick="loadLedgerJournals()">
                             <i class="fa-solid fa-rotate"></i> Làm mới
                         </button>
@@ -1574,7 +1592,7 @@
             const accountHolder = document.getElementById('wdAccountHolderInput').value;
 
             try {
-                const res = await apiFetch('/api/Wallets/withdraw', {
+                const res = await apiFetch('/api/MockBankPayout/phase1-request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1583,7 +1601,7 @@
                         destinationBankName: bankName,
                         destinationAccountNumber: accountNumber,
                         destinationAccountHolderName: accountHolder,
-                        note: `Rút tiền về ${bankName} (${accountNumber})`
+                        note: `[Demo Pha 1] Rút về ${bankName} (${accountNumber})`
                     })
                 });
 
@@ -1597,7 +1615,48 @@
                     showToast(data.message || 'Rút tiền thất bại', 'error');
                 }
             } catch (err) {
-                showToast(`Lỗi rút tiền: ${err.message}`, 'error');
+                showToast(`Lỗi rút tiền Pha 1: ${err.message}`, 'error');
+            }
+        }
+
+        async function submitWithdrawInstant() {
+            if (!authToken) {
+                showToast('Vui lòng đăng nhập để rút tiền.', 'warning');
+                openLoginModal();
+                return;
+            }
+
+            const amount = parseFloat(document.getElementById('wdAmountInput').value);
+            const bankCode = document.getElementById('wdBankCodeInput').value;
+            const bankName = document.getElementById('wdBankCodeInput').options[document.getElementById('wdBankCodeInput').selectedIndex].text;
+            const accountNumber = document.getElementById('wdAccountNumberInput').value;
+            const accountHolder = document.getElementById('wdAccountHolderInput').value;
+
+            try {
+                const res = await apiFetch('/api/Wallets/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: amount,
+                        destinationBankCode: bankCode,
+                        destinationBankName: bankName,
+                        destinationAccountNumber: accountNumber,
+                        destinationAccountHolderName: accountHolder,
+                        note: `Rút tiền tức thời về ${bankName} (${accountNumber})`
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess) && data.data) {
+                    const tx = data.data;
+                    document.getElementById('simWdCodeInput').value = tx.transactionCode;
+                    showToast(`⚡ Rút tiền thực tế THÀNH CÔNG! Đã tự động sinh 2 sổ cái kép liên tiếp (WITHDRAW_LOCK & WITHDRAW_COMPLETED). Mã GD: ${tx.transactionCode}`, 'success', 6000);
+                    await refreshAllData();
+                } else {
+                    showToast(data.message || 'Rút tiền thất bại', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi rút tiền thực tế: ${err.message}`, 'error');
             }
         }
 
@@ -1609,14 +1668,15 @@
             }
 
             try {
-                const res = await apiFetch('/api/MockBankPayout/simulate-callback', {
+                const endpoint = isSuccess ? '/api/MockBankPayout/phase2a-success' : '/api/MockBankPayout/phase2b-failed';
+                const body = isSuccess
+                    ? { transactionCode: code, externalBankRef: 'PAYOUT-VCB-' + Math.floor(Math.random() * 900000 + 100000) }
+                    : { transactionCode: code, failureReason: 'Tài khoản thụ hưởng không tồn tại hoặc bị đóng băng tại ngân hàng đích.' };
+
+                const res = await apiFetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        transactionCode: code,
-                        isSuccess: isSuccess,
-                        failureReason: isSuccess ? null : 'Tài khoản thụ hưởng không tồn tại tại ngân hàng đích.'
-                    })
+                    body: JSON.stringify(body)
                 });
 
                 const data = await res.json();
@@ -1626,19 +1686,21 @@
                     if (isSuccess) {
                         resultBox.innerHTML = `
                         <div class="syntax-box" style="border-color: var(--emerald);">
-                            <span class="badge badge-green">Pha 2A Hoàn Tất</span>
+                            <span class="badge badge-green">Pha 2A Hoàn Tất (COMPLETED)</span>
                             <div style="margin-top: 6px; color: #34d399; font-weight: 600;">Chi trả thành công! Sổ cái đã ghi: Nợ 2020 (Phong tỏa) / Có 1010 (Ngân hàng).</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Mã GD: <code>${code}</code> | Trạng thái: <span class="text-emerald font-mono">COMPLETED</span></div>
                         </div>
                     `;
-                        showToast('Bank Payout THÀNH CÔNG (Pha 2A)!', 'success');
+                        showToast('Bank Payout THÀNH CÔNG (Pha 2A)! Đã ghi Sổ cái Nợ 2020 / Có 1010.', 'success');
                     } else {
                         resultBox.innerHTML = `
                         <div class="syntax-box" style="border-color: var(--rose);">
-                            <span class="badge badge-red">Pha 2B Thất Bại & Đã Hoàn Tiền</span>
+                            <span class="badge badge-red">Pha 2B Thất Bại & Đã Hoàn Tiền (CANCELLED)</span>
                             <div style="margin-top: 6px; color: #fda4af; font-weight: 600;">Payout thất bại! Sổ cái tự động hoàn tiền: Nợ 2020 (Phong tỏa) / Có 2010 (Khả dụng).</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Mã GD: <code>${code}</code> | Trạng thái: <span class="text-rose font-mono">CANCELLED</span></div>
                         </div>
                     `;
-                        showToast('Bank Payout THẤT BẠI - Đã tự động hoàn tiền (Pha 2B)!', 'warning');
+                        showToast('Bank Payout THẤT BẠI - Đã tự động hoàn tiền về ví (Pha 2B)!', 'warning');
                     }
                     await refreshAllData();
                 } else {
@@ -1653,7 +1715,12 @@
         async function loadLedgerJournals() {
             if (!authToken) return;
             try {
-                const res = await apiFetch('/api/Wallets/admin/ledger/journals?pageIndex=1&pageSize=30');
+                const typeFilter = document.getElementById('journalTypeFilter')?.value || '';
+                const url = typeFilter 
+                    ? `/api/Wallets/admin/ledger/journals?transactionType=${typeFilter}&pageIndex=1&pageSize=30`
+                    : `/api/Wallets/admin/ledger/journals?pageIndex=1&pageSize=30`;
+
+                const res = await apiFetch(url);
                 const data = await res.json();
                 const tbody = document.getElementById('journalsTableBody');
 
@@ -1674,7 +1741,7 @@
                     </tr>
                 `).join('');
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Chưa có chứng từ nào được ghi nhận.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Không tìm thấy chứng từ nào ${typeFilter ? `cho nghiệp vụ ${typeFilter}` : ''}.</td></tr>`;
                 }
             } catch (err) {
                 console.error(err);

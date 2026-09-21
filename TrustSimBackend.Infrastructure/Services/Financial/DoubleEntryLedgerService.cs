@@ -358,14 +358,17 @@ public class DoubleEntryLedgerService : ILedgerService
         var additionalAmount = totalEscrowAmount - existingDepositAmount;
         var entries = new List<LedgerEntryParam>();
 
-        if (additionalAmount > 0)
+        if (existingDepositAmount > 0)
         {
-            entries.Add(new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.DEBIT, additionalAmount, buyerWalletId, "Khóa phần tiền thanh toán bổ sung cho Escrow"));
-            entries.Add(new(FinancialAccountType.USER_LOCKED, LedgerEntryType.CREDIT, additionalAmount, buyerWalletId, "Tạm khóa bổ sung"));
+            entries.Add(new(FinancialAccountType.USER_LOCKED, LedgerEntryType.DEBIT, existingDepositAmount, buyerWalletId, "Chuyển tiền cọc đấu giá vào quỹ Escrow"));
         }
 
-        entries.Add(new(FinancialAccountType.USER_LOCKED, LedgerEntryType.DEBIT, totalEscrowAmount, buyerWalletId, "Chuyển toàn bộ tiền cọc + bổ sung vào quỹ Escrow"));
-        entries.Add(new(FinancialAccountType.PLATFORM_ESCROW, LedgerEntryType.CREDIT, totalEscrowAmount, null, "Giữ ký quỹ trung gian Escrow bảo vệ hợp đồng"));
+        if (additionalAmount > 0)
+        {
+            entries.Add(new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.DEBIT, additionalAmount, buyerWalletId, "Khấu trừ số dư khả dụng bổ sung vào Escrow"));
+        }
+
+        entries.Add(new(FinancialAccountType.PLATFORM_ESCROW, LedgerEntryType.CREDIT, totalEscrowAmount, null, "Ký quỹ Escrow bảo đảm chuyển nhượng SIM"));
 
         return await PostJournalAsync(
             LedgerTransactionType.ESCROW_HOLD,

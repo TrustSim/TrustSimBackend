@@ -7,6 +7,17 @@ namespace TrustSimBackend.Application.Common.Interfaces;
 public interface IMockBankPayoutGatewayService
 {
     /// <summary>
+    /// Giả lập gửi lệnh chi hộ sang ngân hàng và nhận kết quả tức thời (dùng cho luồng rút tiền thực tế trong Web App).
+    /// </summary>
+    Task<string> RequestInstantPayoutAsync(
+        string bankCode,
+        string accountNumber,
+        string accountHolderName,
+        decimal amount,
+        string transactionCode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Giả lập ngân hàng gửi Webhook Callback xác nhận kết quả chi trả tiền rút.
     /// </summary>
     /// <param name="transactionCode">Mã giao dịch rút tiền nội bộ (VD: "TS-WD-9812").</param>

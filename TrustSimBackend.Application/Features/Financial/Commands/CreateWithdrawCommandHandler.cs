@@ -10,19 +10,23 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 /// <summary>
-/// Xử lý yêu cầu rút tiền của người dùng (Pha 1: Khóa số dư qua Sổ cái kép &amp; chờ Payout ngân hàng).
+/// Xử lý yêu cầu rút tiền thực tế của người dùng (Tự động hoàn tất 2 Pha nguyên tử: Lock -> Mock Bank Payout -> Complete).
+/// Luôn tạo đủ 2 Chứng từ Sổ cái Kép (WITHDRAW_LOCK và WITHDRAW_COMPLETED).
 /// </summary>
 public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawCommand, WalletTransactionDto>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILedgerService _ledgerService;
+    private readonly IMockBankPayoutGatewayService _mockBankPayoutGatewayService;
 
     public CreateWithdrawCommandHandler(
         IUnitOfWork unitOfWork,
-        ILedgerService ledgerService)
+        ILedgerService ledgerService,
+        IMockBankPayoutGatewayService mockBankPayoutGatewayService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
+        _mockBankPayoutGatewayService = mockBankPayoutGatewayService;
     }
 
     public async Task<WalletTransactionDto> Handle(CreateWithdrawCommand request, CancellationToken cancellationToken)
@@ -62,24 +66,41 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
 
         var balanceBefore = wallet.AvailableBalance;
 
-        // 1. Ghi nhận sổ cái kép Pha 1 (Nợ 2010 USER_AVAILABLE / Có 2020 USER_LOCKED)
-        var journal = await _ledgerService.PostWithdrawLockAsync(
+        // [PHA 1]: Ghi nhận sổ cái kép Pha 1 (Nợ 2010 USER_AVAILABLE / Có 2020 USER_LOCKED)
+        var lockJournal = await _ledgerService.PostWithdrawLockAsync(
             wallet.Id,
             request.Amount,
             transactionCode,
             idempotencyKey: $"WD-LOCK-{transactionCode}",
             cancellationToken: cancellationToken);
 
+        // [MOCK BANK PAYOUT]: Gọi dịch vụ chi hộ ngân hàng Sandbox (luôn thành công)
+        var externalPayoutRef = await _mockBankPayoutGatewayService.RequestInstantPayoutAsync(
+            request.DestinationBankCode.Trim(),
+            accNumber,
+            request.DestinationAccountHolderName.Trim(),
+            request.Amount,
+            transactionCode,
+            cancellationToken);
+
+        // [PHA 2]: Ghi nhận sổ cái kép Pha 2 (Nợ 2020 USER_LOCKED / Có 1010 EXTERNAL_GATEWAY_CLEARING)
+        var completeJournal = await _ledgerService.PostWithdrawCompleteAsync(
+            wallet.Id,
+            request.Amount,
+            transactionCode,
+            externalPayoutRef,
+            cancellationToken);
+
         var now = DateTime.UtcNow;
 
-        // 2. Tạo bản ghi WalletTransaction (Status = PENDING)
+        // 3. Tạo bản ghi WalletTransaction với trạng thái COMPLETED
         var transaction = new WalletTransaction
         {
             Id = Guid.NewGuid(),
             WalletId = wallet.Id,
             TransactionCode = transactionCode,
             Amount = request.Amount,
-            TransactionStatus = TransactionStatus.PENDING,
+            TransactionStatus = TransactionStatus.COMPLETED,
             WalletTransactionType = WalletTransactionType.WITHDRAW,
             BalanceBefore = balanceBefore,
             BalanceAfter = wallet.AvailableBalance,
@@ -88,11 +109,13 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
             DestinationAccountNumber = accNumber,
             DestinationAccountNumberMasked = maskedAccount,
             DestinationAccountHolderName = request.DestinationAccountHolderName.Trim().ToUpperInvariant(),
-            Description = request.Note ?? $"Yêu cầu rút tiền về {request.DestinationBankName} ({maskedAccount}) - Chứng từ #{journal.JournalCode}",
-            CreatedAt = now
+            ExternalTransactionId = externalPayoutRef,
+            Description = request.Note ?? $"Rút tiền về {request.DestinationBankName} ({maskedAccount}) - Chứng từ #{lockJournal.JournalCode} & #{completeJournal.JournalCode}",
+            CreatedAt = now,
+            CompletedAt = now
         };
 
-        // 3. Tạo PaymentIntent (Type = WITHDRAW, Status = PROCESSING)
+        // 4. Tạo PaymentIntent với trạng thái SUCCEEDED
         var paymentIntent = new PaymentIntent
         {
             Id = Guid.NewGuid(),
@@ -100,13 +123,15 @@ public class CreateWithdrawCommandHandler : IRequestHandler<CreateWithdrawComman
             UserId = request.UserId,
             WalletId = wallet.Id,
             IntentType = PaymentIntentType.WITHDRAW,
-            Status = PaymentIntentStatus.PROCESSING,
+            Status = PaymentIntentStatus.SUCCEEDED,
             Amount = request.Amount,
             Currency = "VND",
             IdempotencyKey = $"WD-INTENT-{transactionCode}",
-            GatewayProvider = "BankPayout",
+            GatewayProvider = "MockBankPayout",
+            ExternalTransactionId = externalPayoutRef,
             PaymentDetails = $"Rút về {request.DestinationBankName} - STK: {accNumber} - Chủ TK: {request.DestinationAccountHolderName.Trim().ToUpperInvariant()}",
-            CreatedDate = now
+            CreatedDate = now,
+            SucceededAt = now
         };
 
         await _unitOfWork.WalletTransactions.AddAsync(transaction, cancellationToken);

@@ -9,10 +9,8 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 /// <summary>
-/// Command xử lý Webhook Callback từ Cổng chi hộ ngân hàng đối với yêu cầu rút tiền (Pha 2).
+/// Handler xử lý Webhook Callback từ Cổng chi hộ ngân hàng đối với yêu cầu rút tiền (Pha 2).
 /// </summary>
-public record ProcessWithdrawCallbackCommand(ProcessWithdrawCallbackRequest CallbackData) : IRequest<bool>;
-
 public class ProcessWithdrawCallbackCommandHandler : IRequestHandler<ProcessWithdrawCallbackCommand, bool>
 {
     private readonly IUnitOfWork _unitOfWork;

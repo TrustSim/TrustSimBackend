@@ -26,9 +26,18 @@ public class LedgerEntryRepository : ILedgerEntryRepository
 
     public async Task<LedgerEntry?> GetLastEntryAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.LedgerEntries
+        var localMax = _context.LedgerEntries.Local
+            .OrderByDescending(e => e.SequenceNumber)
+            .FirstOrDefault();
+
+        var dbMax = await _context.LedgerEntries
             .OrderByDescending(e => e.SequenceNumber)
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (localMax == null) return dbMax;
+        if (dbMax == null) return localMax;
+
+        return localMax.SequenceNumber >= dbMax.SequenceNumber ? localMax : dbMax;
     }
 
     public async Task<IReadOnlyList<LedgerEntry>> GetByJournalIdAsync(Guid journalId, CancellationToken cancellationToken = default)

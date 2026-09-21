@@ -63,9 +63,10 @@ public class WalletsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<DepositResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateDeposit([FromBody] CreateDepositCommand command)
+    public async Task<IActionResult> CreateDeposit([FromBody] CreateDepositRequest request)
     {
-        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        var command = new CreateDepositCommand(request.Amount, request.Note, CurrentUserId);
+        var result = await Mediator.Send(command);
         return Ok(ApiResponse<DepositResponseDto>.SuccessResult(result, "Tạo yêu cầu nạp tiền thành công. Vui lòng thanh toán theo thông tin hướng dẫn."));
     }
 
@@ -76,9 +77,18 @@ public class WalletsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<WalletTransactionDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateWithdraw([FromBody] CreateWithdrawCommand command)
+    public async Task<IActionResult> CreateWithdraw([FromBody] CreateWithdrawRequest request)
     {
-        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        var command = new CreateWithdrawCommand(
+            request.Amount,
+            request.DestinationBankCode,
+            request.DestinationBankName,
+            request.DestinationAccountNumber,
+            request.DestinationAccountHolderName,
+            request.Note,
+            CurrentUserId);
+
+        var result = await Mediator.Send(command);
         return Ok(ApiResponse<WalletTransactionDto>.SuccessResult(result, "Rút tiền thành công."));
     }
 
@@ -136,9 +146,9 @@ public class WalletsController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AdminApproveWithdraw([FromRoute] Guid id, [FromQuery] string? note)
+    public async Task<IActionResult> AdminApproveWithdraw([FromRoute] Guid id, [FromBody] ApproveWithdrawRequest? request = null)
     {
-        var command = new ApproveWithdrawCommand(id, note, CurrentUserId);
+        var command = new ApproveWithdrawCommand(id, request?.Note, CurrentUserId);
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<bool>.SuccessResult(result, "Duyệt yêu cầu rút tiền thành công."));
     }
@@ -150,9 +160,10 @@ public class WalletsController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AdminRejectWithdraw([FromRoute] Guid id, [FromBody] RejectWithdrawCommand command)
+    public async Task<IActionResult> AdminRejectWithdraw([FromRoute] Guid id, [FromBody] RejectWithdrawRequest request)
     {
-        var result = await Mediator.Send(command with { TransactionId = id, AdminId = CurrentUserId });
+        var command = new RejectWithdrawCommand(id, request.Reason, CurrentUserId);
+        var result = await Mediator.Send(command);
         return Ok(ApiResponse<bool>.SuccessResult(result, "Từ chối yêu cầu rút tiền và hoàn tiền vào ví người dùng thành công."));
     }
 
@@ -180,10 +191,10 @@ public class WalletsController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> AdminFreezeWallet([FromRoute] Guid id, [FromQuery] bool freeze)
+    public async Task<IActionResult> AdminFreezeWallet([FromRoute] Guid id, [FromBody] AdminFreezeWalletRequest request)
     {
-        var result = await Mediator.Send(new AdminFreezeWalletCommand(id, freeze));
-        var msg = freeze ? "Đã đóng băng ví người dùng thành công." : "Đã mở đóng băng ví người dùng thành công.";
+        var result = await Mediator.Send(new AdminFreezeWalletCommand(id, request.Freeze));
+        var msg = request.Freeze ? "Đã đóng băng ví người dùng thành công." : "Đã mở đóng băng ví người dùng thành công.";
         return Ok(ApiResponse<bool>.SuccessResult(result, msg));
     }
 
@@ -194,9 +205,9 @@ public class WalletsController : BaseApiController
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AdminAdjustBalance([FromRoute] Guid id, [FromQuery] decimal amount, [FromQuery] string reason)
+    public async Task<IActionResult> AdminAdjustBalance([FromRoute] Guid id, [FromBody] AdminAdjustBalanceRequest request)
     {
-        var command = new AdminAdjustBalanceCommand(id, amount, reason, CurrentUserId);
+        var command = new AdminAdjustBalanceCommand(id, request.Amount, request.Reason, CurrentUserId);
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<bool>.SuccessResult(result, "Điều chỉnh số dư ví thành công."));
     }
