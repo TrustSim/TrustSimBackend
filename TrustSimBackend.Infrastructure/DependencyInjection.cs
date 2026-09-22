@@ -159,13 +159,16 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(25);
         });
 
-        // 6 Native Semantic Kernel Plugins
+        // 9 Native Semantic Kernel Plugins
         services.AddScoped<SimInventoryPlugin>();
         services.AddScoped<FengShuiKnowledgePlugin>();
         services.AddScoped<SimCadencePlugin>();
         services.AddScoped<AuctionPlugin>();
         services.AddScoped<TradeAndEscrowPlugin>();
         services.AddScoped<UserWalletPlugin>();
+        services.AddScoped<SimValuationPlugin>();
+        services.AddScoped<SimMarketHistoryPlugin>();
+        services.AddScoped<CarrierPolicyPlugin>();
 
         // Semantic Kernel Core Registration
         services.AddTransient<Kernel>(sp =>
@@ -181,7 +184,7 @@ public static class DependencyInjection
 
                 var chatModel = !string.IsNullOrWhiteSpace(geminiOptions.ChatModel)
                     ? geminiOptions.ChatModel
-                    : "gemini-1.5-flash";
+                    : "gemini-3.1-flash-lite";
 
 #pragma warning disable SKEXP0010
                 builder.AddOpenAIChatCompletion(
@@ -192,13 +195,16 @@ public static class DependencyInjection
 #pragma warning restore SKEXP0010
             }
 
-            // Đăng ký 6 Native Plugins vào Kernel
+            // Đăng ký 9 Native Plugins vào Kernel
             builder.Plugins.AddFromObject(sp.GetRequiredService<SimInventoryPlugin>(), "SimInventoryPlugin");
             builder.Plugins.AddFromObject(sp.GetRequiredService<FengShuiKnowledgePlugin>(), "FengShuiKnowledgePlugin");
             builder.Plugins.AddFromObject(sp.GetRequiredService<SimCadencePlugin>(), "SimCadencePlugin");
             builder.Plugins.AddFromObject(sp.GetRequiredService<AuctionPlugin>(), "AuctionPlugin");
             builder.Plugins.AddFromObject(sp.GetRequiredService<TradeAndEscrowPlugin>(), "TradeAndEscrowPlugin");
             builder.Plugins.AddFromObject(sp.GetRequiredService<UserWalletPlugin>(), "UserWalletPlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<SimValuationPlugin>(), "SimValuationPlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<SimMarketHistoryPlugin>(), "SimMarketHistoryPlugin");
+            builder.Plugins.AddFromObject(sp.GetRequiredService<CarrierPolicyPlugin>(), "CarrierPolicyPlugin");
 
             return builder.Build();
         });

@@ -288,7 +288,9 @@ public static class DbSeeder
             await context.SaveChangesAsync();
         }
 
-        if (await context.UserAccounts.AnyAsync(u => u.UserName == "seller_vip_phuquy")) return;
+        // 2. Lấy danh mục RoleId chuẩn từ bảng Roles
+        var roles = await context.Roles.ToListAsync();
+        var roleDict = roles.ToDictionary(r => (r.NormalizedName ?? r.Name!).ToUpperInvariant(), r => r.Id);
 
         var usersData = new[]
         {
@@ -306,70 +308,99 @@ public static class DbSeeder
 
         foreach (var u in usersData)
         {
-            var existing = await context.UserAccounts.FirstOrDefaultAsync(x => x.Id == u.Id || x.UserName == u.UserName);
-            if (existing != null) continue;
-
-            var user = new UserAccount
+            var existingUser = await context.UserAccounts.FirstOrDefaultAsync(x => x.Id == u.Id || x.UserName == u.UserName);
+            if (existingUser == null)
             {
-                Id = u.Id,
-                UserName = u.UserName,
-                NormalizedUserName = u.UserName.ToUpperInvariant(),
-                Email = u.Email,
-                NormalizedEmail = u.Email.ToUpperInvariant(),
-                EmailConfirmed = true,
-                PasswordHash = DefaultPasswordHash,
-                SecurityStamp = Guid.NewGuid().ToString(),
-                ConcurrencyStamp = Guid.NewGuid().ToString(),
-                Role = u.Role,
-                IsActive = true
-            };
-
-            var profile = new UserProfile
-            {
-                Id = u.ProfileId,
-                UserAccountId = u.Id,
-                FullName = u.FullName,
-                DateOfBirth = u.Dob,
-                Email = u.Email,
-                PhoneNumber = u.Phone,
-                Address = "Hà Nội / TP.HCM",
-                IdentityNumber = u.Identity,
-                AvatarImg = "https://assets.trustsim.vn/avatars/default.png",
-                VerificationStatus = u.Status,
-                IsActive = true
-            };
-
-            var wallet = new Wallet
-            {
-                Id = u.WalletId,
-                UserAccountId = u.Id,
-                AvailableBalance = u.Available,
-                LockedBalance = u.Locked,
-                WalletStatus = u.UserName == "user_suspicious_bot" ? WalletStatus.FROZEN : WalletStatus.ACTIVE,
-                LockVersion = u.Locked > 0 ? 1 : 0,
-                IsActive = true
-            };
-
-            user.UserProfile = profile;
-            user.Wallet = wallet;
-
-            if (u.HasPki)
-            {
-                var sec = new UserSecurityProfile
+                existingUser = new UserAccount
                 {
-                    Id = u.SecurityId,
-                    UserAccountId = u.Id,
-                    PublicKey = $"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA_{u.UserName}...",
-                    EncryptedPrivateKey = $"U2FsdGVkX1+v_{u.UserName}_EncryptedPrivateKey...",
-                    KeyHash = DefaultPasswordHash,
-                    KeyGeneratedAt = DateTime.UtcNow,
-                    UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE,
+                    Id = u.Id,
+                    UserName = u.UserName,
+                    NormalizedUserName = u.UserName.ToUpperInvariant(),
+                    Email = u.Email,
+                    NormalizedEmail = u.Email.ToUpperInvariant(),
+                    EmailConfirmed = true,
+                    PasswordHash = DefaultPasswordHash,
+                    SecurityStamp = Guid.NewGuid().ToString(),
+                    ConcurrencyStamp = Guid.NewGuid().ToString(),
+                    Role = u.Role,
                     IsActive = true
                 };
-                user.UserSecurityProfile = sec;
+                await context.UserAccounts.AddAsync(existingUser);
             }
 
-            await context.UserAccounts.AddAsync(user);
+            // Bù đắp UserProfile nếu chưa có
+            var existingProfile = await context.UserProfiles.FirstOrDefaultAsync(p => p.Id == u.ProfileId || p.UserAccountId == u.Id);
+            if (existingProfile == null)
+            {
+                var profile = new UserProfile
+                {
+                    Id = u.ProfileId,
+                    UserAccountId = u.Id,
+                    FullName = u.FullName,
+                    DateOfBirth = u.Dob,
+                    Email = u.Email,
+                    PhoneNumber = u.Phone,
+                    Address = "Hà Nội / TP.HCM",
+                    IdentityNumber = u.Identity,
+                    AvatarImg = "https://assets.trustsim.vn/avatars/default.png",
+                    VerificationStatus = u.Status,
+                    IsActive = true
+                };
+                await context.UserProfiles.AddAsync(profile);
+            }
+
+            // Bù đắp Wallet nếu chưa có
+            var existingWallet = await context.Wallets.FirstOrDefaultAsync(w => w.Id == u.WalletId || w.UserAccountId == u.Id);
+            if (existingWallet == null)
+            {
+                var wallet = new Wallet
+                {
+                    Id = u.WalletId,
+                    UserAccountId = u.Id,
+                    AvailableBalance = u.Available,
+                    LockedBalance = u.Locked,
+                    WalletStatus = u.UserName == "user_suspicious_bot" ? WalletStatus.FROZEN : WalletStatus.ACTIVE,
+                    LockVersion = u.Locked > 0 ? 1 : 0,
+                    IsActive = true
+                };
+                await context.Wallets.AddAsync(wallet);
+            }
+
+            // Bù đắp UserSecurityProfile nếu cần
+            if (u.HasPki)
+            {
+                var existingSec = await context.UserSecurityProfiles.FirstOrDefaultAsync(s => s.Id == u.SecurityId || s.UserAccountId == u.Id);
+                if (existingSec == null)
+                {
+                    var sec = new UserSecurityProfile
+                    {
+                        Id = u.SecurityId,
+                        UserAccountId = u.Id,
+                        PublicKey = $"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA_{u.UserName}...",
+                        EncryptedPrivateKey = $"U2FsdGVkX1+v_{u.UserName}_EncryptedPrivateKey...",
+                        KeyHash = DefaultPasswordHash,
+                        KeyGeneratedAt = DateTime.UtcNow,
+                        UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE,
+                        IsActive = true
+                    };
+                    await context.UserSecurityProfiles.AddAsync(sec);
+                }
+            }
+
+            // NẠP VÀ ĐỒNG BỘ BẢNG user_role (IdentityUserRole<Guid>)
+            var roleKey = u.Role.ToString().ToUpperInvariant();
+            if (roleDict.TryGetValue(roleKey, out var roleId))
+            {
+                var hasUserRole = await context.UserRoles.AnyAsync(ur => ur.UserId == u.Id && ur.RoleId == roleId);
+                if (!hasUserRole)
+                {
+                    await context.UserRoles.AddAsync(new IdentityUserRole<Guid>
+                    {
+                        UserId = u.Id,
+                        RoleId = roleId
+                    });
+                }
+            }
         }
 
         await context.SaveChangesAsync();

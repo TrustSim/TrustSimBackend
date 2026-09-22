@@ -22,6 +22,9 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.Property(rt => rt.CreatedByIp)
             .HasMaxLength(50);
 
+        builder.Property(rt => rt.DeviceInfo)
+            .HasMaxLength(500);
+
         builder.Property(rt => rt.RevokedByIp)
             .HasMaxLength(50);
 
@@ -37,6 +40,10 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
 
         // Đánh Index trên UserAccountId để truy vấn nhanh danh sách token của user khi thu hồi
         builder.HasIndex(rt => rt.UserAccountId);
+
+        // Đánh Composite Index phục vụ kiểm tra và thu hồi hàng loạt token hợp lệ
+        builder.HasIndex(rt => new { rt.UserAccountId, rt.IsRevoked, rt.ExpiresAt })
+            .HasDatabaseName("ix_refresh_tokens_user_revoked_expires");
 
         // Cấu hình Foreign Key với UserAccount
         builder.HasOne(rt => rt.UserAccount)

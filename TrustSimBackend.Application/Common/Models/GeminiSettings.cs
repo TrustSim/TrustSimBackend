@@ -13,8 +13,8 @@ public class GeminiSettings
     /// <summary>Endpoint OpenAI-compatible của Google Gemini (mặc định: https://generativelanguage.googleapis.com/v1beta/openai/)</summary>
     public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta/openai/";
 
-    /// <summary>Tên mô hình Chat chính (mặc định: gemini-1.5-flash)</summary>
-    public string ChatModel { get; set; } = "gemini-1.5-flash";
+    /// <summary>Tên mô hình Chat chính (mặc định: gemini-3.1-flash-lite)</summary>
+    public string ChatModel { get; set; } = "gemini-3.1-flash-lite";
 
     /// <summary>Tên mô hình Embedding chính (mặc định: text-embedding-004)</summary>
     public string EmbeddingModel { get; set; } = "text-embedding-004";

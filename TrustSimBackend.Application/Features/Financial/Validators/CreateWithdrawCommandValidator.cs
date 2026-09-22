@@ -11,12 +11,14 @@ public class CreateWithdrawCommandValidator : AbstractValidator<CreateWithdrawCo
             .NotEmpty().WithMessage("UserId không được để trống.");
 
         RuleFor(v => v.Amount)
-            .GreaterThanOrEqualTo(10_000).WithMessage("Số tiền rút tối thiểu là 10,000 VNĐ.")
-            .LessThanOrEqualTo(100_000_000).WithMessage("Số tiền rút tối đa mỗi lần là 100,000,000 VNĐ.");
+            .GreaterThanOrEqualTo(50_000).WithMessage("Số tiền rút tối thiểu là 50,000 VNĐ.")
+            .LessThanOrEqualTo(100_000_000).WithMessage("Số tiền rút tối đa mỗi lần là 100,000,000 VNĐ.")
+            .Must(a => a == Math.Floor(a)).WithMessage("Số tiền rút phải là số nguyên VNĐ (không có phần thập phân).");
 
         RuleFor(v => v.DestinationBankCode)
             .NotEmpty().WithMessage("Mã ngân hàng nhận không được để trống.")
-            .MaximumLength(50).WithMessage("Mã ngân hàng không vượt quá 50 ký tự.");
+            .Matches(@"^[A-Za-z0-9_-]{2,20}$").WithMessage("Mã ngân hàng phải từ 2 đến 20 ký tự chữ hoặc số.")
+            .MaximumLength(20).WithMessage("Mã ngân hàng không vượt quá 20 ký tự.");
 
         RuleFor(v => v.DestinationBankName)
             .NotEmpty().WithMessage("Tên ngân hàng nhận không được để trống.")
@@ -29,9 +31,12 @@ public class CreateWithdrawCommandValidator : AbstractValidator<CreateWithdrawCo
 
         RuleFor(v => v.DestinationAccountHolderName)
             .NotEmpty().WithMessage("Tên chủ tài khoản không được để trống.")
+            .Matches(@"^[a-zA-ZÀ-ỹ\s]+$").WithMessage("Tên chủ tài khoản chỉ được chứa chữ cái và khoảng trắng.")
             .MaximumLength(150).WithMessage("Tên chủ tài khoản không vượt quá 150 ký tự.");
 
         RuleFor(v => v.Note)
-            .MaximumLength(255).WithMessage("Ghi chú rút tiền không vượt quá 255 ký tự.");
+            .MaximumLength(255).WithMessage("Ghi chú rút tiền không vượt quá 255 ký tự.")
+            .When(v => !string.IsNullOrEmpty(v.Note));
     }
 }
+
