@@ -36,8 +36,56 @@ public class SimValuationMathEngine : ISimValuationMathEngine
             fengShuiFactor *= 1.15f; // Thưởng +15% nếu đuôi số vượng khí 8, 9, 68, 79
         }
 
-        // Áp dụng công thức
+        // Áp dụng công thức cơ sở
         decimal calculatedPrice = p0 * (decimal)prefixFactor * (decimal)rhythmFactor * (decimal)categoryFactor * (decimal)fengShuiFactor;
+
+        // Phân cấp thị trường thực tế (5 Phân khúc thị trường SIM Việt Nam tham chiếu Sim Thăng Long & Chợ Sim 24h)
+        decimal tierFloorPrice = 0m;
+        foreach (var cat in features.DetectedCategories)
+        {
+            switch (cat.CategoryCode)
+            {
+                case "BAT_QUY":
+                case "CUU_QUY":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 15_000_000_000m);
+                    break;
+                case "LUC_QUY":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 4_500_000_000m);
+                    break;
+                case "NGU_QUY_VIP_DAU_CO":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 1_500_000_000m);
+                    break;
+                case "NGU_QUY":
+                    tierFloorPrice = Math.Max(tierFloorPrice, features.PrefixReputationScore >= 1.3f ? 450_000_000m : 250_000_000m);
+                    break;
+                case "DAI_TAXI_86":
+                case "DAI_TAXI_68":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 1_200_000_000m);
+                    break;
+                case "SANH_RONG":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 800_000_000m);
+                    break;
+                case "TU_QUY_VIP_DAU_CO":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 350_000_000m);
+                    break;
+                case "TU_QUY":
+                    tierFloorPrice = Math.Max(tierFloorPrice, features.PrefixReputationScore >= 1.3f ? 120_000_000m : 60_000_000m);
+                    break;
+                case "SANH_TIEN_6789":
+                    tierFloorPrice = Math.Max(tierFloorPrice, 80_000_000m);
+                    break;
+            }
+        }
+
+        if (tierFloorPrice > 0m)
+        {
+            calculatedPrice = Math.Max(calculatedPrice, tierFloorPrice);
+        }
+        else if (features.DetectedCategories.Count == 0 || features.DetectedCategories.All(c => c.Multiplier <= 1.5f))
+        {
+            // Phổ thông / số phụ: giữ mức giá hợp lý dưới 800.000 VNĐ
+            calculatedPrice = Math.Min(calculatedPrice, 450_000m);
+        }
 
         // Làm tròn giá tiền theo chuẩn thị trường
         calculatedPrice = RoundToCommercialPrice(calculatedPrice);

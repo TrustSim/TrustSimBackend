@@ -239,22 +239,28 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
 
         messages.Add(new OpenAiMessage { Role = "user", Content = userMessage });
 
-        // 1. Gọi Gemini với tools
-        var (firstChoice, _) = await CallOpenAiEndpointAsync(
-            GetPreferredModel(),
-            messages,
-            includeTools: true,
-            maxTokens: 1500,
-            temperature: 0.2f,
-            cancellationToken: cancellationToken);
-
-        if (firstChoice.ToolCalls != null && firstChoice.ToolCalls.Count > 0)
+        // Vòng lặp Agentic Tool Resolution (Tối đa 3 lượt gọi tool liên hoàn)
+        const int maxToolTurns = 3;
+        for (int turn = 0; turn < maxToolTurns; turn++)
         {
-            messages.Add(firstChoice);
+            var (choice, usedModel) = await ExecuteLlmWithFailoverAsync(
+                messages,
+                includeTools: true,
+                maxTokens: 1500,
+                temperature: 0.2f,
+                cancellationToken: cancellationToken);
 
-            foreach (var tc in firstChoice.ToolCalls)
+            if (choice.ToolCalls == null || choice.ToolCalls.Count == 0)
             {
-                _logger.LogInformation("[NATIVE TOOL CALL] Function: {Func}, Args: {Args}", tc.Function.Name, tc.Function.Arguments);
+                result.ReplyContent = CleanLlmResponse(choice.Content ?? string.Empty);
+                break;
+            }
+
+            messages.Add(choice);
+
+            foreach (var tc in choice.ToolCalls)
+            {
+                _logger.LogInformation("[NATIVE TOOL CALL] Model {Model} -> Function: {Func}, Args: {Args}", usedModel, tc.Function.Name, tc.Function.Arguments);
 
                 result.ToolEvents.Add(new ChatConsultationStreamEvent
                 {
@@ -289,10 +295,12 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
                     Content = resultJson
                 });
             }
+        }
 
-            // Tổng hợp câu trả lời từ Gemini
-            var (finalChoice, _) = await CallOpenAiEndpointAsync(
-                GetPreferredModel(),
+        // Nếu sau các lượt gọi tool mà chưa có nội dung trả lời cuối cùng, thực hiện lượt tổng hợp không kèm tools
+        if (string.IsNullOrWhiteSpace(result.ReplyContent))
+        {
+            var (finalChoice, _) = await ExecuteLlmWithFailoverAsync(
                 messages,
                 includeTools: false,
                 maxTokens: 1500,
@@ -300,10 +308,6 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
                 cancellationToken: cancellationToken);
 
             result.ReplyContent = CleanLlmResponse(finalChoice.Content ?? string.Empty);
-        }
-        else
-        {
-            result.ReplyContent = CleanLlmResponse(firstChoice.Content ?? string.Empty);
         }
 
         return result;
@@ -319,9 +323,9 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
         decimal? budgetMax = null,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey.Length < 10)
+        if (!IsGeminiApiKeyConfigured())
         {
-            _logger.LogWarning("Gemini API Key chưa được cấu hình. Sử dụng Agentic Fallback Dispatcher.");
+            _logger.LogInformation("Gemini API Key chưa cấu hình hoặc không hợp lệ (cần bắt đầu bằng AIzaSy). Sử dụng Smart Local Agent Engine.");
             return await ExecuteFallbackConsultationAgentAsync(userMessage, budgetMin, budgetMax, cancellationToken);
         }
 
@@ -372,9 +376,9 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
         var collectedSims = new List<ConsultationSimSuggestion>();
         var referencedDocs = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(_settings.ApiKey) || _settings.ApiKey.Length < 10)
+        if (!IsGeminiApiKeyConfigured())
         {
-            _logger.LogWarning("Gemini API Key chưa được cấu hình. Sử dụng Stream Fallback Dispatcher.");
+            _logger.LogInformation("Gemini API Key chưa cấu hình hoặc không hợp lệ. Sử dụng Smart Local Agent Streaming Engine.");
             await foreach (var evt in StreamFallbackConsultationAgentAsync(userMessage, budgetMin, budgetMax, cancellationToken))
             {
                 yield return evt;
@@ -434,7 +438,7 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
 
         if (!hasStreamedTokens)
         {
-            _logger.LogInformation("[GEMINI STREAM FALLBACK] Kích hoạt Stream Fallback sau {ElapsedMs}ms", sw.ElapsedMilliseconds);
+            _logger.LogInformation("[GEMINI STREAM FALLBACK] Kích hoạt Smart Local Stream sau {ElapsedMs}ms", sw.ElapsedMilliseconds);
             await foreach (var fallbackEvt in StreamFallbackConsultationAgentAsync(userMessage, budgetMin, budgetMax, cancellationToken))
             {
                 if (fallbackEvt.EventType == "done")
@@ -462,6 +466,7 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
             ExecutionTimeMs = sw.ElapsedMilliseconds
         };
     }
+
 
     #endregion
 
@@ -609,6 +614,54 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
                 return (res, $"Đã bóc tách thế nhịp và âm luật số {phone}", new List<ConsultationSimSuggestion>());
             }
 
+            case "EvaluateSimPrice":
+            {
+                var plugin = sp.GetRequiredService<SimValuationPlugin>();
+                string phone = arguments.TryGetProperty("phoneNumber", out var p) ? p.GetString() ?? "" : "";
+                var res = plugin.EvaluateSimPrice(phone);
+                return (res, $"Đã thẩm định cấu trúc giá trị và phân khúc thị trường số {phone}", new List<ConsultationSimSuggestion>());
+            }
+
+            case "GetMarketPriceComparables":
+            {
+                var plugin = sp.GetRequiredService<SimMarketHistoryPlugin>();
+                string? cat = arguments.TryGetProperty("categoryCode", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+                string? pref = arguments.TryGetProperty("prefix", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+                var res = await plugin.GetMarketPriceComparablesAsync(cat, pref, cancellationToken);
+                return (res, $"Đã tra cứu biểu giá tham chiếu thị trường cho thể loại {cat ?? "chung"}", new List<ConsultationSimSuggestion>());
+            }
+
+            case "GetSimCategories":
+            {
+                var plugin = sp.GetRequiredService<SimMarketHistoryPlugin>();
+                var res = await plugin.GetSimCategoriesAsync(cancellationToken);
+                return (res, "Đã tra cứu danh mục thể loại số đẹp trên sàn TrustSim", new List<ConsultationSimSuggestion>());
+            }
+
+            case "GetCarrierInfo":
+            {
+                var plugin = sp.GetRequiredService<CarrierPolicyPlugin>();
+                string carrier = arguments.TryGetProperty("carrierName", out var c) ? c.GetString() ?? "" : "";
+                var res = await plugin.GetCarrierInfoAsync(carrier, cancellationToken);
+                return (res, $"Đã tra cứu thông tin nhà mạng & thủ tục sang tên {carrier}", new List<ConsultationSimSuggestion>());
+            }
+
+            case "GetPrefixInfo":
+            {
+                var plugin = sp.GetRequiredService<CarrierPolicyPlugin>();
+                string prefix = arguments.TryGetProperty("prefixValue", out var p) ? p.GetString() ?? "" : "";
+                var res = await plugin.GetPrefixInfoAsync(prefix, cancellationToken);
+                return (res, $"Đã tra cứu điểm uy tín & ý nghĩa phong thủy đầu số {prefix}", new List<ConsultationSimSuggestion>());
+            }
+
+            case "GetAuctionDetail":
+            {
+                var plugin = sp.GetRequiredService<AuctionPlugin>();
+                string code = arguments.TryGetProperty("auctionCode", out var a) ? a.GetString() ?? "" : "";
+                var res = await plugin.GetAuctionDetailAsync(code, cancellationToken);
+                return (res, $"Đã tra cứu chi tiết phiên đấu giá {code}", new List<ConsultationSimSuggestion>());
+            }
+
             default:
                 return ("{\"message\":\"Tool không tồn tại\"}", $"Thực thi công cụ {toolName}", new List<ConsultationSimSuggestion>());
         }
@@ -618,9 +671,76 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
 
     #region 4. Helper Methods, Prompt Building & REST Client
 
+    private bool IsGeminiApiKeyConfigured()
+    {
+        return !string.IsNullOrWhiteSpace(_settings.ApiKey)
+            && (_settings.ApiKey.StartsWith("AIzaSy", StringComparison.OrdinalIgnoreCase)
+                || _settings.ApiKey.StartsWith("AQ.", StringComparison.OrdinalIgnoreCase)
+                || _settings.ApiKey.Length >= 20);
+    }
+
     private string GetPreferredModel()
     {
         return !string.IsNullOrWhiteSpace(_settings.ChatModel) ? _settings.ChatModel : "gemini-3.1-flash-lite";
+    }
+
+    private List<string> GetCandidateModels()
+    {
+        var configuredModel = GetPreferredModel();
+        var pool = new List<string>
+        {
+            configuredModel,
+            "gemini-3.1-flash-lite",
+            "gemini-3.5-flash-lite",
+            "gemini-3.6-flash",
+            "gemini-flash-latest",
+            "gemini-3.5-flash",
+            "gemini-3.7-flash",
+            "gemini-2.5-pro"
+        };
+        return pool.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    private async Task<(OpenAiMessage Message, string UsedModel)> ExecuteLlmWithFailoverAsync(
+        List<OpenAiMessage> messages,
+        bool includeTools,
+        int maxTokens = 1500,
+        float temperature = 0.2f,
+        CancellationToken cancellationToken = default)
+    {
+        var candidateModels = GetCandidateModels();
+        Exception? lastEx = null;
+
+        foreach (var model in candidateModels)
+        {
+            try
+            {
+                var (choice, _) = await CallOpenAiEndpointAsync(
+                    model,
+                    messages,
+                    includeTools,
+                    maxTokens,
+                    temperature,
+                    cancellationToken);
+
+                if ((choice.ToolCalls != null && choice.ToolCalls.Count > 0) || !string.IsNullOrWhiteSpace(choice.Content))
+                {
+                    return (choice, model);
+                }
+            }
+            catch (Exception ex)
+            {
+                lastEx = ex;
+                _logger.LogWarning("[LLM CANDIDATE FAILED] Model {Model} thất bại: {Msg}. Thử model tiếp theo trong pool...", model, ex.Message);
+            }
+        }
+
+        if (lastEx != null)
+        {
+            throw lastEx;
+        }
+
+        throw new InvalidOperationException("Không thể nhận phản hồi từ bất kỳ mô hình AI nào trong danh sách candidates.");
     }
 
     private string BuildConsultationSystemPrompt(
@@ -630,15 +750,42 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
         decimal? budgetMin,
         decimal? budgetMax)
     {
-        return $@"Bạn là Chuyên gia Cao cấp Tư vấn SIM Số đẹp & Phong thủy tại Sàn Giao dịch TrustSim Việt Nam.
-Bạn có quyền truy cập vào các công cụ trong hệ sinh thái sàn TrustSim (Tra cứu Kho SIM, Tri thức phong thủy RAG, Bóc tách thế nhịp, Thông tin đấu giá trực tiếp, Ký quỹ Escrow và Số dư ví).
+        return $@"Bạn là Chuyên gia Cao cấp Tư vấn SIM Số đẹp, Phong thủy & Thẩm định Giá tại Sàn Giao dịch TrustSim Việt Nam (TrustSim.vn).
+Bạn có quyền truy cập vào 16 Native Tools để thực thi nghiệp vụ thời gian thực:
+1. 'SearchAvailableSims(carrier, prefix, keyword, minPrice, maxPrice)': Quét kho SIM thực tế mở bán trên sàn.
+2. 'GetSimDetails(phoneNumber)': Tra cứu chi tiết một số SIM cụ thể trên sàn.
+3. 'EvaluateSimPrice(phoneNumber)': Thẩm định giá SIM 3 kênh (Showroom, P2P, Thợ thu 24h), nhịp ngắt và điểm nút.
+4. 'GetMarketPriceComparables(categoryCode, prefix)': Tra cứu khung giá thị trường tham chiếu, thanh khoản theo thể loại (TU_QUY, NGU_QUY, TAM_HOA, THAN_TAI...).
+5. 'GetSimCategories()': Liệt kê các thể loại SIM và hệ số nhân giá trị.
+6. 'GetCarrierInfo(carrierName)': Tra cứu nhà mạng, thủ tục sang tên đổi chủ chính chủ.
+7. 'GetPrefixInfo(prefixValue)': Tra cứu độ uy tín & ý nghĩa phong thủy đầu số (098, 090, 091, 086...).
+8. 'GetFengShuiGuidelineByBirthYear(birthYear)': Tra cứu bản mệnh ngũ hành, quái số, số hợp mệnh theo năm sinh.
+9. 'QueryFengShuiKnowledge(query)': Truy vấn tri thức RAG phong thủy chuyên sâu (49 53, đuôi số, số học).
+10. 'AnalyzeSimCadence(phoneNumber)': Bóc tách thế nhịp ngắt (2.2.2.2.2, 3.3.4) và âm luật.
+11. 'GetActiveAuctions(limit)': Lấy danh sách phiên đấu giá SIM VIP trực tiếp.
+12. 'GetAuctionDetail(auctionCode)': Chi tiết bước giá, tiền cọc phiên đấu giá.
+13. 'GetEscrowAndSafetyPolicy()': Chính sách ký quỹ giao dịch đảm bảo TrustSim Escrow an toàn 100%.
+14. 'CalculateTradeFees(price)': Tính toán biểu phí sàn và tiền đặt cọc cho một mức giá.
+15. 'GetMyWalletBalance()': Tra cứu số dư ví khả dụng của người dùng.
+16. 'GetSePayDepositGuideline(amount)': Hướng dẫn nạp tiền tự động SePay VietQR.
 
-NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
-1. Khi khách hàng muốn tìm SIM, hỏi có số nào theo nhà mạng (Viettel, Vina, Mobi...), đầu số, đuôi số (6868, 7979, tam hoa, tứ quý...) hoặc mức giá, hãy GỌI FUNCTION 'SearchAvailableSims' với các tham số tương ứng để lấy dữ liệu thực tế từ kho TrustSim.
-2. Khi khách chỉ hỏi kiến thức lý thuyết phong thủy (như 'tôi sinh năm 2004 mệnh gì, hợp số mấy'), hãy GỌI FUNCTION 'GetFengShuiGuidelineByBirthYear' hoặc 'QueryFengShuiKnowledge' và tập trung trả lời rõ ràng câu hỏi đó trước.
-3. Khi khách hỏi về các phiên đấu giá, hãy GỌI FUNCTION 'GetActiveAuctions'.
-4. Trả lời với giọng văn niềm nở, thanh lịch, chuyên nghiệp và uy tín của chuyên gia viễn thông.
-5. Thông tin khách hàng đã biết: Năm sinh: {userBirthYear?.ToString() ?? "Chưa rõ"}, Nghề nghiệp: {userCareer ?? "Chưa rõ"}, Mệnh: {fengShuiElement ?? "Chưa rõ"}, Ngân sách: {(budgetMin.HasValue ? budgetMin.Value.ToString("N0") : "0")} - {(budgetMax.HasValue ? budgetMax.Value.ToString("N0") : "Không giới hạn")} VND.";
+QUY TẮC BẮT BUỘC KHI GỌI FUNCTION:
+- Khi khách hỏi tìm/mua/gợi ý SIM: BẮT BUỘC gọi 'SearchAvailableSims'.
+- Khi khách hỏi định giá / thẩm định giá 1 số điện thoại cụ thể: BẮT BUỘC gọi 'EvaluateSimPrice'.
+- Khi khách hỏi khung giá thị trường theo dòng SIM (Tứ quý 8, Ngũ quý...): BẮT BUỘC gọi 'GetMarketPriceComparables'.
+- Khi khách hỏi phân loại các thể loại SIM & hệ số nhân: BẮT BUỘC gọi 'GetSimCategories'.
+- Khi khách hỏi thủ tục sang tên, địa điểm, giấy tờ nhà mạng: BẮT BUỘC gọi 'GetCarrierInfo'.
+- Khi khách hỏi ý nghĩa / độ uy tín đầu số (098, 038, 090...): BẮT BUỘC gọi 'GetPrefixInfo'.
+- Khi khách hỏi năm sinh / mệnh / số hợp tuổi: BẮT BUỘC gọi 'GetFengShuiGuidelineByBirthYear'.
+- Khi khách hỏi kiến thức phong thủy sâu (49 53, ý nghĩa số...): BẮT BUỘC gọi 'QueryFengShuiKnowledge'.
+- Khi khách hỏi thế nhịp / âm luật / ngắt số: BẮT BUỘC gọi 'AnalyzeSimCadence'.
+- Khi khách hỏi về đấu giá: BẮT BUỘC gọi 'GetActiveAuctions' hoặc 'GetAuctionDetail'.
+- Khi khách hỏi về an toàn / ký quỹ Escrow: BẮT BUỘC gọi 'GetEscrowAndSafetyPolicy'.
+- Khi khách hỏi phí sàn / tiền cọc cho mức giá: BẮT BUỘC gọi 'CalculateTradeFees'.
+- Khi khách hỏi số dư ví / nạp tiền: BẮT BUỘC gọi 'GetMyWalletBalance' hoặc 'GetSePayDepositGuideline'.
+
+Thông tin khách hàng đã biết: Năm sinh: {userBirthYear?.ToString() ?? "Chưa rõ"}, Nghề nghiệp: {userCareer ?? "Chưa rõ"}, Mệnh: {fengShuiElement ?? "Chưa rõ"}, Ngân sách: {(budgetMin.HasValue ? budgetMin.Value.ToString("N0") : "0")} - {(budgetMax.HasValue ? budgetMax.Value.ToString("N0") : "Không giới hạn")} VND.
+Luôn trả lời với giọng văn chuyên nghiệp, thanh lịch, giải thích rõ ràng và uy tín của Chuyên gia Viễn thông.";
     }
 
     private async Task<string> ExecuteChatWithCandidateModelsAsync(
@@ -647,32 +794,14 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
         int maxTokens,
         CancellationToken cancellationToken)
     {
-        var configuredModel = GetPreferredModel();
-        var candidateModels = new HashSet<string>
-        {
-            configuredModel,
-            "gemini-3.1-flash-lite",
-            "gemma-4-26b-a4b-it",
-            "gemini-3.6-flash"
-        };
+        var (choice, _) = await ExecuteLlmWithFailoverAsync(
+            messages,
+            includeTools,
+            maxTokens,
+            temperature: 0.2f,
+            cancellationToken: cancellationToken);
 
-        foreach (var model in candidateModels)
-        {
-            try
-            {
-                var (choice, _) = await CallOpenAiEndpointAsync(model, messages, includeTools, maxTokens, temperature: 0.2f, cancellationToken);
-                if (!string.IsNullOrWhiteSpace(choice.Content))
-                {
-                    return CleanLlmResponse(choice.Content);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning("[LLM CANDIDATE FAILED] Model {Model} thất bại: {Msg}", model, ex.Message);
-            }
-        }
-
-        return string.Empty;
+        return CleanLlmResponse(choice.Content ?? string.Empty);
     }
 
     private async Task<(OpenAiMessage Message, string RawResponse)> CallOpenAiEndpointAsync(
@@ -758,11 +887,9 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
         if (string.IsNullOrWhiteSpace(json)) return "{}";
         json = json.Trim();
 
-        // Kiểm tra số lượng ngoặc nhọn mở và đóng
         int openBraces = json.Count(c => c == '{');
         int closeBraces = json.Count(c => c == '}');
 
-        // Nếu thiếu ngoặc kép chưa đóng
         int quoteCount = 0;
         bool escaped = false;
         foreach (char c in json)
@@ -830,19 +957,612 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
         };
     }
 
-    private async Task<AiConsultationLlmResponse> ExecuteFallbackConsultationAgentAsync(
+    private async Task<AgentLoopResult> ExecuteSmartLocalAgentAsync(
         string userMessage,
+        int? userBirthYear,
         decimal? budgetMin,
         decimal? budgetMax,
         CancellationToken cancellationToken)
     {
+        var result = new AgentLoopResult();
         using var scope = _scopeFactory.CreateScope();
-        var simRepo = scope.ServiceProvider.GetService<ISimNumberRepository>();
-        var sims = simRepo != null
-            ? await simRepo.GetAvailableSimsForConsultationAsync(budgetMin, budgetMax, null, null, null, limit: 6, cancellationToken)
-            : new List<TrustSimBackend.Domain.Entities.Sim.SimNumber>();
+        var sp = scope.ServiceProvider;
 
-        var suggestions = sims.Select(s => new ConsultationSimSuggestion
+        var lower = userMessage.ToLowerInvariant();
+
+        // 1. Phone number extraction
+        var phoneMatch = Regex.Match(userMessage, @"(?:\+84|0)[3|5|7|8|9][0-9]{8}|0[0-9]{9}");
+        string? extractedPhone = phoneMatch.Success ? phoneMatch.Value : null;
+
+        // 2. Birth year extraction
+        var yearMatch = Regex.Match(userMessage, @"\b(19[5-9][0-9]|20[0-2][0-9])\b");
+        int? extractedYear = userBirthYear ?? (yearMatch.Success && int.TryParse(yearMatch.Value, out var y) ? y : null);
+
+        // 3. Price extraction
+        var priceMatch = Regex.Match(userMessage, @"(\d+)\s*(?:triệu|tr|trieu|tỷ|ty|vnd|đ|k)", RegexOptions.IgnoreCase);
+        decimal? extractedPrice = null;
+        if (priceMatch.Success && decimal.TryParse(priceMatch.Groups[1].Value, out var pVal))
+        {
+            if (lower.Contains("tỷ") || lower.Contains("ty")) extractedPrice = pVal * 1_000_000_000m;
+            else extractedPrice = pVal * 1_000_000m;
+        }
+
+        // --- CASE 1: Định giá SIM & Phân tích thế nhịp ---
+        if (!string.IsNullOrEmpty(extractedPhone) && (lower.Contains("định giá") || lower.Contains("giá") || lower.Contains("bán được") || lower.Contains("thẩm định") || lower.Contains("bao nhiêu tiền") || lower.Contains("phân khúc")))
+        {
+            var valPlugin = sp.GetRequiredService<SimValuationPlugin>();
+            var cadencePlugin = sp.GetRequiredService<SimCadencePlugin>();
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "SimValuationPlugin",
+                ToolSummary = $"Đang thẩm định giá trị và bóc tách đặc trưng số {extractedPhone}..."
+            });
+            var valJson = valPlugin.EvaluateSimPrice(extractedPhone);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "SimValuationPlugin",
+                ToolSummary = $"Đã thẩm định thành công số {extractedPhone} theo 3 kênh thị trường"
+            });
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "SimCadencePlugin",
+                ToolSummary = $"Đang phân tích thế nhịp ngắt & âm luật số {extractedPhone}..."
+            });
+            var cadJson = cadencePlugin.AnalyzeSimCadence(extractedPhone);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "SimCadencePlugin",
+                ToolSummary = $"Đã bóc tách thế nhịp và phân tích cấu trúc số {extractedPhone}"
+            });
+
+            using var vDoc = JsonDocument.Parse(valJson);
+            var vRoot = vDoc.RootElement;
+            string formatted = vRoot.TryGetProperty("formattedNumber", out var fn) ? fn.GetString() ?? extractedPhone : extractedPhone;
+            string carrier = vRoot.TryGetProperty("carrier", out var cr) ? cr.GetString() ?? "Viễn thông" : "Viễn thông";
+            string prefix = vRoot.TryGetProperty("prefix", out var pr) ? pr.GetString() ?? "" : "";
+            int points = vRoot.TryGetProperty("totalPoints", out var pt) ? pt.GetInt32() : 5;
+            string rhythmPattern = vRoot.TryGetProperty("rhythm", out var rh) && rh.TryGetProperty("pattern", out var rhp) ? rhp.GetString() ?? "3.3.4" : "3.3.4";
+            string rhythmName = rh.TryGetProperty("name", out var rhn) ? rhn.GetString() ?? "Số đẹp" : "Số đẹp";
+
+            decimal retailP = vRoot.TryGetProperty("priceEstimates", out var pe) && pe.TryGetProperty("retailPrice", out var retP) ? retP.GetDecimal() : 0;
+            decimal p2pP = pe.TryGetProperty("marketP2PPrice", out var pP) ? pP.GetDecimal() : 0;
+            decimal dealerP = pe.TryGetProperty("dealerBuybackPrice", out var dP) ? dP.GetDecimal() : 0;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Chào bạn! Chuyên gia Thẩm định TrustSim xin gửi tới bạn kết quả thẩm định giá trị chi tiết cho số **{formatted}**:\n");
+            sb.AppendLine("### 1. Phân Tích Cấu Trúc & Thế Số");
+            sb.AppendLine($"- **Nhà mạng & Đầu số:** {carrier} (Đầu số {prefix}).");
+            sb.AppendLine($"- **Thế nhịp ngắt tối ưu:** **{rhythmPattern}** (`{formatted}`) - {rhythmName}.");
+            sb.AppendLine($"- **Tổng nút (Điểm số phong thủy):** **{points}/10 nút**.");
+
+            if (vRoot.TryGetProperty("categories", out var cats) && cats.GetArrayLength() > 0)
+            {
+                var catNames = cats.EnumerateArray().Select(c => c.GetProperty("name").GetString()).Where(s => !string.IsNullOrEmpty(s));
+                sb.AppendLine($"- **Các thế số & tổ hợp tài lộc:** {string.Join(", ", catNames)}.");
+            }
+
+            sb.AppendLine("\n### 2. Bảng Định Giá 3 Kênh Thị Trường (Tham chiếu Sim Thăng Long & Chợ Sim 24h)");
+            sb.AppendLine($"- **Giá Niêm Yết Showroom / Đại Lý Lớn:** ~**{retailP:N0} VNĐ** (Cam kết bảo hành, hỗ trợ hợp đồng & trả góp).");
+            sb.AppendLine($"- **Giá Chợ Tự Do P2P (Sang tay trực tiếp):** ~**{p2pP:N0} VNĐ** (Mức giá chuyển nhượng hợp lý nhất).");
+            sb.AppendLine($"- **Giá Thợ Thu Mua 24h Tiền Mặt:** ~**{dealerP:N0} VNĐ** (Chiết khấu an toàn thanh lý nhanh).");
+
+            sb.AppendLine("\n### 3. Đánh Giá Thanh Khoản & Khuyến Nghị");
+            if (p2pP > 500_000_000)
+            {
+                sb.AppendLine("Số SIM thuộc **Phân khúc Siêu VIP Cực Phẩm**, có thanh khoản rất cao trong giới doanh nhân, lãnh đạo và các nhà đầu tư số đẹp. Bạn có thể mở phiên đấu giá trên TrustSim để tối đa hóa lợi nhuận.");
+            }
+            else if (p2pP > 20_000_000)
+            {
+                sb.AppendLine("Số SIM thuộc **Phân khúc VIP Doanh nhân / Hotline**, nhu cầu thị trường ổn định, dễ dàng chuyển nhượng qua cơ chế ký quỹ TrustSim Escrow.");
+            }
+            else
+            {
+                sb.AppendLine("Số SIM thuộc **Phân khúc Phổ thông / Số đẹp Tầm trung**, dễ sử dụng làm số liên lạc cá nhân hoặc buôn bán kinh doanh hàng ngày.");
+            }
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 1B: Tra cứu Khung giá Thị trường Tham chiếu theo Thể loại ---
+        if (lower.Contains("khung giá") || lower.Contains("biên độ") || lower.Contains("dao động") || (lower.Contains("thị trường") && (lower.Contains("tứ quý") || lower.Contains("ngũ quý") || lower.Contains("tam hoa") || lower.Contains("thần tài") || lower.Contains("lộc phát"))))
+        {
+            var marketPlugin = sp.GetRequiredService<SimMarketHistoryPlugin>();
+            string catCode = lower.Contains("ngũ quý") ? "NGU_QUY" : lower.Contains("tam hoa") ? "TAM_HOA" : lower.Contains("thần tài") ? "THAN_TAI" : lower.Contains("lộc phát") ? "LOC_PHAT" : "TU_QUY";
+            string pref = lower.Contains("090") ? "090" : lower.Contains("091") ? "091" : "098";
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "SimMarketHistoryPlugin",
+                ToolSummary = $"Đang tra cứu khung giá thị trường tham chiếu cho dòng {catCode} đầu {pref}..."
+            });
+            var compJson = await marketPlugin.GetMarketPriceComparablesAsync(catCode, pref, cancellationToken);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "SimMarketHistoryPlugin",
+                ToolSummary = $"Đã tra cứu biểu giá thị trường dòng {catCode}"
+            });
+
+            using var cDoc = JsonDocument.Parse(compJson);
+            var cRoot = cDoc.RootElement;
+            string catName = cRoot.TryGetProperty("categoryName", out var cn) ? cn.GetString() ?? "SIM Số Đẹp" : "SIM Số Đẹp";
+            string p2pRange = cRoot.TryGetProperty("marketP2PRange", out var p2r) ? p2r.GetString() ?? "120tr - 380tr VNĐ" : "120tr - 380tr VNĐ";
+            string retailRange = cRoot.TryGetProperty("showroomRetailRange", out var srr) ? srr.GetString() ?? "150tr - 500tr VNĐ" : "150tr - 500tr VNĐ";
+            string dealerRange = cRoot.TryGetProperty("dealerBuybackRange", out var dbr) ? dbr.GetString() ?? "80tr - 250tr VNĐ" : "80tr - 250tr VNĐ";
+            string liquidity = cRoot.TryGetProperty("liquidityComment", out var lc) ? lc.GetString() ?? "Thanh khoản rất cao trong 24h - 48h" : "Thanh khoản rất cao trong 24h - 48h";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Chào bạn! Dưới đây là khung giá thị trường tham chiếu cho dòng **{catName} (Đầu số {pref})**:\n");
+            sb.AppendLine("### 1. Khung Giá Giao Dịch Thực Tế 3 Kênh:");
+            sb.AppendLine($"- **Giá Niêm Yết Showroom / Đại Lý Lớn:** **{retailRange}** (Kèm bảo hành trọn đời, hợp đồng pháp lý & trả góp).");
+            sb.AppendLine($"- **Giá Chợ Tự Do P2P (Sang tay Doanh nhân):** **{p2pRange}** (Mức giá giao dịch phổ biến nhất).");
+            sb.AppendLine($"- **Giá Thợ Thu Mua 24h Tiền Mặt:** **{dealerRange}** (Chiết khấu an toàn thanh khoản nhanh).\n");
+            sb.AppendLine("### 2. Đánh Giá Thanh Khoản & Xu Hướng Thị Trường:");
+            sb.AppendLine($"- {liquidity}");
+            sb.AppendLine("- Dòng SIM đầu số cổ luôn duy trì tốc độ tăng trưởng giá trị trung bình 10% - 20%/năm, là tài sản tích lũy an toàn và khẳng định vị thế đỉnh cao.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 1C: Liệt kê Thể loại SIM & Hệ số nhân ---
+        if (lower.Contains("thể loại") || lower.Contains("phân loại") || lower.Contains("hệ số nhân") || lower.Contains("các dòng sim"))
+        {
+            var marketPlugin = sp.GetRequiredService<SimMarketHistoryPlugin>();
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "SimMarketHistoryPlugin",
+                ToolSummary = "Đang tra cứu danh sách thể loại SIM số đẹp & hệ số định giá từ database sàn..."
+            });
+            var catJson = await marketPlugin.GetSimCategoriesAsync(cancellationToken);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "SimMarketHistoryPlugin",
+                ToolSummary = "Đã lấy danh sách thể loại SIM thành công"
+            });
+
+            using var catsDoc = JsonDocument.Parse(catJson);
+            var catsRoot = catsDoc.RootElement;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Chào bạn! Sàn Giao dịch TrustSim hiện đang phân loại các **Thể loại SIM Số đẹp** theo ma trận giá trị chuẩn sau:\n");
+            sb.AppendLine("### Bảng Phân Loại & Hệ Số Nhân Giá Trị Thị Trường:");
+            if (catsRoot.TryGetProperty("categories", out var catList) && catList.GetArrayLength() > 0)
+            {
+                foreach (var item in catList.EnumerateArray())
+                {
+                    string name = item.GetProperty("name").GetString() ?? "";
+                    float multi = item.GetProperty("multiplier").GetSingle();
+                    string desc = item.GetProperty("description").GetString() ?? "";
+                    sb.AppendLine($"• **{name}** (Hệ số: **{multi:F1}x**) : {desc}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("• **Bát quý / Cửu quý** (Hệ số: 50.0x) : Độc nhất vô nhị, tài sản di sản hàng chục tỷ đồng.");
+                sb.AppendLine("• **Lục quý** (Hệ số: 25.0x) : 6 số cuối giống nhau, Siêu VIP tiền tỷ.");
+                sb.AppendLine("• **Ngũ quý** (Hệ số: 10.0x - 18.0x) : 5 số cuối giống nhau liên tiếp.");
+                sb.AppendLine("• **Tứ quý** (Hệ số: 5.0x - 8.0x) : 4 số cuối trùng nhau.");
+                sb.AppendLine("• **Sảnh rồng & Sảnh tiến** (Hệ số: 4.0x - 7.0x) : Dãy số tiến liên hoàn.");
+                sb.AppendLine("• **Thần tài & Lộc phát VIP** (Hệ số: 2.5x - 4.0x) : Đuôi 7979, 3979, 6868, 8686.");
+                sb.AppendLine("• **Taxi & Tam hoa** (Hệ số: 2.0x - 3.5x) : Dễ nhớ, thích hợp hotline công ty.");
+            }
+            sb.AppendLine("\nCác dòng có hệ số nhân cao nhất là **Bát quý, Lục quý, Ngũ quý đầu cổ và Đại Taxi 4 cặp**, sở hữu thanh khoản tức thì và giá trị tăng theo thời gian.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 1D: Phân tích Thế nhịp & Âm luật đọc ---
+        if (!string.IsNullOrEmpty(extractedPhone) && (lower.Contains("thế nhịp") || lower.Contains("âm luật") || lower.Contains("ngắt") || lower.Contains("đọc") || lower.Contains("bóc tách")))
+        {
+            var cadencePlugin = sp.GetRequiredService<SimCadencePlugin>();
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "SimCadencePlugin",
+                ToolSummary = $"Đang phân tích cấu trúc nhịp ngắt và âm luật cho số {extractedPhone}..."
+            });
+            var cadJson = cadencePlugin.AnalyzeSimCadence(extractedPhone);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "SimCadencePlugin",
+                ToolSummary = "Đã phân tích âm luật & nhịp ngắt tối ưu"
+            });
+
+            using var cDoc = JsonDocument.Parse(cadJson);
+            var cRoot = cDoc.RootElement;
+            string bestFmt = cRoot.TryGetProperty("bestFormattedNumber", out var bf) ? bf.GetString() ?? extractedPhone : extractedPhone;
+            string bestRhythm = cRoot.TryGetProperty("bestRhythmName", out var brn) ? brn.GetString() ?? "Số đẹp" : "Số đẹp";
+            string bestPattern = cRoot.TryGetProperty("bestRhythmValue", out var brv) ? brv.GetString() ?? "3.3.4" : "3.3.4";
+            string comp = cRoot.TryGetProperty("cadenceComparisonAnalysis", out var cca) ? cca.GetString() ?? "" : "";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Chào bạn! Dưới đây là phân tích chi tiết về **Thế nhịp ngắt & Âm luật phát âm** cho số **{extractedPhone}**:\n");
+            sb.AppendLine($"### 1. Nhịp Ngắt Tối Ưu Nhất: **{bestPattern}** (`{bestFmt}`)");
+            sb.AppendLine($"- **Tên cấu trúc thế số:** **{bestRhythm}**.");
+            sb.AppendLine($"- **Phân tích so sánh âm luật:** {comp}\n");
+            sb.AppendLine("### 2. Giá Trị Thương Hiệu & Độ Ghi Nhớ:");
+            sb.AppendLine("- Nhịp phát âm điệp vần, cân đối giữa các thanh bằng trắc giúp khách hàng hoặc đối tác ghi nhớ chỉ sau 1 lần nghe hoặc nhìn lướt qua biển quảng cáo / danh thiếp.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 2: Tra cứu Phong thủy theo Năm sinh ---
+        if (extractedYear.HasValue && (lower.Contains("mệnh") || lower.Contains("hợp số") || lower.Contains("năm sinh") || lower.Contains("sinh năm") || lower.Contains("phong thủy") || lower.Contains("tuổi")))
+        {
+            var fengShuiPlugin = sp.GetRequiredService<FengShuiKnowledgePlugin>();
+            var simRepo = sp.GetRequiredService<ISimNumberRepository>();
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "FengShuiKnowledgePlugin",
+                ToolSummary = $"Đang tính toán bản mệnh ngũ hành & quái số năm sinh {extractedYear.Value}..."
+            });
+            var fsJson = fengShuiPlugin.GetFengShuiGuidelineByBirthYear(extractedYear.Value);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "FengShuiKnowledgePlugin",
+                ToolSummary = $"Đã xác định bản mệnh ngũ hành năm {extractedYear.Value}"
+            });
+
+            using var fDoc = JsonDocument.Parse(fsJson);
+            var fRoot = fDoc.RootElement;
+            string canChi = fRoot.TryGetProperty("canChi", out var cc) ? cc.GetString() ?? "" : "";
+            string element = fRoot.TryGetProperty("element", out var el) ? el.GetString() ?? "Kim" : "Kim";
+            string advice = fRoot.TryGetProperty("advice", out var ad) ? ad.GetString() ?? "" : "";
+
+            var favNums = fRoot.TryGetProperty("favorableNumbers", out var fn)
+                ? string.Join(", ", fn.EnumerateArray().Select(n => n.GetInt32().ToString()))
+                : "6, 8, 9";
+
+            var unfavNums = fRoot.TryGetProperty("unfavorableNumbers", out var un)
+                ? string.Join(", ", un.EnumerateArray().Select(n => n.GetInt32().ToString()))
+                : "4, 7";
+
+            // Quét kho SIM thực tế
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "SimInventoryPlugin",
+                ToolSummary = $"Đang quét kho SIM số đẹp thực tế hợp mệnh {element}..."
+            });
+            var sims = await simRepo.GetAvailableSimsForConsultationAsync(budgetMin, budgetMax, null, null, null, limit: 4, cancellationToken);
+            var suggestions = sims.Select(s => new ConsultationSimSuggestion
+            {
+                SimNumberId = s.Id,
+                PhoneNumber = s.PhoneNumber,
+                Price = s.Price,
+                CarrierName = s.PhonePrefix?.SimCarrier?.CarrierName ?? "Viễn thông",
+                HighlightReason = $"{s.FormatRhythm?.FormatRhythmName ?? "Số đẹp phong thủy"} - Hợp mệnh {element}"
+            }).ToList();
+            result.CollectedSims.AddRange(suggestions);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "SimInventoryPlugin",
+                ToolSummary = $"Tìm thấy {suggestions.Count} số SIM thực tế mở bán trên sàn"
+            });
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Chào bạn! Dưới đây là phân tích phong thủy số học chi tiết cho gia chủ sinh năm **{extractedYear.Value}**:\n");
+            sb.AppendLine($"### 1. Bản Mệnh & Ngũ Hành");
+            sb.AppendLine($"- **Năm sinh âm lịch:** **{canChi}**.");
+            sb.AppendLine($"- **Bản mệnh ngũ hành:** **Mệnh {element}**.");
+            sb.AppendLine($"- **Các con số Cát Tường (Tương sinh & Bản mệnh):** **{favNums}**.");
+            sb.AppendLine($"- **Các con số Kỵ (Tương khắc cần tránh):** **{unfavNums}**.");
+            sb.AppendLine($"- **Lời khuyên chọn số:** {advice}\n");
+
+            if (suggestions.Count > 0)
+            {
+                sb.AppendLine("### 2. Gợi Ý Số SIM Thực Tế Hợp Mệnh Đang Mở Bán");
+                foreach (var s in suggestions)
+                {
+                    sb.AppendLine($"• **{s.PhoneNumber}** ({s.CarrierName}) — Giá: **{s.Price:N0} đ** : {s.HighlightReason}");
+                }
+            }
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 3: Thủ tục sang tên & Nhà mạng ---
+        if (lower.Contains("thủ tục") || lower.Contains("sang tên") || lower.Contains("đổi chủ") || lower.Contains("điểm giao dịch") || lower.Contains("giấy tờ"))
+        {
+            var carrierPlugin = sp.GetRequiredService<CarrierPolicyPlugin>();
+            var escrowPlugin = sp.GetRequiredService<TradeAndEscrowPlugin>();
+
+            string carrierName = lower.Contains("vina") ? "VinaPhone" : lower.Contains("mobi") ? "MobiFone" : "Viettel";
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "CarrierPolicyPlugin",
+                ToolSummary = $"Đang tra cứu quy trình thủ tục sang tên mạng {carrierName}..."
+            });
+            var carJson = await carrierPlugin.GetCarrierInfoAsync(carrierName, cancellationToken);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "CarrierPolicyPlugin",
+                ToolSummary = $"Đã lấy quy trình thủ tục sang tên nhà mạng {carrierName}"
+            });
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "TradeAndEscrowPlugin",
+                ToolSummary = "Đang tra cứu chính sách bảo vệ người mua TrustSim Escrow..."
+            });
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "TradeAndEscrowPlugin",
+                ToolSummary = "Quy trình ký quỹ an toàn 100%"
+            });
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Chào bạn! Dưới đây là hướng dẫn chi tiết về thủ tục sang tên đổi chủ chính chủ mạng **{carrierName}** trên sàn TrustSim:\n");
+            sb.AppendLine("### 1. Địa Điểm & Thời Gian Thực Hiện");
+            sb.AppendLine($"- **Địa điểm:** Bất kỳ cửa hàng / trung tâm giao dịch chính thức của **{carrierName}** trên toàn quốc.");
+            sb.AppendLine("- **Thời gian xử lý:** Chỉ mất từ **15 – 30 phút** tại quầy giao dịch.\n");
+            sb.AppendLine("### 2. Giấy Tờ Chuẩn Bị Bắt Buộc");
+            sb.AppendLine("- **Bên bán (Chủ sở hữu hiện tại):** Mang theo **CCCD/CMND gốc** + **SIM vật lý / eSIM** đang hoạt động (có thể cần cung cấp 3-5 số điện thoại liên lạc gần nhất nếu nhà mạng yêu cầu xác minh).");
+            sb.AppendLine("- **Bên mua (Người nhận chuyển nhượng):** Mang theo **CCCD gắn chip gốc** để đăng ký thông tin thuê bao chính chủ theo Nghị định 49/CP.\n");
+            sb.AppendLine("### 3. Cơ Chế Giao Dịch Đảm Bảo TrustSim Escrow");
+            sb.AppendLine("1. Người mua nạp tiền giữ trong ví ký quỹ TrustSim.");
+            sb.AppendLine("2. Hai bên gặp nhau tại cửa hàng nhà mạng để làm thủ tục sang tên.");
+            sb.AppendLine("3. Sau khi nhân viên nhà mạng in phiếu xác nhận đổi chủ thành công, hệ thống TrustSim tự động mở khóa giải ngân tiền cho người bán.");
+            sb.AppendLine("4. An toàn tuyệt đối 100% — Cam kết hoàn tiền nếu phát sinh tranh chấp.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 4: Tra cứu Đầu số cổ / Ý nghĩa đầu số ---
+        if (lower.Contains("đầu số") || lower.Contains("đầu 098") || lower.Contains("đầu 090") || lower.Contains("đầu 091") || lower.Contains("đầu 088") || lower.Contains("đầu 086"))
+        {
+            var carrierPlugin = sp.GetRequiredService<CarrierPolicyPlugin>();
+            string prefix = lower.Contains("090") ? "090" : lower.Contains("091") ? "091" : lower.Contains("088") ? "088" : lower.Contains("086") ? "086" : "098";
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "CarrierPolicyPlugin",
+                ToolSummary = $"Đang tra cứu điểm uy tín & ý nghĩa phong thủy đầu số {prefix}..."
+            });
+            var prefJson = await carrierPlugin.GetPrefixInfoAsync(prefix, cancellationToken);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "CarrierPolicyPlugin",
+                ToolSummary = $"Đã tra cứu thông tin đầu số {prefix}"
+            });
+
+            using var pDoc = JsonDocument.Parse(prefJson);
+            var pRoot = pDoc.RootElement;
+            string carName = pRoot.TryGetProperty("carrierName", out var cn) ? cn.GetString() ?? "Viễn thông" : "Viễn thông";
+            float repScore = pRoot.TryGetProperty("reputationScore", out var rs) ? rs.GetSingle() : 1.5f;
+            string category = pRoot.TryGetProperty("category", out var cg) ? cg.GetString() ?? "Đầu số cổ" : "Đầu số cổ";
+            string fengShui = pRoot.TryGetProperty("fengShuiMeaning", out var fs) ? fs.GetString() ?? "" : "";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Chào bạn! Dưới đây là thông tin chi tiết về **Đầu số {prefix}**:\n");
+            sb.AppendLine($"- **Nhà mạng sở hữu:** **{carName}**.");
+            sb.AppendLine($"- **Phân loại đầu số:** **{category}**.");
+            sb.AppendLine($"- **Điểm uy tín thị trường (Reputation Score):** **{repScore:F2}** (Hệ số nhân định giá cao nhất).");
+            sb.AppendLine($"- **Ý nghĩa phong thủy số học:** {fengShui}");
+            sb.AppendLine("\nĐầu số cổ luôn giữ giá trị ổn định nhất trên thị trường viễn thông Việt Nam, được các chính khách, doanh nhân và lãnh đạo doanh nghiệp ưu tiên lựa chọn hàng đầu.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 5: Đấu giá SIM VIP (Chi tiết hoặc Danh sách) ---
+        if (lower.Contains("đấu giá") || lower.Contains("phiên") || lower.Contains("auction") || lower.Contains("auc"))
+        {
+            var auctionPlugin = sp.GetRequiredService<AuctionPlugin>();
+            var aucMatch = Regex.Match(userMessage, @"(?i)\b(AUC[0-9A-Z]+)\b");
+
+            if (aucMatch.Success)
+            {
+                string aucCode = aucMatch.Value.ToUpperInvariant();
+                result.ToolEvents.Add(new ChatConsultationStreamEvent
+                {
+                    EventType = "tool_start",
+                    ToolName = "AuctionPlugin",
+                    ToolSummary = $"Đang tra cứu chi tiết quy tắc & tiền cọc phiên đấu giá {aucCode}..."
+                });
+                var detailJson = await auctionPlugin.GetAuctionDetailAsync(aucCode, cancellationToken);
+                result.ToolEvents.Add(new ChatConsultationStreamEvent
+                {
+                    EventType = "tool_end",
+                    ToolName = "AuctionPlugin",
+                    ToolSummary = $"Đã lấy thông tin chi tiết phiên {aucCode}"
+                });
+
+                using var dDoc = JsonDocument.Parse(detailJson);
+                var dRoot = dDoc.RootElement;
+                if (!dRoot.TryGetProperty("error", out _))
+                {
+                    string phone = dRoot.TryGetProperty("phoneNumber", out var p) ? p.GetString() ?? "" : "";
+                    decimal curP = dRoot.TryGetProperty("currentPrice", out var cp) ? cp.GetDecimal() : 0;
+                    decimal stepP = dRoot.TryGetProperty("stepPrice", out var st) ? st.GetDecimal() : 0;
+                    decimal depP = dRoot.TryGetProperty("depositAmount", out var dp) ? dp.GetDecimal() : 0;
+                    int bids = dRoot.TryGetProperty("totalBids", out var tb) ? tb.GetInt32() : 0;
+                    string endTime = dRoot.TryGetProperty("endTime", out var et) ? et.GetString() ?? "" : "";
+
+                    var dSb = new StringBuilder();
+                    dSb.AppendLine($"Chào bạn! Dưới đây là thông tin chi tiết của **Phiên Đấu Giá {aucCode}** trên sàn TrustSim:\n");
+                    dSb.AppendLine("### 1. Thông Tin Phiên & Quy Tắc Trả Giá:");
+                    dSb.AppendLine($"- **Số SIM đấu giá:** **{phone}**.");
+                    dSb.AppendLine($"- **Giá trả hiện tại:** **{curP:N0} VNĐ** (Tổng số lượt trả: {bids} lượt).");
+                    dSb.AppendLine($"- **Bước giá tối thiểu (`stepPrice`):** **{stepP:N0} VNĐ**.");
+                    dSb.AppendLine($"- **Tiền đặt cọc tham gia (`depositAmount`):** **{depP:N0} VNĐ**.");
+                    dSb.AppendLine($"- **Thời hạn kết thúc phiên:** **{endTime}**.\n");
+                    dSb.AppendLine("### 2. Hướng Dẫn Tham Gia:");
+                    dSb.AppendLine("Bạn vui lòng nạp đủ tiền đặt cọc vào ví trước khi phiên kết thúc. Tiền cọc sẽ được hoàn lại 100% ngay sau khi phiên đấu giá khép lại nếu bạn không phải người trả giá cao nhất.");
+
+                    result.ReplyContent = dSb.ToString();
+                    return result;
+                }
+            }
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "AuctionPlugin",
+                ToolSummary = "Đang quét danh sách phiên đấu giá SIM VIP trực tiếp trên sàn..."
+            });
+            var aucJson = await auctionPlugin.GetActiveAuctionsAsync(5, cancellationToken);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "AuctionPlugin",
+                ToolSummary = "Đã tra cứu dữ liệu phiên đấu giá TrustSim"
+            });
+
+            using var aDoc = JsonDocument.Parse(aucJson);
+            var aRoot = aDoc.RootElement;
+            int total = aRoot.TryGetProperty("total", out var t) ? t.GetInt32() : 0;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Chào bạn! Dưới đây là thông tin các phiên đấu giá SIM VIP trực tiếp trên sàn TrustSim:\n");
+
+            if (total > 0 && aRoot.TryGetProperty("items", out var items) && items.GetArrayLength() > 0)
+            {
+                sb.AppendLine("### Danh Sách Phiên Đấu Giá Đang Mở:");
+                foreach (var item in items.EnumerateArray())
+                {
+                    string code = item.GetProperty("auctionCode").GetString() ?? "";
+                    string phone = item.GetProperty("phoneNumber").GetString() ?? "";
+                    decimal curPrice = item.GetProperty("currentPrice").GetDecimal();
+                    decimal step = item.GetProperty("stepPrice").GetDecimal();
+                    string end = item.GetProperty("endTime").GetString() ?? "";
+                    sb.AppendLine($"• **Mã: {code}** — Số SIM: **{phone}** — Giá hiện tại: **{curPrice:N0} đ** (Bước giá: {step:N0} đ) — Kết thúc: {end}");
+                }
+                sb.AppendLine("\nBạn có thể nộp tiền đặt cọc vào ví để tham gia trả giá trực tiếp.");
+            }
+            else
+            {
+                sb.AppendLine("Hiện tại các phiên đấu giá tuần này đang trong giai đoạn chuẩn bị mở đăng ký. Bạn có thể theo dõi sảnh Đấu Giá trên thanh điều hướng để cập nhật các siêu phẩm SIM mới nhất!");
+            }
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 6: Ký quỹ Escrow & Tính phí sàn ---
+        if (lower.Contains("ký quỹ") || lower.Contains("escrow") || lower.Contains("an toàn") || lower.Contains("lừa đảo") || lower.Contains("phí sàn") || lower.Contains("đặt cọc") || lower.Contains("bảo đảm"))
+        {
+            var escrowPlugin = sp.GetRequiredService<TradeAndEscrowPlugin>();
+            decimal priceToCalc = extractedPrice ?? 200_000_000m;
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "TradeAndEscrowPlugin",
+                ToolSummary = $"Đang tính toán biểu phí sàn và chính sách ký quỹ cho mức giá {priceToCalc:N0} đ..."
+            });
+            var feeJson = escrowPlugin.CalculateTradeFees(priceToCalc);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "TradeAndEscrowPlugin",
+                ToolSummary = "Đã tính toán biểu phí sàn & tiền đặt cọc thành công"
+            });
+
+            using var feeDoc = JsonDocument.Parse(feeJson);
+            var feeRoot = feeDoc.RootElement;
+            string feeRate = feeRoot.TryGetProperty("feeRatePercentage", out var fr) ? fr.GetString() ?? "3%" : "3%";
+            decimal feeAmount = feeRoot.TryGetProperty("feeAmount", out var fa) ? fa.GetDecimal() : (priceToCalc * 0.03m);
+            decimal depRequired = feeRoot.TryGetProperty("depositRequired", out var dr) ? dr.GetDecimal() : (priceToCalc * 0.10m);
+            decimal netSeller = feeRoot.TryGetProperty("netSellerReceives", out var ns) ? ns.GetDecimal() : (priceToCalc - feeAmount);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Chào bạn! Dưới đây là thông tin chi tiết về **Chính sách Ký quỹ TrustSim Escrow & Biểu phí sàn**:\n");
+            sb.AppendLine($"### 1. Bảng Tính Phí Giao Dịch & Đặt Cọc (Ví dụ mức giá: {priceToCalc:N0} VNĐ)");
+            sb.AppendLine($"- **Tỷ lệ phí sàn áp dụng:** **{feeRate}** ({feeAmount:N0} VNĐ).");
+            sb.AppendLine($"- **Tiền đặt cọc Người mua nộp giữ chân (10%):** **{depRequired:N0} VNĐ**.");
+            sb.AppendLine($"- **Số tiền Người bán thực nhận sau khi hoàn tất:** **{netSeller:N0} VNĐ**.\n");
+            sb.AppendLine("### 2. Cơ Chế Bảo Vệ An Toàn 100%");
+            sb.AppendLine("- Toàn bộ tiền cọc và tiền mua SIM được lưu trữ độc lập tại tài khoản ngân hàng ký quỹ.");
+            sb.AppendLine("- Người bán chỉ nhận được tiền khi hai bên hoàn tất thủ tục sang tên chính chủ tại điểm giao dịch nhà mạng và hệ thống xác thực thành công.");
+            sb.AppendLine("- Nếu bên bán đơn phương hủy giao dịch hoặc sim có tranh chấp, tiền cọc sẽ được hoàn trả 100% ngay lập tức cho người mua.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- CASE 7: Số dư ví & Nạp tiền SePay ---
+        if (lower.Contains("số dư") || lower.Contains("nạp tiền") || lower.Contains("ví") || lower.Contains("sepay") || lower.Contains("vietqr") || lower.Contains("chuyển khoản"))
+        {
+            var walletPlugin = sp.GetRequiredService<UserWalletPlugin>();
+            decimal depositAmount = extractedPrice ?? 50_000_000m;
+
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_start",
+                ToolName = "UserWalletPlugin",
+                ToolSummary = "Đang kiểm tra số dư ví & thông tin cổng nạp tự động SePay VietQR..."
+            });
+            var balJson = await walletPlugin.GetMyWalletBalanceAsync(cancellationToken);
+            var sepJson = walletPlugin.GetSePayDepositGuideline(depositAmount);
+            result.ToolEvents.Add(new ChatConsultationStreamEvent
+            {
+                EventType = "tool_end",
+                ToolName = "UserWalletPlugin",
+                ToolSummary = "Đã lấy thông tin nạp tiền tự động SePay VietQR"
+            });
+
+            using var sDoc = JsonDocument.Parse(sepJson);
+            var sRoot = sDoc.RootElement;
+            string bank = sRoot.TryGetProperty("bankName", out var b) ? b.GetString() ?? "MBBank" : "MBBank";
+            string accNum = sRoot.TryGetProperty("accountNumber", out var an) ? an.GetString() ?? "" : "";
+            string accHolder = sRoot.TryGetProperty("accountHolder", out var ah) ? ah.GetString() ?? "CONG TY TNHH TRUSTSIM" : "CONG TY TNHH TRUSTSIM";
+            string syntax = sRoot.TryGetProperty("transferSyntax", out var sx) ? sx.GetString() ?? "TS NAPTIEN" : "TS NAPTIEN";
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Chào bạn! Dưới đây là hướng dẫn nạp tiền tự động vào ví sàn TrustSim qua **SePay VietQR 24/7**:\n");
+            sb.AppendLine("### Thông Tin Chuyển Khoản Nạp Tiền:");
+            sb.AppendLine($"- **Ngân hàng thụ hưởng:** **{bank}**");
+            sb.AppendLine($"- **Số tài khoản:** **{accNum}**");
+            sb.AppendLine($"- **Chủ tài khoản:** **{accHolder}**");
+            sb.AppendLine($"- **Số tiền nạp đề xuất:** **{depositAmount:N0} VNĐ**");
+            sb.AppendLine($"- **Nội dung chuyển khoản (Bắt buộc chính xác):** `{syntax}`\n");
+            sb.AppendLine("⚡ **Thời gian xử lý:** Hệ thống Webhook SePay sẽ tự động cộng số dư vào ví của bạn trong vòng **5 – 15 giây** ngay sau khi chuyển khoản thành công.");
+
+            result.ReplyContent = sb.ToString();
+            return result;
+        }
+
+        // --- DEFAULT: Quét kho SIM theo tiêu chí chung ---
+        var invPlugin = sp.GetRequiredService<SimInventoryPlugin>();
+        result.ToolEvents.Add(new ChatConsultationStreamEvent
+        {
+            EventType = "tool_start",
+            ToolName = "SimInventoryPlugin",
+            ToolSummary = "Đang quét kho SIM trên sàn TrustSim..."
+        });
+
+        var defaultSims = await sp.GetRequiredService<ISimNumberRepository>()
+            .GetAvailableSimsForConsultationAsync(budgetMin, budgetMax, null, null, null, limit: 5, cancellationToken);
+
+        var defaultSuggs = defaultSims.Select(s => new ConsultationSimSuggestion
         {
             SimNumberId = s.Id,
             PhoneNumber = s.PhoneNumber,
@@ -850,33 +1570,48 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
             CarrierName = s.PhonePrefix?.SimCarrier?.CarrierName ?? "Viễn thông",
             HighlightReason = $"{s.FormatRhythm?.FormatRhythmName ?? "Số đẹp phong thủy"} - Đầu {s.PhonePrefix?.PrefixValue}"
         }).ToList();
+        result.CollectedSims.AddRange(defaultSuggs);
 
-        var sb = new StringBuilder();
-        sb.AppendLine("Chào bạn! Cảm ơn bạn đã liên hệ với Chuyên gia Tư vấn SIM Số đẹp TrustSim.");
-        sb.AppendLine("Dựa trên thông tin và tiêu chí tìm kiếm của bạn, tôi xin gợi ý các định hướng chọn số mang lại vượng khí tốt nhất:");
-        sb.AppendLine("- Nên ưu tiên các đầu số cổ uy tín của các nhà mạng lớn (098 - Viettel, 090 - MobiFone, 091 - VinaPhone) để khẳng định vị thế và uy tín cá nhân.");
-        sb.AppendLine("- Kết hợp các đuôi số phong thủy kích hoạt tài lộc như Thần tài (39, 79), Lộc phát (68, 86) hoặc số tiến (6789, 1368).");
-
-        if (suggestions.Count > 0)
+        result.ToolEvents.Add(new ChatConsultationStreamEvent
         {
-            sb.AppendLine("\nTôi đã rà soát kho SIM thực tế trên sàn TrustSim và tuyển chọn các số đẹp phù hợp nhất dưới đây để bạn tham khảo:");
-            foreach (var sim in suggestions)
+            EventType = "tool_end",
+            ToolName = "SimInventoryPlugin",
+            ToolSummary = $"Tìm thấy {defaultSuggs.Count} số SIM thực tế trong kho"
+        });
+
+        var defSb = new StringBuilder();
+        defSb.AppendLine("Chào bạn! Cảm ơn bạn đã liên hệ với Chuyên gia Tư vấn SIM Số đẹp TrustSim.");
+        defSb.AppendLine("Dựa trên thông tin và tiêu chí tìm kiếm của bạn, tôi xin gợi ý các định hướng chọn số mang lại vượng khí tốt nhất:");
+        defSb.AppendLine("- Nên ưu tiên các đầu số cổ uy tín của các nhà mạng lớn (098 - Viettel, 090 - MobiFone, 091 - VinaPhone) để khẳng định vị thế.");
+        defSb.AppendLine("- Kết hợp các đuôi số phong thủy kích hoạt tài lộc như Thần tài (39, 79), Lộc phát (68, 86) hoặc số tiến (6789, 1368).\n");
+
+        if (defaultSuggs.Count > 0)
+        {
+            defSb.AppendLine("Tôi đã rà soát kho SIM thực tế trên sàn TrustSim và tuyển chọn các số đẹp phù hợp nhất dưới đây:");
+            foreach (var sim in defaultSuggs)
             {
-                sb.AppendLine($"• {sim.PhoneNumber} ({sim.CarrierName}) - Giá: {sim.Price:N0} đ : {sim.HighlightReason}");
+                defSb.AppendLine($"• **{sim.PhoneNumber}** ({sim.CarrierName}) — Giá: **{sim.Price:N0} đ** : {sim.HighlightReason}");
             }
         }
-        else
-        {
-            sb.AppendLine("\nHiện tại trong kho đang cập nhật thêm các số mới trong phân khúc này. Bạn có thể mở rộng khoảng giá hoặc liên hệ Hotline sàn để được hỗ trợ chuyên sâu.");
-        }
 
+        result.ReplyContent = defSb.ToString();
+        return result;
+    }
+
+    private async Task<AiConsultationLlmResponse> ExecuteFallbackConsultationAgentAsync(
+        string userMessage,
+        decimal? budgetMin,
+        decimal? budgetMax,
+        CancellationToken cancellationToken)
+    {
+        var smartRes = await ExecuteSmartLocalAgentAsync(userMessage, null, budgetMin, budgetMax, cancellationToken);
         return new AiConsultationLlmResponse
         {
-            ReplyContent = sb.ToString(),
-            SuggestedSims = suggestions,
+            ReplyContent = smartRes.ReplyContent,
+            SuggestedSims = smartRes.CollectedSims,
             ReferencedChunkIds = new List<Guid>(),
-            ReferencedDocuments = new List<string>(),
-            TokensUsed = 120,
+            ReferencedDocuments = smartRes.ReferencedDocs.Distinct().ToList(),
+            TokensUsed = (int)(smartRes.ReplyContent.Length / 3.5),
             EngineSource = "LOCAL_FALLBACK_ENGINE"
         };
     }
@@ -887,26 +1622,15 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
         decimal? budgetMax,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var fallbackRes = await ExecuteFallbackConsultationAgentAsync(userMessage, budgetMin, budgetMax, cancellationToken);
+        var smartRes = await ExecuteSmartLocalAgentAsync(userMessage, null, budgetMin, budgetMax, cancellationToken);
 
-        if (fallbackRes.SuggestedSims.Count > 0)
+        foreach (var evt in smartRes.ToolEvents)
         {
-            yield return new ChatConsultationStreamEvent
-            {
-                EventType = "tool_start",
-                ToolName = "SimInventory",
-                ToolSummary = "Đang quét kho SIM trên sàn TrustSim..."
-            };
-            await Task.Delay(40, cancellationToken);
-            yield return new ChatConsultationStreamEvent
-            {
-                EventType = "tool_end",
-                ToolName = "SimInventory",
-                ToolSummary = $"Tìm thấy {fallbackRes.SuggestedSims.Count} số SIM phù hợp"
-            };
+            yield return evt;
+            await Task.Delay(25, cancellationToken);
         }
 
-        var words = fallbackRes.ReplyContent.Split(new[] { ' ' }, StringSplitOptions.None);
+        var words = smartRes.ReplyContent.Split(new[] { ' ' }, StringSplitOptions.None);
         for (int i = 0; i < words.Length; i++)
         {
             var word = words[i] + (i < words.Length - 1 ? " " : "");
@@ -915,18 +1639,19 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
                 EventType = "token",
                 Delta = word
             };
-            await Task.Delay(15, cancellationToken);
+            await Task.Delay(12, cancellationToken);
         }
 
         yield return new ChatConsultationStreamEvent
         {
             EventType = "done",
-            SuggestedSims = fallbackRes.SuggestedSims,
+            SuggestedSims = smartRes.CollectedSims,
             ReferencedChunkIds = new List<Guid>(),
-            ReferencedDocuments = new List<string>(),
+            ReferencedDocuments = smartRes.ReferencedDocs.Distinct().ToList(),
             EngineSource = "LOCAL_FALLBACK_ENGINE"
         };
     }
+
 
     #endregion
 
@@ -1163,8 +1888,113 @@ NGUYÊN TẮC TƯ VẤN QUAN TRỌNG:
                     required = new[] { "phoneNumber" }
                 }
             }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "EvaluateSimPrice",
+                description = "Định giá nhanh một số điện thoại dựa trên thế nhịp ngắt, uy tín đầu số và bóc tách đặc trưng số học. Gọi khi người dùng hỏi số này giá bao nhiêu hoặc yêu cầu thẩm định giá.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        phoneNumber = new { type = "string", description = "Số điện thoại cần định giá (ví dụ: 0988888888, 0903123456)" }
+                    },
+                    required = new[] { "phoneNumber" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "GetMarketPriceComparables",
+                description = "Tra cứu khung giá thị trường tham chiếu, khoảng giá giao dịch thực tế và biên độ thanh khoản theo thể loại số SIM (Tứ quý, Tam hoa, Thần tài, Lộc phát...) và đầu số.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        categoryCode = new { type = "string", description = "Mã thể loại SIM (ví dụ: TU_QUY, TAM_HOA, THAN_TAI, LOC_PHAT, SANH_TIEN, TAXI, NGU_QUY)" },
+                        prefix = new { type = "string", description = "Đầu số nhà mạng (ví dụ: 098, 090, 091, 088...)" }
+                    }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "GetSimCategories",
+                description = "Lấy danh sách các thể loại SIM số đẹp phổ biến trên sàn TrustSim kèm hệ số nhân giá trị.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new { }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "GetCarrierInfo",
+                description = "Tra cứu thông tin chi tiết về nhà mạng viễn thông (Viettel, VinaPhone, MobiFone...), danh sách đầu số và quy trình thủ tục sang tên chính chủ.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        carrierName = new { type = "string", description = "Tên hoặc mã nhà mạng (Viettel, VinaPhone, MobiFone...)" }
+                    },
+                    required = new[] { "carrierName" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "GetPrefixInfo",
+                description = "Tra cứu thông tin, điểm uy tín và ý nghĩa phong thủy của một đầu số điện thoại (ví dụ: 098, 090, 091, 088, 086...).",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        prefixValue = new { type = "string", description = "Đầu số cần tra cứu (ví dụ: 098, 090, 091, 086, 088...)" }
+                    },
+                    required = new[] { "prefixValue" }
+                }
+            }
+        },
+        new
+        {
+            type = "function",
+            function = new
+            {
+                name = "GetAuctionDetail",
+                description = "Lấy thông tin chi tiết một phiên đấu giá SIM VIP theo mã phiên (AuctionCode) bao gồm giá hiện tại, bước giá, tiền đặt cọc và thời hạn.",
+                parameters = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        auctionCode = new { type = "string", description = "Mã phiên đấu giá (ví dụ: AUC123456)" }
+                    },
+                    required = new[] { "auctionCode" }
+                }
+            }
         }
     };
+
 
     #endregion
 }

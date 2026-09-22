@@ -22,6 +22,9 @@ public class RefreshToken : BaseEntity
     /// <summary>Địa chỉ IP tạo ra token.</summary>
     public string? CreatedByIp { get; set; }
 
+    /// <summary>Thông tin thiết bị / Trình duyệt đăng nhập (User-Agent).</summary>
+    public string? DeviceInfo { get; set; }
+
     /// <summary>Đã được sử dụng để đổi lấy Token mới chưa (phục vụ cơ chế Token Rotation).</summary>
     public bool IsUsed { get; set; } = false;
 

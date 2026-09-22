@@ -100,6 +100,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, A
             JwtId = newTokens.JwtId,
             ExpiresAt = newTokens.RefreshTokenExpiresAt,
             CreatedByIp = request.IpAddress,
+            DeviceInfo = existingToken.DeviceInfo,
             IsUsed = false,
             IsRevoked = false
         };

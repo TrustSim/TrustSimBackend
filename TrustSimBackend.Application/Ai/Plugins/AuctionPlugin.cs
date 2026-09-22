@@ -50,4 +50,40 @@ public class AuctionPlugin
             })
         });
     }
+
+    [KernelFunction, Description("Lấy thông tin chi tiết một phiên đấu giá SIM VIP theo mã phiên đấu giá (AuctionCode).")]
+    public async Task<string> GetAuctionDetailAsync(
+        [Description("Mã phiên đấu giá (ví dụ: AUC123456)")] string auctionCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(auctionCode))
+        {
+            return "{\"error\":\"Vui lòng cung cấp mã phiên đấu giá hợp lệ.\"}";
+        }
+
+        var auction = await _auctionRepo.GetByCodeAsync(auctionCode.Trim(), cancellationToken);
+        if (auction == null)
+        {
+            return "{\"error\":\"Không tìm thấy phiên đấu giá với mã này.\"}";
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            auctionId = auction.Id,
+            auctionCode = auction.AuctionCode,
+            phoneNumber = auction.SimNumber?.PhoneNumber,
+            startingPrice = auction.StartingPrice,
+            currentPrice = auction.CurrentPrice,
+            stepPrice = auction.AuctionRule?.MinimumBidIncrement ?? 0,
+            depositAmount = auction.AuctionRule?.DepositAmount ?? (auction.StartingPrice * 0.1m),
+            status = auction.AuctionStatus.ToString(),
+            type = auction.AuctionType.ToString(),
+            totalBids = auction.Bids.Count,
+            totalParticipants = auction.Participants.Count,
+            startAt = auction.StartAt.ToString("yyyy-MM-dd HH:mm:ss"),
+            endAt = auction.EndAt.ToString("yyyy-MM-dd HH:mm:ss")
+        });
+    }
 }
+
+

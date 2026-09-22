@@ -15,6 +15,7 @@ public class ApproveWithdrawCommandValidator : AbstractValidator<ApproveWithdraw
 
         RuleFor(v => v.Note)
             .MaximumLength(500).WithMessage("Ghi chú không vượt quá 500 ký tự.")
-            .When(v => v.Note != null);
+            .When(v => !string.IsNullOrEmpty(v.Note));
     }
 }
+

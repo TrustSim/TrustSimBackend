@@ -1,4 +1,4 @@
-namespace TrustSimBackend.Infrastructure.Services;
+namespace TrustSimBackend.Application.Common.Models;
 
 /// <summary>
 /// Cấu hình cổng thanh toán SePay lấy từ appsettings.json (Section: SePay).

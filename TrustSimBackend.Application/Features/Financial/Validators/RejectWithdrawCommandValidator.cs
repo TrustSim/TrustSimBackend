@@ -15,6 +15,8 @@ public class RejectWithdrawCommandValidator : AbstractValidator<RejectWithdrawCo
 
         RuleFor(v => v.Reason)
             .NotEmpty().WithMessage("Lý do từ chối không được để trống.")
+            .MinimumLength(5).WithMessage("Lý do từ chối phải có ít nhất 5 ký tự.")
             .MaximumLength(500).WithMessage("Lý do từ chối không vượt quá 500 ký tự.");
     }
 }
+

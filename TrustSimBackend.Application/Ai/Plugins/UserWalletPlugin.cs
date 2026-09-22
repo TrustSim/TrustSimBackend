@@ -1,7 +1,9 @@
 using System.ComponentModel;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Ai.Plugins;
@@ -13,11 +15,16 @@ public class UserWalletPlugin
 {
     private readonly IWalletRepository _walletRepo;
     private readonly ICurrentUserService _currentUser;
+    private readonly SePaySettings _sePaySettings;
 
-    public UserWalletPlugin(IWalletRepository walletRepo, ICurrentUserService currentUser)
+    public UserWalletPlugin(
+        IWalletRepository walletRepo,
+        ICurrentUserService currentUser,
+        IOptions<SePaySettings> sePayOptions)
     {
         _walletRepo = walletRepo;
         _currentUser = currentUser;
+        _sePaySettings = sePayOptions.Value;
     }
 
     [KernelFunction, Description("Tra cứu số dư ví khả dụng hiện tại của người dùng đã đăng nhập. Gọi khi người dùng hỏi 'tôi còn bao nhiêu tiền' hoặc 'số dư của tôi có đủ mua sim này không'.")]
@@ -47,15 +54,21 @@ public class UserWalletPlugin
             ? _currentUser.UserId.Value.ToString("N").Substring(0, 8).ToUpper()
             : "GUEST";
 
+        var prefix = !string.IsNullOrWhiteSpace(_sePaySettings.PaymentPrefix) ? _sePaySettings.PaymentPrefix : "TS";
+        var bankName = !string.IsNullOrWhiteSpace(_sePaySettings.BankName) ? _sePaySettings.BankName : "MBBank";
+        var accountNumber = !string.IsNullOrWhiteSpace(_sePaySettings.AccountNumber) ? _sePaySettings.AccountNumber : "070131881841";
+        var accountHolder = !string.IsNullOrWhiteSpace(_sePaySettings.AccountHolderName) ? _sePaySettings.AccountHolderName : "CONG TY TNHH TRUSTSIM";
+
         return JsonSerializer.Serialize(new
         {
             method = "Chuyển khoản SePay VietQR Tự Động",
-            bankName = "Sacombank",
-            accountNumber = "070131881841",
-            accountHolder = "CONG TY TNHH TRUSTSIM",
+            bankName = bankName,
+            accountNumber = accountNumber,
+            accountHolder = accountHolder,
             suggestedAmount = amount,
-            transferSyntax = $"TS NAPTIEN {userCode}",
+            transferSyntax = $"{prefix} NAPTIEN {userCode}",
             processingTime = "Cộng tiền tự động 24/7 tức thì trong 5 - 15 giây sau khi hoàn tất chuyển khoản."
         });
     }
 }
+
