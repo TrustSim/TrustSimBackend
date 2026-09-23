@@ -945,7 +945,12 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Khóa chống lặp (Idempotency Key - Tùy chọn)</label>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <label style="margin-bottom: 0;">Khóa chống lặp (Idempotency Key)</label>
+                            <button type="button" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.72rem; border-color: var(--border-color); color: var(--cyan);" onclick="generateNewDepositKey()">
+                                <i class="fa-solid fa-arrows-rotate"></i> Sinh Key mới
+                            </button>
+                        </div>
                         <input type="text" id="depositIdempotencyInput" class="form-control mono"
                             placeholder="Tự sinh nếu để trống">
                     </div>
@@ -1468,7 +1473,16 @@
             }
         }
 
-        // Tab 1: Deposit Handlers
+        // Tab 1: Deposit Handlers & Client Idempotency Key
+        let currentDepositIdempotencyKey = 'DEP-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('uuid-' + Math.random().toString(36).substring(2, 12)));
+
+        function generateNewDepositKey() {
+            currentDepositIdempotencyKey = 'DEP-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('uuid-' + Math.random().toString(36).substring(2, 12)));
+            const input = document.getElementById('depositIdempotencyInput');
+            if (input) input.value = currentDepositIdempotencyKey;
+            showToast('Đã sinh Idempotency Key mới: ' + currentDepositIdempotencyKey, 'info');
+        }
+
         function setDepositAmount(val) {
             document.getElementById('depositAmountInput').value = val;
         }
@@ -1481,7 +1495,11 @@
             }
 
             const amount = parseFloat(document.getElementById('depositAmountInput').value);
-            const idempotencyKey = document.getElementById('depositIdempotencyInput').value || null;
+            let idempotencyKey = (document.getElementById('depositIdempotencyInput').value || '').trim();
+            if (!idempotencyKey) {
+                idempotencyKey = currentDepositIdempotencyKey;
+                document.getElementById('depositIdempotencyInput').value = idempotencyKey;
+            }
 
             try {
                 const res = await apiFetch('/api/Wallets/deposit', {
@@ -1529,7 +1547,8 @@
                     </div>
                 `;
 
-                    showToast(`Đã tạo yêu cầu nạp tiền: ${txCode}`, 'success');
+                    showToast(`Phiên nạp tiền: ${txCode} (Key: ${idempotencyKey})`, 'success');
+                    await refreshAllData();
                 } else {
                     showToast(data.message || 'Tạo yêu cầu nạp tiền thất bại', 'error');
                 }
@@ -1568,6 +1587,8 @@
                     showToast(`Nạp tiền thành công qua SePay Webhook! Đã ghi sổ cái kép Nợ 1010 / Có 2010.`, 'success');
                     document.getElementById('depositStatusBadge').className = 'badge badge-green';
                     document.getElementById('depositStatusBadge').textContent = 'SUCCEEDED';
+                    // Tự động sinh Key mới cho lần nạp tiếp theo
+                    generateNewDepositKey();
                     await refreshAllData();
                 } else {
                     showToast(data.message || 'Lỗi xử lý webhook', 'error');

@@ -487,3 +487,10 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Custom additions
+.dotnet/
+.agents/rules/code_modification_approval.md
+TrustSimBackend.Infrastructure/Migrations/
+docs/
+AGENTS.md

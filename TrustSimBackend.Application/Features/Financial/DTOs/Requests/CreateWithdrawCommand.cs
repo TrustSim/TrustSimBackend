@@ -13,5 +13,7 @@ public record CreateWithdrawCommand(
     string DestinationAccountNumber,
     string DestinationAccountHolderName,
     string? Note,
-    Guid UserId
+    Guid UserId,
+    string? IdempotencyKey = null
 ) : IRequest<WalletTransactionDto>;
+

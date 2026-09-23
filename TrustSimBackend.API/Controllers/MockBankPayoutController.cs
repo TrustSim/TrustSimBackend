@@ -31,6 +31,10 @@ public class MockBankPayoutController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RequestWithdrawPhase1([FromBody] CreateWithdrawRequest request)
     {
+        var idempotencyKey = request.IdempotencyKey
+            ?? (Request.Headers.TryGetValue("Idempotency-Key", out var headerKey) ? headerKey.ToString() : null)
+            ?? (Request.Headers.TryGetValue("X-Idempotency-Key", out var xHeaderKey) ? xHeaderKey.ToString() : null);
+
         var command = new CreateWithdrawPhase1Command(
             CurrentUserId,
             request.Amount,
@@ -38,7 +42,8 @@ public class MockBankPayoutController : BaseApiController
             request.DestinationBankName,
             request.DestinationAccountNumber,
             request.DestinationAccountHolderName,
-            request.Note);
+            request.Note,
+            idempotencyKey);
 
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<WalletTransactionDto>.SuccessResult(result, "Khởi tạo yêu cầu rút tiền Pha 1 và khóa số dư thành công (PENDING)."));

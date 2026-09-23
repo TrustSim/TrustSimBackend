@@ -121,6 +121,28 @@ public class WalletTransactionRepository : IWalletTransactionRepository
         return (items, totalCount);
     }
 
+    public async Task<WalletTransaction?> GetActivePendingTopUpByWalletIdAsync(Guid walletId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _context.WalletTransactions
+            .Include(t => t.Wallet)
+            .Where(t => t.WalletId == walletId
+                     && t.WalletTransactionType == WalletTransactionType.TOP_UP
+                     && t.TransactionStatus == TransactionStatus.PENDING
+                     && (t.ExpiredAt == null || t.ExpiredAt > now))
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<bool> HasActivePendingWithdrawalAsync(Guid walletId, CancellationToken cancellationToken = default)
+    {
+        return await _context.WalletTransactions
+            .AnyAsync(t => t.WalletId == walletId
+                        && t.WalletTransactionType == WalletTransactionType.WITHDRAW
+                        && t.TransactionStatus == TransactionStatus.PENDING,
+                      cancellationToken);
+    }
+
     public async Task AddAsync(WalletTransaction transaction, CancellationToken cancellationToken = default)
     {
         await _context.WalletTransactions.AddAsync(transaction, cancellationToken);
@@ -131,3 +153,4 @@ public class WalletTransactionRepository : IWalletTransactionRepository
         _context.WalletTransactions.Update(transaction);
     }
 }
+

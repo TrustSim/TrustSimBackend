@@ -33,19 +33,6 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
-    /// Người dùng gửi hồ sơ xác minh danh tính KYC thủ công (CCCD và ảnh đại diện)
-    /// </summary>
-    [HttpPost("kyc")]
-    [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<IdentityVerificationDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> SubmitKyc([FromBody] SubmitKycCommand command)
-    {
-        var result = await Mediator.Send(command with { UserId = CurrentUserId });
-        return Ok(ApiResponse<IdentityVerificationDto>.SuccessResult(result, "Gửi hồ sơ xác minh KYC thành công. Vui lòng chờ phê duyệt."));
-    }
-
-    /// <summary>
     /// Lấy trạng thái hồ sơ KYC gần nhất của người dùng hiện tại
     /// </summary>
     [HttpGet("kyc/status")]

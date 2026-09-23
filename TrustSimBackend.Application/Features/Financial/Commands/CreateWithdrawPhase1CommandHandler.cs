@@ -43,6 +43,49 @@ public class CreateWithdrawPhase1CommandHandler : IRequestHandler<CreateWithdraw
             throw new BadRequestException("Ví tiền của bạn đang bị khóa hoặc đóng băng. Không thể rút tiền.");
         }
 
+        var idempotencyKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey.Trim();
+
+        // 1. Kiểm tra IdempotencyKey nếu được truyền lên từ Client
+        if (!string.IsNullOrEmpty(idempotencyKey))
+        {
+            var existingIntent = await _unitOfWork.PaymentIntents.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken);
+            if (existingIntent != null)
+            {
+                var existingTxCode = existingIntent.IntentCode.StartsWith("PI-")
+                    ? existingIntent.IntentCode[3..]
+                    : existingIntent.IntentCode;
+
+                var existingTx = await _unitOfWork.WalletTransactions.GetByTransactionCodeAsync(existingTxCode, cancellationToken);
+                if (existingTx != null)
+                {
+                    return new WalletTransactionDto
+                    {
+                        Id = existingTx.Id,
+                        WalletId = existingTx.WalletId,
+                        TransactionCode = existingTx.TransactionCode,
+                        Amount = existingTx.Amount,
+                        TransactionStatus = existingTx.TransactionStatus,
+                        WalletTransactionType = existingTx.WalletTransactionType,
+                        BalanceBefore = existingTx.BalanceBefore,
+                        BalanceAfter = existingTx.BalanceAfter,
+                        DestinationBankCode = existingTx.DestinationBankCode,
+                        DestinationBankName = existingTx.DestinationBankName,
+                        DestinationAccountNumberMasked = existingTx.DestinationAccountNumberMasked,
+                        DestinationAccountHolderName = existingTx.DestinationAccountHolderName,
+                        Description = existingTx.Description,
+                        CreatedAt = existingTx.CreatedAt,
+                        CompletedAt = existingTx.CompletedAt
+                    };
+                }
+            }
+        }
+
+        // 2. Kiểm tra xem có giao dịch rút tiền PENDING nào chưa hoàn tất không
+        if (await _unitOfWork.WalletTransactions.HasActivePendingWithdrawalAsync(wallet.Id, cancellationToken))
+        {
+            throw new BadRequestException("Bạn đang có một yêu cầu rút tiền Pha 1 đang chờ ngân hàng xử lý. Vui lòng hoàn tất (Pha 2A) hoặc hủy (Pha 2B) giao dịch hiện tại trước khi tạo yêu cầu mới.");
+        }
+
         if (wallet.AvailableBalance < request.Amount)
         {
             throw new BadRequestException(
@@ -103,7 +146,7 @@ public class CreateWithdrawPhase1CommandHandler : IRequestHandler<CreateWithdraw
             Status = PaymentIntentStatus.PROCESSING,
             Amount = request.Amount,
             Currency = "VND",
-            IdempotencyKey = $"WD-INTENT-{transactionCode}",
+            IdempotencyKey = idempotencyKey ?? $"WD-INTENT-{transactionCode}",
             GatewayProvider = "MockBankPayout",
             PaymentDetails = $"Rút về {request.DestinationBankName} - STK: {accNumber} - Chủ TK: {request.DestinationAccountHolderName.Trim().ToUpperInvariant()}",
             CreatedDate = now

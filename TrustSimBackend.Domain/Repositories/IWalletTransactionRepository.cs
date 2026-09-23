@@ -25,6 +25,9 @@ public interface IWalletTransactionRepository
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken = default);
+    Task<WalletTransaction?> GetActivePendingTopUpByWalletIdAsync(Guid walletId, CancellationToken cancellationToken = default);
+    Task<bool> HasActivePendingWithdrawalAsync(Guid walletId, CancellationToken cancellationToken = default);
     Task AddAsync(WalletTransaction transaction, CancellationToken cancellationToken = default);
     void Update(WalletTransaction transaction);
 }
+

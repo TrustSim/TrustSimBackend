@@ -14,5 +14,7 @@ public record CreateWithdrawPhase1Command(
     string DestinationBankName,
     string DestinationAccountNumber,
     string DestinationAccountHolderName,
-    string? Note = null
+    string? Note = null,
+    string? IdempotencyKey = null
 ) : IRequest<WalletTransactionDto>;
+

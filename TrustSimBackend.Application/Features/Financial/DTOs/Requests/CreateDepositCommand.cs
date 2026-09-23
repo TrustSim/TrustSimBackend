@@ -9,5 +9,7 @@ namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 public record CreateDepositCommand(
     decimal Amount,
     string? Note,
-    Guid UserId
+    Guid UserId,
+    string? IdempotencyKey = null
 ) : IRequest<DepositResponseDto>;
+
