@@ -197,6 +197,8 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
             }
         }
 
+        bool hasFrozenWallets = false;
+
         // Đối soát chi tiết từng ví
         foreach (var wallet in wallets)
         {
@@ -226,13 +228,41 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
                 SnapshotBalance = wallet.LockedBalance
             };
 
-            if (!availDetail.IsBalanced || !lockedDetail.IsBalanced)
+            bool isWalletUnbalanced = false;
+
+            // Yêu cầu 1: Chỉ thêm vào mảng Reconciliations các tài khoản vi phạm (Discrepancy != 0)
+            if (!availDetail.IsBalanced)
             {
                 report.IsBalanceReconciled = false;
+                report.Reconciliations.Add(availDetail);
+                isWalletUnbalanced = true;
             }
 
-            report.Reconciliations.Add(availDetail);
-            report.Reconciliations.Add(lockedDetail);
+            if (!lockedDetail.IsBalanced)
+            {
+                report.IsBalanceReconciled = false;
+                report.Reconciliations.Add(lockedDetail);
+                isWalletUnbalanced = true;
+            }
+
+            // Yêu cầu 3: Tự động ĐÓNG BĂNG (FROZEN) ví bị lệch số dư để cô lập rủi ro gian lận
+            if (isWalletUnbalanced && wallet.WalletStatus != WalletStatus.FROZEN)
+            {
+                wallet.WalletStatus = WalletStatus.FROZEN;
+                wallet.UpdatedDate = DateTime.UtcNow;
+                wallet.UpdatedBy = "SYSTEM_AUDIT_AUTO_FREEZE";
+                _unitOfWork.Wallets.Update(wallet);
+                hasFrozenWallets = true;
+
+                _logger.LogWarning(
+                    "[Ledger Audit] 🚨 PHÁT HIỆN LỆCH SỐ DƯ TÀI KHOẢN! Đã tự động ĐÓNG BĂNG ví '{WalletId}' (Available lệch: {AvailDiff:N0} ₫, Locked lệch: {LockedDiff:N0} ₫).",
+                    wallet.Id, availDetail.Discrepancy, lockedDetail.Discrepancy);
+            }
+        }
+
+        if (hasFrozenWallets)
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         // Kiểm tra phương trình kế toán toàn sàn

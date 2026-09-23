@@ -35,4 +35,10 @@ public class CreateWithdrawRequest
     /// Ghi chú rút tiền (tùy chọn).
     /// </summary>
     public string? Note { get; set; }
+
+    /// <summary>
+    /// Khóa Idempotency chống gửi trùng lặp giao dịch (Client sinh UUID).
+    /// </summary>
+    public string? IdempotencyKey { get; set; }
 }
+

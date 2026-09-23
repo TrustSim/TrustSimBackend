@@ -65,7 +65,11 @@ public class WalletsController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateDeposit([FromBody] CreateDepositRequest request)
     {
-        var command = new CreateDepositCommand(request.Amount, request.Note, CurrentUserId);
+        var idempotencyKey = request.IdempotencyKey
+            ?? (Request.Headers.TryGetValue("Idempotency-Key", out var headerKey) ? headerKey.ToString() : null)
+            ?? (Request.Headers.TryGetValue("X-Idempotency-Key", out var xHeaderKey) ? xHeaderKey.ToString() : null);
+
+        var command = new CreateDepositCommand(request.Amount, request.Note, CurrentUserId, idempotencyKey);
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<DepositResponseDto>.SuccessResult(result, "Tạo yêu cầu nạp tiền thành công. Vui lòng thanh toán theo thông tin hướng dẫn."));
     }
@@ -79,6 +83,10 @@ public class WalletsController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateWithdraw([FromBody] CreateWithdrawRequest request)
     {
+        var idempotencyKey = request.IdempotencyKey
+            ?? (Request.Headers.TryGetValue("Idempotency-Key", out var headerKey) ? headerKey.ToString() : null)
+            ?? (Request.Headers.TryGetValue("X-Idempotency-Key", out var xHeaderKey) ? xHeaderKey.ToString() : null);
+
         var command = new CreateWithdrawCommand(
             request.Amount,
             request.DestinationBankCode,
@@ -86,7 +94,8 @@ public class WalletsController : BaseApiController
             request.DestinationAccountNumber,
             request.DestinationAccountHolderName,
             request.Note,
-            CurrentUserId);
+            CurrentUserId,
+            idempotencyKey);
 
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<WalletTransactionDto>.SuccessResult(result, "Rút tiền thành công."));
@@ -137,34 +146,6 @@ public class WalletsController : BaseApiController
         var query = new AdminGetWithdrawalsQuery(status, pageIndex, pageSize);
         var result = await Mediator.Send(query);
         return Ok(ApiResponse<PagedResult<WalletTransactionDto>>.SuccessResult(result, "Lấy danh sách yêu cầu rút tiền thành công."));
-    }
-
-    /// <summary>
-    /// [Admin] Phê duyệt giao dịch rút tiền thủ công (nếu có)
-    /// </summary>
-    [HttpPost("admin/withdrawals/{id:guid}/approve")]
-    [Authorize(Roles = "ADMIN")]
-    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AdminApproveWithdraw([FromRoute] Guid id, [FromBody] ApproveWithdrawRequest? request = null)
-    {
-        var command = new ApproveWithdrawCommand(id, request?.Note, CurrentUserId);
-        var result = await Mediator.Send(command);
-        return Ok(ApiResponse<bool>.SuccessResult(result, "Duyệt yêu cầu rút tiền thành công."));
-    }
-
-    /// <summary>
-    /// [Admin] Hủy/Từ chối giao dịch rút tiền và hoàn tiền lại vào ví người dùng
-    /// </summary>
-    [HttpPost("admin/withdrawals/{id:guid}/reject")]
-    [Authorize(Roles = "ADMIN")]
-    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> AdminRejectWithdraw([FromRoute] Guid id, [FromBody] RejectWithdrawRequest request)
-    {
-        var command = new RejectWithdrawCommand(id, request.Reason, CurrentUserId);
-        var result = await Mediator.Send(command);
-        return Ok(ApiResponse<bool>.SuccessResult(result, "Từ chối yêu cầu rút tiền và hoàn tiền vào ví người dùng thành công."));
     }
 
     /// <summary>

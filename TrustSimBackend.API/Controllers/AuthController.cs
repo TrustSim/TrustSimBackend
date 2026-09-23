@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
-using TrustSimBackend.Application.Features.Identity.Commands;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 
@@ -10,9 +9,7 @@ namespace TrustSimBackend.API.Controllers;
 
 public class AuthController : BaseApiController
 {
-    /// <summary>
-    /// Bước 1 Đăng ký: Gửi thông tin đăng ký (userName, email, password), hệ thống lưu tạm và tự động gửi mã OTP qua Email. Chưa tạo tài khoản vào DB.
-    /// </summary>
+    
     [HttpPost("register")]
     [ProducesResponseType(typeof(ApiResponse<RegisterInitiatedDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]

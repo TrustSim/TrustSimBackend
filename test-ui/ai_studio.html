@@ -1730,17 +1730,17 @@
       container.innerHTML = '<div style="text-align: center; padding: 1.5rem; color: var(--text-dim);">Đang tải tài liệu RAG...</div>';
 
       try {
-        const res = await fetch(`${API_BASE}/api/ai/documents?pageSize=20`, {
+        const res = await fetch(`${API_BASE}/api/documents`, {
           headers: getAuthHeaders(),
           credentials: 'include'
         });
 
         const json = await res.json();
-        if (!res.ok || !json.data || !json.data.items) {
+        const docs = Array.isArray(json.data) ? json.data : (json.data?.items || []);
+        if (!res.ok) {
           throw new Error(json.message || 'Không thể tải danh sách tài liệu');
         }
 
-        const docs = json.data.items;
         if (docs.length === 0) {
           container.innerHTML = '<div style="text-align: center; padding: 1.5rem; color: var(--text-dim);">Chưa có tài liệu RAG nào. Hãy nạp tài liệu mới!</div>';
           return;
@@ -1752,11 +1752,11 @@
           div.className = 'doc-item';
           div.innerHTML = `
             <div class="doc-info">
-              <h4>${escapeHtml(d.documentName)}</h4>
-              <span>Loại: <b>${escapeHtml(d.documentType)}</b> | Chunks: <b>${d.totalChunks || 0}</b> | Tokens: <b>${d.totalTokens || 0}</b></span>
+              <h4>${escapeHtml(d.documentName || 'Tài liệu không tên')}</h4>
+              <span>${d.linkUrl ? `Link: <a href="${escapeHtml(d.linkUrl)}" target="_blank" style="color:var(--emerald);">${escapeHtml(d.linkUrl)}</a> | ` : ''}Ngày tạo: <b>${d.createdDate ? new Date(d.createdDate).toLocaleDateString('vi-VN') : 'N/A'}</b></span>
             </div>
             <div>
-              <span class="badge ${d.status === 'INDEXED' ? 'badge-emerald' : 'badge-gold'}">${escapeHtml(d.status)}</span>
+              <span class="badge ${d.status === 'INDEXED' ? 'badge-emerald' : 'badge-gold'}">${escapeHtml(d.status || 'ACTIVE')}</span>
             </div>
           `;
           container.appendChild(div);
@@ -1777,7 +1777,7 @@
       btn.innerHTML = '<span>⏳</span> Đang nạp & tạo Vector Embeddings...';
 
       try {
-        const res = await fetch(`${API_BASE}/api/ai/documents/ingest`, {
+        const res = await fetch(`${API_BASE}/api/documents/ai/ingest`, {
           method: 'POST',
           headers: getAuthHeaders(),
           credentials: 'include',
@@ -1822,7 +1822,7 @@
           headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
         }
 
-        const res = await fetch(`${API_BASE}/api/ai/documents/upload`, {
+        const res = await fetch(`${API_BASE}/api/documents/ai/upload`, {
           method: 'POST',
           headers: headers,
           credentials: 'include',

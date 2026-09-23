@@ -98,6 +98,12 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
             throw new NotFoundException($"Không tìm thấy ví tiền với ID '{transaction.WalletId}'.");
         }
 
+        if (wallet.WalletStatus != WalletStatus.ACTIVE)
+        {
+            _logger.LogWarning("[SePay Webhook] Ví '{WalletId}' đang ở trạng thái '{Status}' (không phải ACTIVE). Tạm giữ giao dịch nạp tiền để đối soát thủ công.", wallet.Id, wallet.WalletStatus);
+            throw new BadRequestException($"Ví tiền của bạn đang ở trạng thái {wallet.WalletStatus}. Giao dịch nạp tiền đã được tạm giữ để đối soát an toàn.");
+        }
+
         var amountToCredit = payload.TransferAmount;
         var externalId = payload.Id.ToString();
         var idempotencyKey = $"SEPAY-{payload.Id}";
