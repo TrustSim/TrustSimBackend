@@ -25,6 +25,9 @@ public class AuctionDto
 
     // Thông tin quy chế bổ sung
     public decimal MinBidStep { get; set; }
+    public int MaxStepMultiplier { get; set; } = 10;
+    public int MaxSnipeExtensionsPerParticipant { get; set; } = 3;
+    public int PaymentGracePeriodHours { get; set; } = 24;
     public decimal DepositAmount { get; set; }
     public float ExtensionDurationSeconds { get; set; }
     public decimal DutchDecreaseAmount { get; set; }

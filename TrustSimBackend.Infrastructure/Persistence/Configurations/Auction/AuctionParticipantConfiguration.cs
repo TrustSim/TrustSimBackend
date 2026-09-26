@@ -18,6 +18,9 @@ public class AuctionParticipantConfiguration : IEntityTypeConfiguration<AuctionP
         builder.Property(x => x.RejectReason).HasMaxLength(500);
         builder.Property(x => x.BlockedReason).HasMaxLength(500);
 
+        builder.Property(x => x.SnipeExtensionCount).HasDefaultValue(0).IsRequired();
+        builder.Property(x => x.IsInRoom).HasDefaultValue(false).IsRequired();
+
         builder.HasOne(x => x.Auction)
                .WithMany(a => a.Participants)
                .HasForeignKey(x => x.AuctionId)

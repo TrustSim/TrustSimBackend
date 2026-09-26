@@ -18,20 +18,26 @@ public class AuctionPlugin
         _auctionRepo = auctionRepo;
     }
 
-    [KernelFunction, Description("Lấy danh sách các phiên đấu giá SIM số đẹp VIP đang diễn ra trực tiếp trên sàn TrustSim. Gọi khi khách hỏi về đấu giá hoặc tìm sim đang đấu giá.")]
+    [KernelFunction, Description("Lấy danh sách tất cả các phiên đấu giá SIM số đẹp VIP đang diễn ra (ACTIVE) hoặc lên lịch sắp diễn ra (SCHEDULE) trên sàn TrustSim. BẮT BUỘC gọi khi khách hỏi về đấu giá hoặc số lượng SIM đang đấu giá.")]
     public async Task<string> GetActiveAuctionsAsync(
-        [Description("Giới hạn số lượng phiên đấu giá trả về (mặc định: 5)")] int limit = 5,
+        [Description("Trạng thái phiên đấu giá: ACTIVE, SCHEDULE, hoặc null để lấy toàn bộ")] string? status = null,
         CancellationToken cancellationToken = default)
     {
+        AuctionStatus? parsedStatus = null;
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<AuctionStatus>(status.Trim(), true, out var parsed))
+        {
+            parsedStatus = parsed;
+        }
+
         var result = await _auctionRepo.GetPublicPagedAsync(
             pageIndex: 1,
-            pageSize: limit,
-            status: AuctionStatus.ACTIVE,
+            pageSize: 100,
+            status: parsedStatus,
             cancellationToken: cancellationToken);
 
         if (result.TotalCount == 0 || result.Items.Count == 0)
         {
-            return "{\"total\":0,\"items\":[],\"message\":\"Hiện tại không có phiên đấu giá nào đang diễn ra trên sàn.\"}";
+            return "{\"total\":0,\"items\":[],\"message\":\"Hiện tại không có phiên đấu giá nào trên sàn.\"}";
         }
 
         return JsonSerializer.Serialize(new
@@ -41,11 +47,15 @@ public class AuctionPlugin
             {
                 auctionId = a.Id,
                 auctionCode = a.AuctionCode,
+                simNumberId = a.SimNumberId,
                 phoneNumber = a.SimNumber?.PhoneNumber,
+                carrier = a.SimNumber?.PhonePrefix?.SimCarrier?.CarrierName ?? "Viễn thông",
                 startingPrice = a.StartingPrice,
                 currentPrice = a.CurrentPrice,
                 stepPrice = a.AuctionRule?.MinimumBidIncrement ?? 0,
+                depositAmount = a.AuctionRule?.DepositAmount ?? (a.StartingPrice * 0.1m),
                 status = a.AuctionStatus.ToString(),
+                startAt = a.StartAt.ToString("yyyy-MM-dd HH:mm:ss"),
                 endTime = a.EndAt.ToString("yyyy-MM-dd HH:mm:ss")
             })
         });

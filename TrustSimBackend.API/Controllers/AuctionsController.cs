@@ -78,7 +78,7 @@ public class AuctionsController : BaseApiController
     }
 
     /// <summary>
-    /// Trả giá (Đặt Bid) trong phiên đấu giá
+    /// Trả giá (Đặt Bid) trong phiên đấu giá kiểu Anh (English Auction)
     /// </summary>
     [HttpPost("{id:guid}/bids")]
     [Authorize]
@@ -88,6 +88,58 @@ public class AuctionsController : BaseApiController
     {
         var result = await Mediator.Send(command with { AuctionId = id, UserId = CurrentUserId });
         return Ok(ApiResponse<BidDto>.SuccessResult(result, "Trả giá thành công."));
+    }
+
+    /// <summary>
+    /// Chấp nhận mua ngay (Instant Buy) trong phiên đấu giá kiểu Hà Lan (Dutch Auction)
+    /// </summary>
+    [HttpPost("{id:guid}/dutch-buy")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<AuctionResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AcceptDutchBuy([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new AcceptDutchBuyCommand(id, CurrentUserId));
+        return Ok(ApiResponse<AuctionResultDto>.SuccessResult(result, "Chấp nhận mua SIM thành công."));
+    }
+
+    /// <summary>
+    /// Người thắng hoàn tất thanh toán số tiền còn lại trong thời hạn quy định
+    /// </summary>
+    [HttpPost("{id:guid}/confirm-payment")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<AuctionResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ConfirmPayment([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new ConfirmWinnerPaymentCommand(id, CurrentUserId));
+        return Ok(ApiResponse<AuctionResultDto>.SuccessResult(result, "Thanh toán phiên đấu giá thành công."));
+    }
+
+    /// <summary>
+    /// Người về nhì chấp nhận mua SIM với mức giá đặt cao nhất của họ (sau khi Người thắng bùng cọc)
+    /// </summary>
+    [HttpPost("{id:guid}/runner-up/accept")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<AuctionResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AcceptRunnerUpOffer([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new AcceptRunnerUpOfferCommand(id, CurrentUserId));
+        return Ok(ApiResponse<AuctionResultDto>.SuccessResult(result, "Chấp nhận mua SIM thành công."));
+    }
+
+    /// <summary>
+    /// Người về nhì từ chối mua SIM khi được đề nghị chuyển quyền
+    /// </summary>
+    [HttpPost("{id:guid}/runner-up/reject")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RejectRunnerUpOffer([FromRoute] Guid id)
+    {
+        var result = await Mediator.Send(new RejectRunnerUpOfferCommand(id, CurrentUserId));
+        return Ok(ApiResponse<bool>.SuccessResult(result, "Từ chối nhận quyền mua SIM thành công."));
     }
 
     /// <summary>

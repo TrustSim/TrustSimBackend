@@ -64,6 +64,16 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         public string? BlockedReason {get;set;}
 
         /// <summary>
+        /// Số lần người chơi này đã kích hoạt bù giờ phút chót trong phiên (so sánh với K).
+        /// </summary>
+        public int SnipeExtensionCount { get; set; } = 0;
+
+        /// <summary>
+        /// Cờ đánh dấu người dùng đang trực tiếp online trong phòng đấu giá.
+        /// </summary>
+        public bool IsInRoom { get; set; } = false;
+
+        /// <summary>
         /// Phiên đấu giá mà người tham gia này thuộc về.
         /// </summary>
         public virtual Auction? Auction { get; set; }

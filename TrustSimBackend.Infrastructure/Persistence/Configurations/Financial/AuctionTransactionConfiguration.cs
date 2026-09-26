@@ -24,6 +24,8 @@ public class AuctionTransactionConfiguration : IEntityTypeConfiguration<AuctionT
         builder.Property(x => x.BalanceBefore).HasPrecision(18, 2);
         builder.Property(x => x.BalanceAfter).HasPrecision(18, 2);
 
+        builder.Property(x => x.JournalCode).HasMaxLength(50);
+
         builder.HasOne(x => x.Wallet)
                .WithMany(w => w.AuctionTransactions)
                .HasForeignKey(x => x.WalletId)
@@ -34,9 +36,20 @@ public class AuctionTransactionConfiguration : IEntityTypeConfiguration<AuctionT
                .HasForeignKey(x => x.EscrowId)
                .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(x => x.LedgerJournal)
+               .WithMany()
+               .HasForeignKey(x => x.LedgerJournalId)
+               .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(x => x.Auction)
+               .WithMany()
+               .HasForeignKey(x => x.AuctionId)
+               .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasIndex(x => x.WalletId);
         builder.HasIndex(x => x.EscrowId);
+        builder.HasIndex(x => x.LedgerJournalId);
+        builder.HasIndex(x => x.AuctionId);
         builder.HasIndex(x => x.TransactionStatus);
     }
 }

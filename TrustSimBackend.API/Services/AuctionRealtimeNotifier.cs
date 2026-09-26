@@ -47,4 +47,32 @@ public class AuctionRealtimeNotifier : IAuctionRealtimeNotifier
         _logger.LogInformation("[Realtime] Phát sóng NewAuctionCreated ({AuctionCode}) tới danh sách auctions_listing", auction.AuctionCode);
         await _hubContext.Clients.Group("auctions_listing").ReceiveNewAuctionCreated(auction);
     }
+
+    public async Task NotifyPriceDropAsync(Guid auctionId, decimal currentPrice, int nextDropInSeconds, CancellationToken cancellationToken = default)
+    {
+        var groupName = $"auction_{auctionId.ToString().ToLower()}";
+        _logger.LogInformation("[Realtime] Phát sóng PriceDrop ({CurrentPrice:N0} VNĐ, next in {NextDrop}s) tới nhóm {GroupName}", currentPrice, nextDropInSeconds, groupName);
+        await _hubContext.Clients.Group(groupName).ReceivePriceDrop(currentPrice, nextDropInSeconds);
+    }
+
+    public async Task NotifyAuctionEndedAsync(Guid auctionId, AuctionResultDto result, CancellationToken cancellationToken = default)
+    {
+        var groupName = $"auction_{auctionId.ToString().ToLower()}";
+        _logger.LogInformation("[Realtime] Phát sóng AuctionEnded (Winner: {WinnerId}, FinalPrice: {Price:N0} VNĐ) tới nhóm {GroupName}", result.WinnerId, result.FinalPrice, groupName);
+        await _hubContext.Clients.Group(groupName).ReceiveAuctionEnded(result);
+    }
+
+    public async Task NotifyAuctionFailedAsync(Guid auctionId, string reason, CancellationToken cancellationToken = default)
+    {
+        var groupName = $"auction_{auctionId.ToString().ToLower()}";
+        _logger.LogInformation("[Realtime] Phát sóng AuctionFailed ({Reason}) tới nhóm {GroupName}", reason, groupName);
+        await _hubContext.Clients.Group(groupName).ReceiveAuctionFailed(reason);
+    }
+
+    public async Task NotifyAuctionNotificationAsync(Guid auctionId, string message, string type, CancellationToken cancellationToken = default)
+    {
+        var groupName = $"auction_{auctionId.ToString().ToLower()}";
+        _logger.LogInformation("[Realtime] Phát sóng Notification [{Type}: {Message}] tới nhóm {GroupName}", type, message, groupName);
+        await _hubContext.Clients.Group(groupName).ReceiveAuctionNotification(message, type);
+    }
 }

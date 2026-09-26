@@ -16,7 +16,7 @@ public class DocumentsController : BaseApiController
     // ─────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Lấy danh sách tài liệu / quy chế sàn / chính sách
+    /// Lấy danh sách tài liệu / quy chế sàn / chính sách (Công khai)
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<DocumentDto>>), StatusCodes.Status200OK)]
@@ -27,9 +27,10 @@ public class DocumentsController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy chi tiết tài liệu theo ID
+    /// [Admin] Lấy chi tiết tài liệu theo ID (Bao gồm nội dung chi tiết và audit logs)
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(ApiResponse<DocumentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById([FromRoute] Guid id)
@@ -39,10 +40,23 @@ public class DocumentsController : BaseApiController
     }
 
     /// <summary>
+    /// [Admin] Tạo mới tài liệu / quy chế sàn
+    /// </summary>
+    [HttpPost]
+    [Authorize(Roles = "ADMIN,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<DocumentDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Create([FromBody] CreateDocumentCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, ApiResponse<DocumentDto>.SuccessResult(result, "Tạo mới văn bản thành công."));
+    }
+
+    /// <summary>
     /// [Admin] Cập nhật văn bản điều khoản / chính sách
     /// </summary>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "ADMIN")]
+    [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(ApiResponse<DocumentDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdateDocumentCommand command)
@@ -55,7 +69,7 @@ public class DocumentsController : BaseApiController
     /// [Admin] Xóa (xóa mềm) tài liệu / chính sách
     /// </summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "ADMIN")]
+    [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(ApiResponse<bool>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete([FromRoute] Guid id)
@@ -65,9 +79,10 @@ public class DocumentsController : BaseApiController
     }
 
     /// <summary>
-    /// Xuất danh mục tài liệu / chính sách ra file Excel (.xlsx)
+    /// [Admin] Xuất danh mục tài liệu / chính sách ra file Excel (.xlsx)
     /// </summary>
     [HttpGet("export")]
+    [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> Export([FromQuery] bool? activeOnly)
     {
@@ -83,7 +98,6 @@ public class DocumentsController : BaseApiController
     /// [Admin] Nạp tài liệu nghiên cứu thị trường / quy tắc định giá từ URL để chạy RAG Ingestion Pipeline
     /// </summary>
     [HttpPost("ai/ingest")]
-    [HttpPost("~/api/ai/documents/ingest")]
     [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(ApiResponse<IngestDocumentResponseDto>), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
@@ -104,7 +118,6 @@ public class DocumentsController : BaseApiController
     /// [Admin] Tải lên trực tiếp tệp tài liệu (PDF, TXT, MD, DOCX, CSV) để chạy RAG Ingestion Pipeline
     /// </summary>
     [HttpPost("ai/upload")]
-    [HttpPost("~/api/ai/documents/upload")]
     [Authorize(Roles = "ADMIN,Admin")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ApiResponse<IngestDocumentResponseDto>), StatusCodes.Status202Accepted)]
@@ -135,7 +148,6 @@ public class DocumentsController : BaseApiController
     /// Kiểm tra tiến độ xử lý và số lượng vector chunks đã tạo của tài liệu
     /// </summary>
     [HttpGet("ai/{id:guid}/status")]
-    [HttpGet("~/api/ai/documents/{id:guid}/status")]
     [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(ApiResponse<IngestDocumentResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]

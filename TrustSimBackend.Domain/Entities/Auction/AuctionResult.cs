@@ -18,40 +18,73 @@ namespace TrustSimBackend.Domain.Entities.Auctions
 
         /// <summary>
         /// ID của người thắng đấu giá (tham chiếu đến <see cref="AuctionParticipant.Id"/>).
+        /// Nullable khi phiên không có người thắng (NO_WINNER / FAILED).
         /// </summary>
-        public Guid WinnerId {get;set;}
+        public Guid? WinnerId { get; set; }
+
+        /// <summary>
+        /// ID của người về nhì trong phiên đấu giá (tham chiếu đến <see cref="AuctionParticipant.Id"/>).
+        /// </summary>
+        public Guid? RunnerUpParticipantId { get; set; }
+
+        /// <summary>
+        /// Giá đặt cao nhất của người về nhì (VNĐ).
+        /// </summary>
+        public decimal? RunnerUpFinalPrice { get; set; }
+
+        /// <summary>
+        /// Hạn chót thanh toán của Người thắng (Now + X giờ).
+        /// </summary>
+        public DateTime? PaymentDeadline { get; set; }
+
+        /// <summary>
+        /// Cờ đánh dấu đã gửi đề nghị mua cho Người về nhì khi Người thắng bùng kèo.
+        /// </summary>
+        public bool IsRunnerUpOffered { get; set; } = false;
+
+        /// <summary>
+        /// Hạn chót thanh toán của Người về nhì (Now + X giờ).
+        /// </summary>
+        public DateTime? RunnerUpPaymentDeadline { get; set; }
+
+        /// <summary>
+        /// Thời điểm hoàn tất quyết toán tài chính toàn bộ.
+        /// </summary>
+        public DateTime? SettledAt { get; set; }
 
         /// <summary>
         /// Giá cuối cùng mà người thắng phải trả (VNĐ).
         /// </summary>
-        public decimal FinalPrice {get;set;}
+        public decimal FinalPrice { get; set; }
 
         /// <summary>
         /// Trạng thái cuối cùng của kết quả đấu giá.
         /// </summary>
-        public AuctionResultStatus AuctionResultStatus {get;set;}
+        public AuctionResultStatus AuctionResultStatus { get; set; }
 
         /// <summary>
         /// Thời gian xác định người chiến thắng
         /// </summary>
-        public DateTime DeterminedAt {get;set;}
+        public DateTime DeterminedAt { get; set; }
 
         /// <summary>
-        /// Thời gian xác nhân người chiến thắng
+        /// Thời gian xác nhận người chiến thắng
         /// </summary>
-        public DateTime ConfirmedAt {get;set;}
+        public DateTime ConfirmedAt { get; set; }
 
         /// <summary>
         /// Thời gian Hủy kết quả đấu giá
         /// </summary>
-        public DateTime? CancelledAt {get;set;}
+        public DateTime? CancelledAt { get; set; }
         /// <summary>
         /// Lý do hủy kết quả đấu giá
         /// </summary>
-        public string? CancelledReason {get;set;}
+        public string? CancelledReason { get; set; }
 
         public virtual Auction? Auction { get; set; }
 
         public virtual AuctionParticipant? Winner { get; set; }
+
+        public virtual AuctionParticipant? RunnerUpParticipant { get; set; }
     }
 }

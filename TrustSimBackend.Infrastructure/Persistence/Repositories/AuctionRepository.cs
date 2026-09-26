@@ -125,6 +125,7 @@ public class AuctionRepository : IAuctionRepository
         CancellationToken cancellationToken = default)
     {
         var query = _context.Auctions
+            .Include(a => a.AuctionRule)
             .Include(a => a.SimNumber)
                 .ThenInclude(s => s!.PhonePrefix)
                     .ThenInclude(p => p!.SimCarrier)
@@ -301,6 +302,15 @@ public class AuctionRepository : IAuctionRepository
             .FirstOrDefaultAsync(p => p.AuctionId == auctionId && p.UserAccountId == userId, cancellationToken);
     }
 
+    public async Task<bool> HasOverlappingRegisteredAuctionAsync(Guid userId, DateTime startAt, DateTime endAt, Guid? excludeAuctionId = null, CancellationToken cancellationToken = default)
+    {
+        return await _context.AuctionParticipants
+            .Include(p => p.Auction)
+            .Where(p => p.UserAccountId == userId && (p.Status == ParticipantStatus.REGISTERED || p.Status == ParticipantStatus.DEPOSIT_PAID))
+            .Where(p => p.Auction != null && p.AuctionId != excludeAuctionId && (p.Auction.AuctionStatus == AuctionStatus.SCHEDULE || p.Auction.AuctionStatus == AuctionStatus.ACTIVE))
+            .AnyAsync(p => p.Auction!.StartAt < endAt && p.Auction.EndAt > startAt, cancellationToken);
+    }
+
     public async Task AddParticipantAsync(AuctionParticipant participant, CancellationToken cancellationToken = default)
     {
         await _context.AuctionParticipants.AddAsync(participant, cancellationToken);
@@ -309,6 +319,26 @@ public class AuctionRepository : IAuctionRepository
     public void UpdateParticipant(AuctionParticipant participant)
     {
         _context.AuctionParticipants.Update(participant);
+    }
+
+    public async Task<AuctionResult?> GetResultByAuctionIdAsync(Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.AuctionResults
+            .Include(r => r.Winner)
+                .ThenInclude(w => w!.UserAccount)
+            .Include(r => r.RunnerUpParticipant)
+                .ThenInclude(p => p!.UserAccount)
+            .FirstOrDefaultAsync(r => r.AuctionId == auctionId, cancellationToken);
+    }
+
+    public async Task AddResultAsync(AuctionResult result, CancellationToken cancellationToken = default)
+    {
+        await _context.AuctionResults.AddAsync(result, cancellationToken);
+    }
+
+    public void UpdateResult(AuctionResult result)
+    {
+        _context.AuctionResults.Update(result);
     }
 }
 

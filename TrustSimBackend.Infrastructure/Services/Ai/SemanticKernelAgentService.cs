@@ -571,9 +571,36 @@ Dựa trên toàn bộ dữ liệu trên và tri thức thị trường SIM Vi�
             case "GetActiveAuctions":
             {
                 var plugin = sp.GetRequiredService<AuctionPlugin>();
-                int limit = arguments.TryGetProperty("limit", out var l) && l.ValueKind == JsonValueKind.Number ? l.GetInt32() : 5;
-                var res = await plugin.GetActiveAuctionsAsync(limit, cancellationToken);
-                return (res, "Đã tra cứu danh sách phiên đấu giá SIM VIP trực tiếp trên sàn", new List<ConsultationSimSuggestion>());
+                string? status = arguments.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String ? st.GetString() : null;
+                var res = await plugin.GetActiveAuctionsAsync(status, cancellationToken);
+                
+                var auctionSims = new List<ConsultationSimSuggestion>();
+                try
+                {
+                    using var aDoc = JsonDocument.Parse(res);
+                    if (aDoc.RootElement.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var it in items.EnumerateArray())
+                        {
+                            if (it.TryGetProperty("simNumberId", out var sidProp) && sidProp.TryGetGuid(out var sid))
+                            {
+                                var aCode = it.TryGetProperty("auctionCode", out var ac) ? ac.GetString() ?? "" : "";
+                                var aStatus = it.TryGetProperty("status", out var stp) ? stp.GetString() ?? "" : "";
+                                auctionSims.Add(new ConsultationSimSuggestion
+                                {
+                                    SimNumberId = sid,
+                                    PhoneNumber = it.TryGetProperty("phoneNumber", out var pn) ? pn.GetString() ?? "" : "",
+                                    Price = it.TryGetProperty("currentPrice", out var cp) ? cp.GetDecimal() : 0,
+                                    CarrierName = it.TryGetProperty("carrier", out var cr) ? cr.GetString() ?? "Viễn thông" : "Viễn thông",
+                                    HighlightReason = $"Đấu giá {aCode} ({aStatus})"
+                                });
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                return (res, "Đã tra cứu danh sách phiên đấu giá SIM VIP trên sàn TrustSim", auctionSims);
             }
 
             case "GetEscrowAndSafetyPolicy":
@@ -762,7 +789,7 @@ Bạn có quyền truy cập vào 16 Native Tools để thực thi nghiệp vụ
 8. 'GetFengShuiGuidelineByBirthYear(birthYear)': Tra cứu bản mệnh ngũ hành, quái số, số hợp mệnh theo năm sinh.
 9. 'QueryFengShuiKnowledge(query)': Truy vấn tri thức RAG phong thủy chuyên sâu (49 53, đuôi số, số học).
 10. 'AnalyzeSimCadence(phoneNumber)': Bóc tách thế nhịp ngắt (2.2.2.2.2, 3.3.4) và âm luật.
-11. 'GetActiveAuctions(limit)': Lấy danh sách phiên đấu giá SIM VIP trực tiếp.
+11. 'GetActiveAuctions(status)': Lấy danh sách tất cả các phiên đấu giá SIM VIP (ACTIVE: đang diễn ra, SCHEDULE: sắp diễn ra, hoặc null để lấy toàn bộ).
 12. 'GetAuctionDetail(auctionCode)': Chi tiết bước giá, tiền cọc phiên đấu giá.
 13. 'GetEscrowAndSafetyPolicy()': Chính sách ký quỹ giao dịch đảm bảo TrustSim Escrow an toàn 100%.
 14. 'CalculateTradeFees(price)': Tính toán biểu phí sàn và tiền đặt cọc cho một mức giá.
@@ -779,7 +806,8 @@ QUY TẮC BẮT BUỘC KHI GỌI FUNCTION:
 - Khi khách hỏi năm sinh / mệnh / số hợp tuổi: BẮT BUỘC gọi 'GetFengShuiGuidelineByBirthYear'.
 - Khi khách hỏi kiến thức phong thủy sâu (49 53, ý nghĩa số...): BẮT BUỘC gọi 'QueryFengShuiKnowledge'.
 - Khi khách hỏi thế nhịp / âm luật / ngắt số: BẮT BUỘC gọi 'AnalyzeSimCadence'.
-- Khi khách hỏi về đấu giá: BẮT BUỘC gọi 'GetActiveAuctions' hoặc 'GetAuctionDetail'.
+- Khi khách hỏi về đấu giá hoặc số lượng SIM đang đấu giá: BẮT BUỘC gọi 'GetActiveAuctions'.
+- BẮT BUỘC ĐỌC KỸ và LIỆT KÊ ĐẦY ĐỦ 100% tất cả các phiên đấu giá / số SIM trả về từ Tool (không được tự ý bỏ sót hoặc tóm tắt thiếu bản ghi nào), phân tách rõ ràng giữa các phiên đang diễn ra (ACTIVE) và các phiên đã lên lịch sắp diễn ra (SCHEDULE).
 - Khi khách hỏi về an toàn / ký quỹ Escrow: BẮT BUỘC gọi 'GetEscrowAndSafetyPolicy'.
 - Khi khách hỏi phí sàn / tiền cọc cho mức giá: BẮT BUỘC gọi 'CalculateTradeFees'.
 - Khi khách hỏi số dư ví / nạp tiền: BẮT BUỘC gọi 'GetMyWalletBalance' hoặc 'GetSePayDepositGuideline'.
@@ -1428,7 +1456,7 @@ Luôn trả lời với giọng văn chuyên nghiệp, thanh lịch, giải thí
                 ToolName = "AuctionPlugin",
                 ToolSummary = "Đang quét danh sách phiên đấu giá SIM VIP trực tiếp trên sàn..."
             });
-            var aucJson = await auctionPlugin.GetActiveAuctionsAsync(5, cancellationToken);
+            var aucJson = await auctionPlugin.GetActiveAuctionsAsync(null, cancellationToken);
             result.ToolEvents.Add(new ChatConsultationStreamEvent
             {
                 EventType = "tool_end",
@@ -1796,13 +1824,13 @@ Luôn trả lời với giọng văn chuyên nghiệp, thanh lịch, giải thí
             function = new
             {
                 name = "GetActiveAuctions",
-                description = "Lấy danh sách các phiên đấu giá SIM số đẹp VIP đang diễn ra trực tiếp trên sàn TrustSim. Gọi khi khách hỏi về đấu giá.",
+                description = "Lấy danh sách tất cả các phiên đấu giá SIM số đẹp VIP (ACTIVE: đang diễn ra, SCHEDULE: sắp diễn ra) trên sàn TrustSim. Gọi khi khách hỏi về đấu giá hoặc số lượng sim đang đấu giá.",
                 parameters = new
                 {
                     type = "object",
                     properties = new
                     {
-                        limit = new { type = "integer", description = "Số lượng phiên đấu giá cần lấy (mặc định: 5)" }
+                        status = new { type = "string", description = "Trạng thái: 'ACTIVE', 'SCHEDULE', hoặc để trống để lấy tất cả" }
                     }
                 }
             }

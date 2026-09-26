@@ -14,6 +14,10 @@ public class AuctionRuleConfiguration : IEntityTypeConfiguration<AuctionRule>
         builder.Property(x => x.DepositAmount).HasPrecision(18, 2);
         builder.Property(x => x.DutchDecreaseAmount).HasPrecision(18, 2);
 
+        builder.Property(x => x.MaxStepMultiplier).HasDefaultValue(10).IsRequired();
+        builder.Property(x => x.MaxSnipeExtensionsPerParticipant).HasDefaultValue(3).IsRequired();
+        builder.Property(x => x.PaymentGracePeriodHours).HasDefaultValue(24).IsRequired();
+
         builder.HasOne(x => x.Auction)
                .WithOne(a => a.AuctionRule)
                .HasForeignKey<AuctionRule>(x => x.AuctionId)

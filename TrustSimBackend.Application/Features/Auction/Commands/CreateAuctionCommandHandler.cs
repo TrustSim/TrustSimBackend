@@ -7,6 +7,8 @@ using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
+using TrustSimBackend.Application.Features.Auction.Services;
+
 namespace TrustSimBackend.Application.Features.Auction.Commands;
 
 public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand, AuctionDto>
@@ -14,15 +16,18 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
     private readonly IUnitOfWork _unitOfWork;
     private readonly AuctionFactory _auctionFactory;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
+    private readonly IAuctionDelayQueueService _delayQueue;
 
     public CreateAuctionCommandHandler(
         IUnitOfWork unitOfWork,
         AuctionFactory auctionFactory,
-        IAuctionRealtimeNotifier realtimeNotifier)
+        IAuctionRealtimeNotifier realtimeNotifier,
+        IAuctionDelayQueueService delayQueue)
     {
         _unitOfWork = unitOfWork;
         _auctionFactory = auctionFactory;
         _realtimeNotifier = realtimeNotifier;
+        _delayQueue = delayQueue;
     }
 
     public async Task<AuctionDto> Handle(CreateAuctionCommand request, CancellationToken cancellationToken)
@@ -50,6 +55,14 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         await _unitOfWork.Auctions.AddAsync(auction, cancellationToken);
         _unitOfWork.SimNumbers.Update(sim);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Đẩy tác vụ kích hoạt phiên vào Redis ZSET Delay Queue
+        await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+        {
+            AuctionId = auction.Id,
+            JobType = AuctionDelayJobTypes.AUCTION_START,
+            ExecuteAt = auction.StartAt
+        }, cancellationToken);
 
         var dto = new AuctionDto
         {

@@ -193,7 +193,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<TrustSimDbContext>();
     await context.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(context);
+    await DbSeeder.SeedAsync(context, scope.ServiceProvider);
 }
 
 // ─── 6. Middleware Pipeline ───────────────────────────────────────────────────────
@@ -215,6 +215,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowTrustSimClients");
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 // Thứ tự quan trọng: Authentication -> UserContextMiddleware -> Authorization
 app.UseAuthentication();

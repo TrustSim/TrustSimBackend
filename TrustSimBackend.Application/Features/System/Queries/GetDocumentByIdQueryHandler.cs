@@ -28,7 +28,20 @@ public class GetDocumentByIdQueryHandler : IRequestHandler<GetDocumentByIdQuery,
             Id = doc.Id,
             DocumentName = doc.DocumentName,
             LinkUrl = doc.LinkUrl,
-            CreatedDate = doc.CreatedDate
+            DocumentType = doc.DocumentType,
+            Status = doc.Status,
+            TotalChunks = doc.TotalChunks,
+            TotalTokens = doc.TotalTokens,
+            CrawledAt = doc.CrawledAt,
+            ErrorMessage = doc.ErrorMessage,
+            IsActive = doc.IsActive,
+            CreatedDate = doc.CreatedDate,
+            CreatedBy = doc.CreatedBy,
+            UpdatedDate = doc.UpdatedDate,
+            UpdatedBy = doc.UpdatedBy,
+            IsDeleted = doc.IsDeleted,
+            DeletedDate = doc.DeletedDate,
+            DeletedBy = doc.DeletedBy
         };
     }
 }

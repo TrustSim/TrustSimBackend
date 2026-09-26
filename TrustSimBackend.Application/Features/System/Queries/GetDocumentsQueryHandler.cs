@@ -22,7 +22,20 @@ public class GetDocumentsQueryHandler : IRequestHandler<GetDocumentsQuery, IRead
             Id = d.Id,
             DocumentName = d.DocumentName,
             LinkUrl = d.LinkUrl,
-            CreatedDate = d.CreatedDate
+            DocumentType = d.DocumentType,
+            Status = d.Status,
+            TotalChunks = d.TotalChunks,
+            TotalTokens = d.TotalTokens,
+            CrawledAt = d.CrawledAt,
+            ErrorMessage = d.ErrorMessage,
+            IsActive = d.IsActive,
+            CreatedDate = d.CreatedDate,
+            CreatedBy = d.CreatedBy,
+            UpdatedDate = d.UpdatedDate,
+            UpdatedBy = d.UpdatedBy,
+            IsDeleted = d.IsDeleted,
+            DeletedDate = d.DeletedDate,
+            DeletedBy = d.DeletedBy
         }).ToList();
     }
 }

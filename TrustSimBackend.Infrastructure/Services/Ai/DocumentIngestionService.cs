@@ -61,7 +61,6 @@ public class DocumentIngestionService : IDocumentIngestionService
                 throw new InvalidOperationException("Nội dung tải về từ URL rỗng.");
             }
 
-            doc.RawContent = cleanText;
             doc.Status = DocumentStatus.PROCESSING;
             _documentRepository.Update(doc);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -165,10 +164,6 @@ public class DocumentIngestionService : IDocumentIngestionService
             {
                 throw new InvalidOperationException("Nội dung trích xuất từ tệp tin rỗng.");
             }
-
-            doc.RawContent = cleanText;
-            _documentRepository.Update(doc);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var chunkItems = _chunkerService.ChunkText(cleanText, chunkSize: 600, overlapSize: 100, documentName: doc.DocumentName);
             if (chunkItems.Count == 0)

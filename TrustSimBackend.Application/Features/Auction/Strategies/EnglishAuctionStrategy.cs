@@ -29,6 +29,9 @@ public class EnglishAuctionStrategy : IAuctionStrategy
             AuctionId = auctionId,
             // English-specific
             MinimumBidIncrement = request.MinimumBidIncrement,
+            MaxStepMultiplier = request.MaxStepMultiplier > 0 ? request.MaxStepMultiplier : 10,
+            MaxSnipeExtensionsPerParticipant = request.MaxSnipeExtensionsPerParticipant > 0 ? request.MaxSnipeExtensionsPerParticipant : 3,
+            PaymentGracePeriodHours = request.PaymentGracePeriodHours > 0 ? request.PaymentGracePeriodHours : 24,
             // Dutch-specific fields: không áp dụng
             DutchDecreaseAmount = 0,
             DutchDecreaseIntervalSeconds = 0,

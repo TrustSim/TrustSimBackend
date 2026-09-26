@@ -40,6 +40,7 @@ public class DutchAuctionStrategy : IAuctionStrategy
             // Dutch-specific
             DutchDecreaseAmount = request.DutchDecreaseAmount,
             DutchDecreaseIntervalSeconds = request.DutchDecreaseIntervalSeconds,
+            PaymentGracePeriodHours = request.PaymentGracePeriodHours > 0 ? request.PaymentGracePeriodHours : 24,
             // Common fields
             DepositAmount = request.DepositAmount,
             MaximumBidCountPerParticipant = request.MaximumBidCountPerParticipant,
