@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrustSim Realtime Auction Testing Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- SignalR CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Background Ambient Glows -->
+  <div class="glow glow-1"></div>
+  <div class="glow glow-2"></div>
+
+  <!-- Header & Identity Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div class="brand-text">
+          <h1>TrustSim <span class="badge-live">ARENA</span></h1>
+          <p>Real-time Auction Engine & Redis ZSET Delay Queue</p>
+        </div>
+      </div>
+      <div class="signalr-indicator" id="signalrIndicator">
+        <span class="status-dot"></span>
+        <span id="signalrStatusText">SignalR: Disconnected</span>
+      </div>
+      <div class="server-config-pill">
+        <label for="serverUrlSelect">🔗 API:</label>
+        <select id="serverUrlSelect" onchange="changeBackendServer(this.value)">
+          <option value="http://localhost:5130">http://localhost:5130</option>
+          <option value="https://localhost:7120">https://localhost:7120</option>
+          <option value="http://localhost:5000">http://localhost:5000</option>
+          <option value="custom">Tùy chỉnh...</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Active Profile & Theme Switcher Card -->
+    <div class="header-right">
+      <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Chuyển chế độ sáng/tối">
+        <span id="themeIcon">☀️</span> <span id="themeText">Giao diện sáng</span>
+      </button>
+
+      <div class="user-profile-card" id="userProfileCard">
+        <div class="avatar" id="userAvatar">NA</div>
+        <div class="user-meta">
+          <div class="user-name-role">
+            <span class="fullname" id="userFullName">Chưa đăng nhập</span>
+            <span class="badge-role" id="userRoleBadge">GUEST</span>
+          </div>
+          <div class="wallet-balances">
+            <span class="balance-item available">
+              <span class="label">Khả dụng:</span>
+              <strong id="userAvailBalance">0 ₫</strong>
+            </span>
+            <span class="balance-item locked">
+              <span class="label">Tạm giữ:</span>
+              <strong id="userLockedBalance">0 ₫</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Account Switcher Bar -->
+  <section class="quick-switcher-bar">
+    <div class="switcher-label">
+      <span>👥 Chuyển Tài Khoản Test Nhanh:</span>
+    </div>
+    <div class="switcher-pills">
+      <button class="pill-btn active" data-username="bidder_dai_gia" onclick="quickLogin('bidder_dai_gia')">
+        <span class="icon">💎</span> <strong>bidder_dai_gia</strong> (5 Tỷ)
+      </button>
+      <button class="pill-btn" data-username="bidder_kinh_doanh" onclick="quickLogin('bidder_kinh_doanh')">
+        <span class="icon">💼</span> <strong>bidder_kinh_doanh</strong> (2 Tỷ)
+      </button>
+      <button class="pill-btn" data-username="bidder_phong_thuy" onclick="quickLogin('bidder_phong_thuy')">
+        <span class="icon">🔮</span> <strong>bidder_phong_thuy</strong> (1 Tỷ)
+      </button>
+      <button class="pill-btn" data-username="bidder_alpha" onclick="quickLogin('bidder_alpha')">
+        <span class="icon">⚡</span> <strong>bidder_alpha</strong> (500Tr)
+      </button>
+      <button class="pill-btn" data-username="bidder_beta" onclick="quickLogin('bidder_beta')">
+        <span class="icon">🚀</span> <strong>bidder_beta</strong> (500Tr)
+      </button>
+      <button class="pill-btn seller" data-username="seller_vip_phuquy" onclick="quickLogin('seller_vip_phuquy')">
+        <span class="icon">🏷️</span> <strong>seller_phuquy</strong> (Bán SIM)
+      </button>
+      <button class="pill-btn seller" data-username="seller_daiphat" onclick="quickLogin('seller_daiphat')">
+        <span class="icon">🏢</span> <strong>seller_daiphat</strong> (Bán SIM)
+      </button>
+      <button class="pill-btn admin" data-username="admin" onclick="quickLogin('admin')">
+        <span class="icon">👑</span> <strong>admin</strong>
+      </button>
+    </div>
+  </section>
+
+  <!-- Main 3-Column Workspace -->
+  <main class="main-layout">
+    
+    <!-- Column 1: Auction Explorer & Quick Creator -->
+    <aside class="col-explorer">
+      <div class="panel-header">
+        <h2>📑 Danh Sách Phiên Đấu Giá</h2>
+        <button class="btn-icon" onclick="loadAuctions()" title="Làm mới danh sách">🔄</button>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="ALL" onclick="filterAuctions('ALL')">Tất Cả</button>
+        <button class="filter-tab" data-filter="ENGLISH" onclick="filterAuctions('ENGLISH')">Đấu Giá Anh</button>
+        <button class="filter-tab" data-filter="DUTCH" onclick="filterAuctions('DUTCH')">Đấu Giá Hà Lan</button>
+      </div>
+
+      <!-- Action: Open Create Auction Modal -->
+      <button class="btn-create-auction" onclick="openCreateAuctionModal()">
+        <span>➕ Tạo Phiên Đấu Giá Mới</span>
+      </button>
+
+      <!-- Auctions List Container -->
+      <div class="auctions-list" id="auctionsListContainer">
+        <div class="loading-spinner">Đang tải danh sách phiên...</div>
+      </div>
+    </aside>
+
+    <!-- Column 2: Live Bidding Arena & Room Stage -->
+    <section class="col-arena">
+      <div id="arenaPlaceholder" class="arena-placeholder">
+        <div class="placeholder-icon">🎯</div>
+        <h3>Chọn một phiên đấu giá ở cột bên trái</h3>
+        <p>để tham gia phòng đấu giá thời gian thực và theo dõi luồng sự kiện WebSocket.</p>
+      </div>
+
+      <div id="arenaContent" class="arena-content" style="display: none;">
+        <!-- Top Stage Banner -->
+        <div class="stage-banner">
+          <div class="stage-sim-info">
+            <div class="stage-tags-row">
+              <span class="type-tag" id="stageTypeTag">ENGLISH</span>
+              <span class="status-tag" id="stageStatusTag">ACTIVE</span>
+              <span class="carrier-tag" id="stageCarrierTag">Viettel</span>
+              <span class="category-tag" id="stageCategoryTag" style="display: none;">SIM Số Đẹp</span>
+            </div>
+            <h1 class="sim-number" id="stageSimNumber">0988.888.888</h1>
+            <div class="stage-meta-row">
+              <span class="auction-code" id="stageAuctionCode">AUC-20260901-001</span>
+              <span>Người bán: <strong id="stageSellerName">N/A</strong></span>
+              <span>👥 <strong id="stageParticipantsCount">0</strong> tham gia</span>
+            </div>
+          </div>
+
+          <!-- Live Countdown Timer Box -->
+          <div class="countdown-box">
+            <span class="countdown-label" id="countdownLabel">Thời gian còn lại</span>
+            <div class="countdown-digits" id="countdownDigits">00:00:00</div>
+            <div class="snipe-indicator" id="snipeIndicator" style="display: none;">
+              ⚡ Gia hạn Anti-Sniping: <strong id="snipeCountText">0/3</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Price Showcase Cards -->
+        <div class="price-cards-grid">
+          <div class="price-card main-price">
+            <span class="card-label">GIÁ HIỆN TẠI</span>
+            <div class="price-val" id="stageCurrentPrice">0 ₫</div>
+            <span class="card-sub" id="stageLeadingBidderText">Chưa có lượt trả giá</span>
+          </div>
+          <div class="price-card">
+            <span class="card-label">GIÁ KHỞI ĐIỂM</span>
+            <div class="price-val secondary" id="stageStartingPrice">0 ₫</div>
+            <span class="card-sub">Bước giá tối thiểu: <strong id="stageStepPrice">0 ₫</strong></span>
+          </div>
+          <div class="price-card">
+            <span class="card-label">TIỀN ĐẶT CỌC</span>
+            <div class="price-val secondary" id="stageDepositPrice">0 ₫</div>
+            <span class="card-sub">Quy tắc $N$: Max <strong id="stageMaxMultiplier">10</strong> bước</span>
+          </div>
+        </div>
+
+        <!-- Participant Status Bar / Deposit Register -->
+        <div class="participant-bar" id="participantBar">
+          <div class="participant-info" id="participantStatusText">
+            <span>🔒 Bạn chưa đăng ký tham gia phiên này.</span>
+          </div>
+          <button class="btn-action btn-register" id="btnRegisterAuction" onclick="registerCurrentAuction()">
+            💰 Đặt Cọc & Đăng Ký Tham Gia
+          </button>
+        </div>
+
+        <!-- English Auction Bidding Control Console -->
+        <div class="bid-console-box" id="englishBidConsole">
+          <div class="console-header">
+            <h3>⚡ Bảng Đặt Giá Phiên Đấu Giá Anh</h3>
+            <span class="bid-limit-info" id="bidLimitInfo">Giới hạn tối đa: 0 ₫</span>
+          </div>
+          
+          <!-- Preset Step Buttons -->
+          <div class="preset-steps-row">
+            <button class="btn-step" onclick="applyStepPreset(1)">+1 Bước (<span id="stepLabel1">+0₫</span>)</button>
+            <button class="btn-step" onclick="applyStepPreset(2)">+2 Bước (<span id="stepLabel2">+0₫</span>)</button>
+            <button class="btn-step" onclick="applyStepPreset(3)">+3 Bước (<span id="stepLabel3">+0₫</span>)</button>
+            <button class="btn-step max" onclick="applyStepPreset('max')">Max Bước N (<span id="stepLabelMax">+0₫</span>)</button>
+          </div>
+
+          <!-- Bid Form -->
+          <div class="bid-input-row">
+            <div class="input-wrapper">
+              <span class="currency-prefix">₫</span>
+              <input type="number" id="bidAmountInput" placeholder="Nhập số tiền trả giá..." step="1000000">
+            </div>
+            <button class="btn-action btn-place-bid" id="btnPlaceBid" onclick="placeBid()">
+              🔥 Gửi Trả Giá
+            </button>
+          </div>
+        </div>
+
+        <!-- Dutch Auction Instant Buy Console -->
+        <div class="bid-console-box dutch-box" id="dutchBidConsole" style="display: none;">
+          <div class="console-header">
+            <h3>🇳🇱 Đấu Giá Giảm Giá Kiểu Hà Lan</h3>
+            <span class="dutch-info">Ai bấm MUA NGAY trước sẽ là người thắng duy nhất!</span>
+          </div>
+          <div class="dutch-action-row">
+            <div class="dutch-current-tag">
+              <span>Giá Chốt Tức Thì:</span>
+              <strong id="dutchCurrentPriceTag">0 ₫</strong>
+            </div>
+            <button class="btn-action btn-dutch-buy" id="btnDutchBuy" onclick="acceptDutchBuy()">
+              ⚡ MUA NGAY VỚI MỨC GIÁ NÀY
+            </button>
+          </div>
+        </div>
+
+        <!-- Post-Auction Action Panel (Winner Payment & Runner-Up Handover) -->
+        <div class="settlement-panel" id="settlementPanel" style="display: none;">
+          <div class="settlement-alert" id="settlementAlert">
+            <h4 id="settlementTitle">Thông Báo Kết Quả Phiên</h4>
+            <p id="settlementDesc">Nội dung thông báo quyết toán.</p>
+          </div>
+          <div class="settlement-actions" id="settlementActions">
+            <button class="btn-action btn-pay" id="btnWinnerPay" onclick="confirmWinnerPayment()" style="display: none;">
+              💳 Hoàn Tất Thanh Toán Số Tiền Còn Lại
+            </button>
+            <button class="btn-action btn-accept-runnerup" id="btnAcceptRunnerUp" onclick="acceptRunnerUpOffer()" style="display: none;">
+              🤝 Á Quân: Chấp Nhận Mua SIM
+            </button>
+            <button class="btn-action btn-reject-runnerup" id="btnRejectRunnerUp" onclick="rejectRunnerUpOffer()" style="display: none;">
+              ❌ Á Quân: Từ Chối
+            </button>
+          </div>
+        </div>
+
+        <!-- Realtime Bids Stream Table -->
+        <div class="bids-history-box">
+          <div class="bids-history-header">
+            <h3>📜 Lịch Sử Đặt Giá Thời Gian Thực (<span id="bidsCount">0</span> lượt)</h3>
+            <span class="live-dot-pulse">● Cập nhật trực tiếp</span>
+          </div>
+          <div class="bids-table-wrapper">
+            <table class="bids-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Người tham gia</th>
+                  <th>Số tiền đặt</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="bidsTableBody">
+                <tr><td colspan="4" class="empty-state">Chưa có lượt trả giá nào</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 3: Realtime WebSocket Console & Logs -->
+    <aside class="col-console">
+      <div class="panel-header">
+        <h2>⚡ Luồng Sự Kiện Realtime</h2>
+        <button class="btn-icon" onclick="clearEventLogs()" title="Xóa logs">🗑️</button>
+      </div>
+
+      <div class="console-filter-bar">
+        <button class="log-filter active" data-logfilter="ALL" onclick="filterLogs('ALL')">Tất cả</button>
+        <button class="log-filter" data-logfilter="BID" onclick="filterLogs('BID')">Bids</button>
+        <button class="log-filter" data-logfilter="PRICE_DROP" onclick="filterLogs('PRICE_DROP')">Giảm giá</button>
+        <button class="log-filter" data-logfilter="EXT" onclick="filterLogs('EXT')">Gia hạn</button>
+        <button class="log-filter" data-logfilter="END" onclick="filterLogs('END')">Kết thúc</button>
+      </div>
+
+      <!-- Live Event Stream Feed -->
+      <div class="event-stream" id="eventStreamContainer">
+        <div class="stream-empty">Đang chờ sự kiện WebSocket từ server...</div>
+      </div>
+
+      <!-- Quick Test Actions Footer -->
+      <div class="console-footer">
+        <span class="active-room-tag" id="activeRoomTag">Room: Listing</span>
+        <button class="btn-test-action" onclick="pingServer()">📡 Ping SignalR</button>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Modal Tạo Phiên Đấu Giá Mới -->
+  <div class="modal-backdrop" id="createAuctionModal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>➕ Tạo Phiên Đấu Giá Mới</h3>
+        <button class="btn-close" onclick="closeCreateAuctionModal()">✖</button>
+      </div>
+      <form id="createAuctionForm" onsubmit="submitCreateAuction(event)">
+        <div class="form-group">
+          <label>Chọn SIM Số Đẹp Thuộc Sở Hữu:</label>
+          <select id="modalSimSelect" required>
+            <option value="">-- Đang tải SIM sở hữu... --</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Loại Hình Đấu Giá:</label>
+            <select id="modalAuctionType" onchange="toggleAuctionTypeFields()" required>
+              <option value="ENGLISH">Đấu giá kiểu Anh (Tăng dần)</option>
+              <option value="DUTCH">Đấu giá kiểu Hà Lan (Giảm dần)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Thời Gian Khởi Động Phiên:</label>
+            <select id="modalStartPreset">
+              <option value="1">Bắt đầu sau 1 phút (Test Delay Queue)</option>
+              <option value="2">Bắt đầu sau 2 phút</option>
+              <option value="0">Bắt đầu ngay lập tức (0s)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Giá Khởi Điểm (VNĐ):</label>
+            <input type="number" id="modalStartingPrice" value="50000000" required step="1000000">
+          </div>
+          <div class="form-group">
+            <label>Giá Dự Trữ / Sàn (VNĐ):</label>
+            <input type="number" id="modalReservePrice" value="40000000" step="1000000">
+          </div>
+        </div>
+
+        <!-- English Specific Fields -->
+        <div id="englishFieldsRow" class="form-row">
+          <div class="form-group">
+            <label>Bước Giá Tối Thiểu (VNĐ):</label>
+            <input type="number" id="modalMinIncrement" value="5000000" step="1000000">
+          </div>
+          <div class="form-group">
+            <label>Giới Hạn Bước Nhảy ($N$):</label>
+            <input type="number" id="modalMaxStepMultiplier" value="10" min="1" max="50">
+          </div>
+        </div>
+
+        <!-- Dutch Specific Fields -->
+        <div id="dutchFieldsRow" class="form-row" style="display: none;">
+          <div class="form-group">
+            <label>Số Tiền Giảm Mỗi Nấc (VNĐ):</label>
+            <input type="number" id="modalDutchDecreaseAmount" value="2000000" step="500000">
+          </div>
+          <div class="form-group">
+            <label>Chu Kỳ Giảm (Giây):</label>
+            <input type="number" id="modalDutchInterval" value="60" min="10">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Tiền Đặt Cọc (VNĐ):</label>
+            <input type="number" id="modalDepositAmount" value="10000000" required step="1000000">
+          </div>
+          <div class="form-group">
+            <label>Thời Gian Diễn Ra (Phút):</label>
+            <input type="number" id="modalDurationMinutes" value="10" min="2" max="1440">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeCreateAuctionModal()">Hủy</button>
+          <button type="submit" class="btn-submit">🚀 Tạo & Đẩy Vào Delay Queue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

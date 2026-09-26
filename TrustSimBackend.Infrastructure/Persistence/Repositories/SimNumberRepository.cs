@@ -134,7 +134,7 @@ public class SimNumberRepository : ISimNumberRepository
             .Include(s => s.PhonePrefix)
                 .ThenInclude(p => p!.SimCarrier)
             .Include(s => s.FormatRhythm)
-            .Where(s => s.SimStatus == SimStatus.AVAILABLE || s.SimStatus == SimStatus.LISTED);
+            .Where(s => !s.IsDeleted && s.SimStatus == SimStatus.IN_AUCTION);
 
         if (maxPrice.HasValue && maxPrice.Value > 0)
         {

@@ -14,11 +14,14 @@ public class CreateAuctionCommandValidator : AbstractValidator<CreateAuctionComm
             .GreaterThan(0).WithMessage("Giá khởi điểm phải lớn hơn 0.");
 
         RuleFor(v => v.ReservePrice)
-            .GreaterThanOrEqualTo(v => v.StartingPrice)
-            .WithMessage("Giá bảo lưu phải lớn hơn hoặc bằng giá khởi điểm.");
+            .GreaterThan(0).WithMessage("Giá bảo lưu phải lớn hơn 0.")
+            .LessThanOrEqualTo(v => v.StartingPrice)
+            .When(v => v.AuctionType == Domain.Enums.AuctionType.DUTCH)
+            .WithMessage("Trong đấu giá kiểu Hà Lan, giá sàn (ReservePrice) phải nhỏ hơn hoặc bằng giá khởi điểm.");
 
         RuleFor(v => v.RegistrationStartAt)
-            .GreaterThan(DateTime.UtcNow).WithMessage("Thời gian bắt đầu đăng ký phải ở tương lai.");
+            .GreaterThanOrEqualTo(DateTime.UtcNow.AddMinutes(-5))
+            .WithMessage("Thời gian bắt đầu đăng ký không được ở quá khứ.");
 
         RuleFor(v => v.RegistrationEndAt)
             .GreaterThan(v => v.RegistrationStartAt)

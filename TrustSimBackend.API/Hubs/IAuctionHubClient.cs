@@ -26,4 +26,29 @@ public interface IAuctionHubClient
     /// Nhận thông báo có phiên đấu giá mới được tạo/duyệt.
     /// </summary>
     Task ReceiveNewAuctionCreated(AuctionDto auction);
+
+    /// <summary>
+    /// Nhận thông báo nhịp giảm giá mới trong đấu giá kiểu Hà Lan.
+    /// </summary>
+    Task ReceivePriceDrop(decimal currentPrice, int nextDropInSeconds);
+
+    /// <summary>
+    /// Nhận thông báo kết thúc phiên đấu giá.
+    /// </summary>
+    Task ReceiveAuctionEnded(AuctionResultDto result);
+
+    /// <summary>
+    /// Nhận thông báo phiên đấu giá thất bại.
+    /// </summary>
+    Task ReceiveAuctionFailed(string reason);
+
+    /// <summary>
+    /// Nhận thông báo nội bộ phòng đấu giá.
+    /// </summary>
+    Task ReceiveAuctionNotification(string message, string type);
+
+    /// <summary>
+    /// Cập nhật số lượng người xem trực tuyến trong phòng đấu giá.
+    /// </summary>
+    Task UpdateViewerCount(int viewerCount);
 }

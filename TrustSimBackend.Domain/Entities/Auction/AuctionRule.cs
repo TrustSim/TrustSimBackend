@@ -26,6 +26,15 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// <summary>Khoảng thời gian tối thiểu (giây) giữa 2 lượt đặt giá liên tiếp của cùng một người.</summary>
         public float MinimumBidIntervalSeconds { get; set; }
 
+        /// <summary>Hệ số nhân N: Giới hạn mức tăng tối đa trong 1 lần đặt giá (Kiểu Anh). BidAmount &lt;= CurrentPrice + N * MinimumBidIncrement.</summary>
+        public int MaxStepMultiplier { get; set; } = 10;
+
+        /// <summary>Giới hạn K lần: Số lần tối đa một người chơi được phép kích hoạt bù giờ phút chót (Kiểu Anh).</summary>
+        public int MaxSnipeExtensionsPerParticipant { get; set; } = 3;
+
+        /// <summary>Thời hạn X giờ: Thời gian cho phép người thắng / người về nhì hoàn tất thanh toán trước khi bị phạt cọc.</summary>
+        public int PaymentGracePeriodHours { get; set; } = 24;
+
         // --- Cấu hình Anti-Sniping ---
         /// <summary>
         /// Ngưỡng thời gian (giây) trước khi phiên kết thúc: nếu có bid mới trong khoảng này,

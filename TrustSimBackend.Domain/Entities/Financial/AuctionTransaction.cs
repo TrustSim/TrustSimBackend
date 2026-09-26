@@ -50,6 +50,15 @@ namespace TrustSimBackend.Domain.Entities.Financial
         /// <summary>ID ký quỹ liên quan (nếu giao dịch này nạp/khấu trừ tiền cho một Escrow) (N-1).</summary>
         public Guid? EscrowId { get; set; }
 
+        /// <summary>ID của chứng từ kế toán ghi kép liên quan (<see cref="LedgerJournal"/>).</summary>
+        public Guid? LedgerJournalId { get; set; }
+
+        /// <summary>Mã chứng từ kế toán ghi kép (VD: "JRN-20260924-123456").</summary>
+        public string? JournalCode { get; set; }
+
+        /// <summary>ID phiên đấu giá liên quan (nếu có).</summary>
+        public Guid? AuctionId { get; set; }
+
         // --- Navigation Properties ---
         /// <summary>Ví tiền liên kết với giao dịch đấu giá này.</summary>
         public virtual Wallet? Wallet { get; set; }
@@ -59,5 +68,11 @@ namespace TrustSimBackend.Domain.Entities.Financial
 
         /// <summary>Tiền cọc liên quan đến giao dịch này (nếu là giao dịch khóa/hoàn cọc).</summary>
         public virtual AuctionDeposit? AuctionDeposit { get; set; }
+
+        /// <summary>Chứng từ kế toán ghi kép liên quan.</summary>
+        public virtual LedgerJournal? LedgerJournal { get; set; }
+
+        /// <summary>Phiên đấu giá liên quan.</summary>
+        public virtual Auction? Auction { get; set; }
     }
 }

@@ -52,7 +52,10 @@ public class SimInventoryPlugin
         CancellationToken cancellationToken = default)
     {
         var sim = await _simRepo.GetByPhoneNumberAsync(phoneNumber, cancellationToken);
-        if (sim == null) return "{\"error\":\"Không tìm thấy số SIM này trong hệ thống.\"}";
+        if (sim == null || sim.SimStatus != TrustSimBackend.Domain.Enums.SimStatus.IN_AUCTION)
+        {
+            return "{\"error\":\"Không tìm thấy số SIM này trong hệ thống hoặc SIM không có trạng thái IN_AUCTION.\"}";
+        }
 
         return JsonSerializer.Serialize(new
         {

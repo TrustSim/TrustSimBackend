@@ -33,5 +33,6 @@ public class BidConfiguration : IEntityTypeConfiguration<Bid>
         builder.HasIndex(x => x.ParticipantId);
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.PlacedAt);
+        builder.HasIndex(x => new { x.AuctionId, x.BidAmount });
     }
 }

@@ -21,9 +21,6 @@ public class Document : FullAuditableEntity
     /// <summary>Trạng thái xử lý ETL/RAG: PENDING, CRAWLING, PROCESSING, INDEXED, FAILED.</summary>
     public DocumentStatus Status { get; set; } = DocumentStatus.PENDING;
 
-    /// <summary>Nội dung văn bản thô đã được làm sạch sau khi cào từ URL.</summary>
-    public string? RawContent { get; set; }
-
     /// <summary>Tổng số đoạn trích (Chunks) đã được tạo ra từ tài liệu này.</summary>
     public int TotalChunks { get; set; } = 0;
 

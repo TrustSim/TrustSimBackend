@@ -15,6 +15,7 @@ using TrustSimBackend.Infrastructure.Services;
 using TrustSimBackend.Infrastructure.Services.Ai;
 using TrustSimBackend.Infrastructure.Services.Financial;
 using TrustSimBackend.Infrastructure.BackgroundServices;
+using TrustSimBackend.Application.Features.Auction.Services;
 
 namespace TrustSimBackend.Infrastructure;
 
@@ -132,6 +133,10 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyService, IdempotencyService>();
         services.AddScoped<IMockBankPayoutGatewayService, MockBankPayoutGatewayService>();
         services.AddHostedService<LedgerIntegrityCheckWorker>();
+
+        // Real-time Auction Delay Queue & Dispatcher Engine (Redis ZSET + In-Memory Timer)
+        services.AddSingleton<IAuctionDelayQueueService, RedisDelayQueueService>();
+        services.AddHostedService<AuctionDelayQueueDispatcher>();
 
         // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
         services.AddScoped<IBulkDataService, BulkDataService>();
