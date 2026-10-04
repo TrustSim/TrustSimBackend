@@ -90,6 +90,9 @@
       <button class="pill-btn" data-username="bidder_beta" onclick="quickLogin('bidder_beta')">
         <span class="icon">🚀</span> <strong>bidder_beta</strong> (500Tr)
       </button>
+      <button class="pill-btn warning" data-username="bidder_moderate_funds" onclick="quickLogin('bidder_moderate_funds')" style="border-color: #f59e0b; color: #f59e0b;">
+        <span class="icon">🪙</span> <strong>bidder_moderate</strong> (15Tr - Thiếu Tiền)
+      </button>
       <button class="pill-btn seller" data-username="seller_vip_phuquy" onclick="quickLogin('seller_vip_phuquy')">
         <span class="icon">🏷️</span> <strong>seller_phuquy</strong> (Bán SIM)
       </button>
@@ -370,6 +373,31 @@
             <input type="number" id="modalMaxStepMultiplier" value="10" min="1" max="50">
           </div>
         </div>
+
+        <!-- Anti-Sniping & Advanced Rules for English Auction -->
+        <details id="advancedRulesDetails" style="margin-bottom: 12px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 8px 12px; background: rgba(0,0,0,0.15);">
+          <summary style="cursor: pointer; font-weight: bold; color: var(--accent-color, #38bdf8);">⚙️ Cấu Hình Bù Giờ Anti-Sniping & Nâng Cao</summary>
+          <div class="form-row" style="margin-top: 10px;">
+            <div class="form-group">
+              <label>Ngưỡng Bù Giờ (Giây):</label>
+              <input type="number" id="modalExtensionThreshold" value="120" min="10" max="600" step="10">
+            </div>
+            <div class="form-group">
+              <label>Gia Hạn Mỗi Lần (Giây):</label>
+              <input type="number" id="modalExtensionDuration" value="300" min="30" max="1800" step="30">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Bù Giờ Tối Đa / Người ($K$):</label>
+              <input type="number" id="modalMaxSnipePerParticipant" value="3" min="1" max="10">
+            </div>
+            <div class="form-group">
+              <label>Bù Giờ Tối Đa Của Phiên:</label>
+              <input type="number" id="modalMaxExtensions" value="5" min="1" max="20">
+            </div>
+          </div>
+        </details>
 
         <!-- Dutch Specific Fields -->
         <div id="dutchFieldsRow" class="form-row" style="display: none;">
