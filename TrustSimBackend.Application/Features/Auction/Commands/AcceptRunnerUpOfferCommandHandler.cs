@@ -57,6 +57,10 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             throw new NotFoundException("Không tìm thấy ví tiền của người dùng.");
         }
 
+        // Lấy danh sách lượt đặt giá của phiên
+        var allBids = await _unitOfWork.Bids.GetBidsByAuctionIdAsync(auction.Id, top: 100, cancellationToken);
+        var runnerUpBid = allBids.FirstOrDefault(b => b.ParticipantId == participant.Id);
+
         // Lấy mức giá của Người về nhì từ RunnerUpFinalPrice (mức giá Bid cuối của chính họ, không ép theo giá người thắng)
         decimal priceToPay;
         if (auctionResult.RunnerUpFinalPrice.HasValue && auctionResult.RunnerUpFinalPrice > 0)
@@ -65,8 +69,6 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
         }
         else
         {
-            var bids = await _unitOfWork.Bids.GetBidsByAuctionIdAsync(auction.Id, top: 100, cancellationToken);
-            var runnerUpBid = bids.FirstOrDefault(b => b.ParticipantId == participant.Id);
             if (runnerUpBid == null)
             {
                 throw new BadRequestException("Không tìm thấy lịch sử trả giá của Người về nhì.");
@@ -134,13 +136,41 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             CompletedAt = now
         };
 
+        // Gán quan hệ 2 chiều
+        trade.Escrow = escrow;
+
         // Hủy deadline trong Delay Queue
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.RUNNER_UP_DEADLINE, cancellationToken);
+
+        // Cập nhật trạng thái SIM sang TRANSFERRING
+        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
+        if (sim != null)
+        {
+            sim.SimStatus = SimStatus.TRANSFERRING;
+            _unitOfWork.SimNumbers.Update(sim);
+        }
+
+        // Cập nhật Bid của Runner-Up thành WINNING
+        if (runnerUpBid != null)
+        {
+            runnerUpBid.Status = BidStatus.WINNING;
+            _unitOfWork.Bids.Update(runnerUpBid);
+        }
+
+        // Cập nhật giá hiện tại của Auction thành giá mua thực tế của Runner-Up
+        auction.CurrentPrice = priceToPay;
+        _unitOfWork.Auctions.Update(auction);
+
+        // Đảm bảo ví giữ trạng thái ACTIVE
+        wallet.WalletStatus = WalletStatus.ACTIVE;
+        _unitOfWork.Wallets.Update(wallet);
 
         participant.Status = ParticipantStatus.WON;
         _unitOfWork.Auctions.UpdateParticipant(participant);
 
+        await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);
         await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
+        await _unitOfWork.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
 
         auctionResult.WinnerId = participant.Id;
         auctionResult.FinalPrice = priceToPay;

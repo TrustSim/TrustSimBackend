@@ -47,6 +47,8 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable, IDisposable
     public ILedgerJournalRepository LedgerJournals => _serviceProvider.GetRequiredService<ILedgerJournalRepository>();
     public ILedgerEntryRepository LedgerEntries => _serviceProvider.GetRequiredService<ILedgerEntryRepository>();
     public IPaymentIntentRepository PaymentIntents => _serviceProvider.GetRequiredService<IPaymentIntentRepository>();
+    public IEscrowRepository Escrows => _serviceProvider.GetRequiredService<IEscrowRepository>();
+    public IAuctionTransactionRepository AuctionTransactions => _serviceProvider.GetRequiredService<IAuctionTransactionRepository>();
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

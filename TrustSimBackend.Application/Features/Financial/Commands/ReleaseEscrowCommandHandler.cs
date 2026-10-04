@@ -46,9 +46,9 @@ public class ReleaseEscrowCommandHandler : IRequestHandler<ReleaseEscrowCommand,
             throw new NotFoundException($"Không tìm thấy ví tiền của người bán ID '{request.SellerUserId}'.");
         }
 
-        if (sellerWallet.WalletStatus != WalletStatus.ACTIVE)
+        if (sellerWallet.WalletStatus == WalletStatus.LOCKED)
         {
-            throw new BadRequestException("Ví tiền người bán đang bị khóa hoặc đóng băng, không thể nhận tiền giải ngân.");
+            throw new BadRequestException("Ví tiền người bán đang bị khóa kỷ luật (LOCKED), không thể nhận tiền giải ngân.");
         }
 
         var platformFeeAmount = Math.Round(request.TotalEscrowAmount * request.PlatformFeePercent, 2);

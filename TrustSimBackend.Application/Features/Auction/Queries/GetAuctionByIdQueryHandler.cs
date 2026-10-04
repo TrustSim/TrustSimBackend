@@ -32,6 +32,27 @@ public class GetAuctionByIdQueryHandler : IRequestHandler<GetAuctionByIdQuery, A
             && _currentUserService.UserId.HasValue 
             && auction.Participants.Any(p => p.UserAccountId == _currentUserService.UserId.Value);
 
+        var auctionResult = await _unitOfWork.Auctions.GetResultByAuctionIdAsync(request.Id, cancellationToken);
+        var resultDto = auctionResult == null ? null : new AuctionResultDto
+        {
+            Id = auctionResult.Id,
+            AuctionId = auctionResult.AuctionId,
+            WinnerId = auctionResult.WinnerId,
+            WinnerUserName = auctionResult.Winner?.UserAccount?.UserName,
+            FinalPrice = auctionResult.FinalPrice,
+            RunnerUpParticipantId = auctionResult.RunnerUpParticipantId,
+            RunnerUpUserName = auctionResult.RunnerUpParticipant?.UserAccount?.UserName,
+            RunnerUpFinalPrice = auctionResult.RunnerUpFinalPrice,
+            AuctionResultStatus = auctionResult.AuctionResultStatus,
+            PaymentDeadline = auctionResult.PaymentDeadline,
+            IsRunnerUpOffered = auctionResult.IsRunnerUpOffered,
+            RunnerUpPaymentDeadline = auctionResult.RunnerUpPaymentDeadline,
+            SettledAt = auctionResult.SettledAt,
+            DeterminedAt = auctionResult.DeterminedAt,
+            ConfirmedAt = auctionResult.ConfirmedAt,
+            CancelledReason = auctionResult.CancelledReason
+        };
+
         return new AuctionDto
         {
             Id = auction.Id,
@@ -69,7 +90,10 @@ public class GetAuctionByIdQueryHandler : IRequestHandler<GetAuctionByIdQuery, A
                 .ToList() ?? new List<string>(),
 
             // Trạng thái của người dùng
-            IsUserRegistered = isUserRegistered
+            IsUserRegistered = isUserRegistered,
+
+            // Kết quả phiên đấu giá
+            Result = resultDto
         };
     }
 }

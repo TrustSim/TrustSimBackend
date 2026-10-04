@@ -130,10 +130,27 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
             CompletedAt = now
         };
 
+        // Gán quan hệ 2 chiều
+        trade.Escrow = escrow;
+
         // Hủy deadline trong Redis Delay Queue
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.PAYMENT_DEADLINE, cancellationToken);
 
+        // Cập nhật trạng thái SIM sang TRANSFERRING
+        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
+        if (sim != null)
+        {
+            sim.SimStatus = SimStatus.TRANSFERRING;
+            _unitOfWork.SimNumbers.Update(sim);
+        }
+
+        // Đảm bảo ví giữ trạng thái ACTIVE
+        wallet.WalletStatus = WalletStatus.ACTIVE;
+        _unitOfWork.Wallets.Update(wallet);
+
+        await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);
         await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
+        await _unitOfWork.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
 
         var auctionResult = await _unitOfWork.Auctions.GetResultByAuctionIdAsync(auction.Id, cancellationToken);
         if (auctionResult != null)

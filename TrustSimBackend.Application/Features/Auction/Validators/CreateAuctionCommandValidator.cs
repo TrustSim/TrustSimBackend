@@ -33,6 +33,7 @@ public class CreateAuctionCommandValidator : AbstractValidator<CreateAuctionComm
 
         RuleFor(v => v.EndAt)
             .GreaterThan(v => v.StartAt)
+            .When(v => v.AuctionType == Domain.Enums.AuctionType.ENGLISH)
             .WithMessage("Thời gian kết thúc đấu giá phải sau thời gian bắt đầu.");
     }
 }

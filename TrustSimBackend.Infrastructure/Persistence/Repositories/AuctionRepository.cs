@@ -24,6 +24,7 @@ public class AuctionRepository : IAuctionRepository
                 .ThenInclude(u => u!.UserProfile)
             .Include(a => a.AuctionRule)
             .Include(a => a.Participants)
+                .ThenInclude(p => p.Deposits)
             .Include(a => a.Bids)
             .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, cancellationToken);
     }
@@ -43,6 +44,7 @@ public class AuctionRepository : IAuctionRepository
                 .ThenInclude(u => u!.UserProfile)
             .Include(a => a.AuctionRule)
             .Include(a => a.Participants)
+                .ThenInclude(p => p.Deposits)
             .Include(a => a.Bids)
             .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, cancellationToken);
     }
@@ -299,6 +301,8 @@ public class AuctionRepository : IAuctionRepository
     public async Task<AuctionParticipant?> GetParticipantAsync(Guid auctionId, Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.AuctionParticipants
+            .Include(p => p.Deposits)
+            .Include(p => p.UserAccount)
             .FirstOrDefaultAsync(p => p.AuctionId == auctionId && p.UserAccountId == userId, cancellationToken);
     }
 

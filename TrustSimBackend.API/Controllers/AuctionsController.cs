@@ -117,6 +117,19 @@ public class AuctionsController : BaseApiController
     }
 
     /// <summary>
+    /// Người thắng chủ động từ bỏ quyền mua SIM trong thời hạn ân hạn (chấp nhận phạt cọc, chuyển quyền mua sang Người về nhì ngay lập tức)
+    /// </summary>
+    [HttpPost("{id:guid}/forfeit-purchase")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<AuctionResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ForfeitWinnerPurchase([FromRoute] Guid id, [FromBody] ForfeitWinnerPurchaseRequest? body)
+    {
+        var result = await Mediator.Send(new ForfeitWinnerPurchaseCommand(id, CurrentUserId, body?.Reason));
+        return Ok(ApiResponse<AuctionResultDto>.SuccessResult(result, "Đã ghi nhận từ bỏ quyền mua SIM và xử lý phạt cọc thành công."));
+    }
+
+    /// <summary>
     /// Người về nhì chấp nhận mua SIM với mức giá đặt cao nhất của họ (sau khi Người thắng bùng cọc)
     /// </summary>
     [HttpPost("{id:guid}/runner-up/accept")]

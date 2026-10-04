@@ -265,14 +265,16 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        // Kiểm tra phương trình kế toán toàn sàn
-        // TK 1010 (Tài sản) == Tổng nợ (2010 + 2020 + 2030) - Doanh thu (4010 + 4020)
-        // (hoặc Tài sản = Nợ phải trả + Vốn chủ sở hữu)
-        var totalLiabilitiesAndEquity = totalUserAvailable2010 + totalUserLocked2020 + totalPlatformEscrow2030;
-        report.IsAccountingEquationBalanced = Math.Abs(totalPlatformBank1010 - (totalLiabilitiesAndEquity - totalPlatformFee4010 - totalPlatformPenalty4020)) < 0.01m;
+        // Kiểm tra phương trình kế toán toàn sàn:
+        // TK 1010 (Tài sản thực tế tại Bank) == Tổng nợ khách hàng (2010 + 2020 + 2030) + Lợi nhuận sàn còn lại (4010 + 4020)
+        // (Tài sản = Nợ phải trả + Vốn chủ sở hữu / Doanh thu giữ lại)
+        var totalCustomerFunds = totalUserAvailable2010 + totalUserLocked2020 + totalPlatformEscrow2030;
+        var totalRetainedProfit = totalPlatformFee4010 + totalPlatformPenalty4020;
+        report.IsAccountingEquationBalanced = Math.Abs(totalPlatformBank1010 - (totalCustomerFunds + totalRetainedProfit)) < 0.01m;
 
         return report;
     }
+
 
 
 }

@@ -34,6 +34,8 @@ public interface IUnitOfWork
     ILedgerJournalRepository LedgerJournals { get; }
     ILedgerEntryRepository LedgerEntries { get; }
     IPaymentIntentRepository PaymentIntents { get; }
+    IEscrowRepository Escrows { get; }
+    IAuctionTransactionRepository AuctionTransactions { get; }
 
     // Lưu các thay đổi vào DB và trả về số dòng bị ảnh hưởng
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -156,6 +156,13 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     CreatedAt = now,
                     CompletedAt = now
                 };
+                await _unitOfWork.AuctionTransactions.AddAsync(refundTx, cancellationToken);
+            }
+
+            if (w != null)
+            {
+                w.WalletStatus = WalletStatus.ACTIVE;
+                _unitOfWork.Wallets.Update(w);
             }
         }
 
@@ -198,6 +205,9 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     HeldAt = now
                 };
 
+                // Gán quan hệ 2 chiều
+                trade.Escrow = escrow;
+
                 // Ghi sổ cái kép ESCROW_HOLD (Bút toán 3 dòng nguyên tử)
                 var journal = await _ledgerService.PostEscrowHoldAsync(
                     winnerWallet.Id,
@@ -230,14 +240,31 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     CompletedAt = now
                 };
 
+                // Cập nhật trạng thái SIM sang TRANSFERRING
+                var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
+                if (sim != null)
+                {
+                    sim.SimStatus = SimStatus.TRANSFERRING;
+                    _unitOfWork.SimNumbers.Update(sim);
+                }
+
+                // Đảm bảo mở khóa ví người thắng sang ACTIVE
+                winnerWallet.WalletStatus = WalletStatus.ACTIVE;
+                _unitOfWork.Wallets.Update(winnerWallet);
+
                 resultEntity.AuctionResultStatus = AuctionResultStatus.CONFIRMED;
                 resultEntity.SettledAt = now;
 
+                await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);
                 await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
+                await _unitOfWork.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
             }
             else
             {
-                // Thiếu tiền -> Lập lịch Payment Deadline trong Redis Delay Queue
+                // Thiếu tiền -> Lập lịch Payment Deadline trong Redis Delay Queue và mở ví người thắng để nạp tiền
+                winnerWallet.WalletStatus = WalletStatus.ACTIVE;
+                _unitOfWork.Wallets.Update(winnerWallet);
+
                 resultEntity.AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT;
                 resultEntity.PaymentDeadline = paymentDeadline;
 
