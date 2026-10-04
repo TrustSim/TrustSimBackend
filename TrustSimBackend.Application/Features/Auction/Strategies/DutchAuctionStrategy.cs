@@ -56,4 +56,16 @@ public class DutchAuctionStrategy : IAuctionStrategy
 
     public decimal GetInitialCurrentPrice(CreateAuctionCommand request)
         => request.StartingPrice; // Bắt đầu từ giá cao nhất, giảm dần về ReservePrice
+
+    public DateTime CalculateEndAt(CreateAuctionCommand request)
+    {
+        if (request.DutchDecreaseAmount <= 0 || request.DutchDecreaseIntervalSeconds <= 0)
+            return request.EndAt > request.StartAt ? request.EndAt : request.StartAt.AddHours(1);
+
+        var priceGap = Math.Max(0, request.StartingPrice - request.ReservePrice);
+        var steps = (int)Math.Ceiling(priceGap / request.DutchDecreaseAmount);
+        var totalDurationSeconds = steps * request.DutchDecreaseIntervalSeconds;
+
+        return request.StartAt.AddSeconds(totalDurationSeconds);
+    }
 }

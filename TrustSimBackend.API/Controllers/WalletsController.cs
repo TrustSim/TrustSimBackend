@@ -309,5 +309,63 @@ public class WalletsController : BaseApiController
         var bytes = await Mediator.Send(new AdminExportTransactionsQuery(type, status));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"WalletTransactions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
+
+    /// <summary>
+    /// [Admin] Báo cáo tổng quan tài chính sàn: Tổng tiền ngân hàng, nợ khách hàng (ví, cọc, Escrow) và lợi nhuận khả dụng có thể rút
+    /// </summary>
+    [HttpGet("admin/financial/overview")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<AdminFinancialOverviewDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminGetFinancialOverview()
+    {
+        var result = await Mediator.Send(new GetAdminFinancialOverviewQuery());
+        return Ok(ApiResponse<AdminFinancialOverviewDto>.SuccessResult(result, "Lấy thông tin tổng quan tài chính sàn thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Rút tiền lợi nhuận sàn về tài khoản ngân hàng cá nhân của Ban Quản Trị
+    /// </summary>
+    [HttpPost("admin/financial/withdraw-profit")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<AdminProfitWithdrawResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AdminWithdrawProfit([FromBody] AdminWithdrawProfitRequest request)
+    {
+        var idempotencyKey = request.IdempotencyKey
+            ?? (Request.Headers.TryGetValue("Idempotency-Key", out var headerKey) ? headerKey.ToString() : null)
+            ?? (Request.Headers.TryGetValue("X-Idempotency-Key", out var xHeaderKey) ? xHeaderKey.ToString() : null);
+
+        var command = new AdminWithdrawProfitCommand(
+            request.Amount,
+            request.DestinationBankCode,
+            request.DestinationBankName,
+            request.DestinationAccountNumber,
+            request.DestinationAccountHolderName,
+            request.Note,
+            CurrentUserId,
+            idempotencyKey);
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<AdminProfitWithdrawResultDto>.SuccessResult(result, "Rút tiền lợi nhuận sàn thành công."));
+    }
+
+    /// <summary>
+    /// [Admin] Tra cứu lịch sử biến động doanh thu sàn (hoa hồng bán SIM, tiền phạt bỏ cọc, các lần rút lợi nhuận)
+    /// </summary>
+    [HttpGet("admin/financial/revenue-history")]
+    [Authorize(Roles = "ADMIN")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<PlatformRevenueHistoryDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AdminGetRevenueHistory(
+        [FromQuery] LedgerTransactionType? transactionType,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new GetRevenueHistoryQuery(transactionType, fromDate, toDate, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<PlatformRevenueHistoryDto>>.SuccessResult(result, "Lấy lịch sử biến động doanh thu sàn thành công."));
+    }
 }
+
 

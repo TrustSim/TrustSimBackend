@@ -128,4 +128,16 @@ public interface ILedgerService
         decimal totalEscrowAmount,
         Guid escrowId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Nghiệp vụ Admin rút tiền lợi nhuận của sàn về tài khoản cá nhân (Nợ 4010/4020 / Có 1010).
+    /// </summary>
+    Task<LedgerJournal> PostAdminProfitWithdrawAsync(
+        decimal amount,
+        string transactionCode,
+        string destinationInfo,
+        FinancialAccountType sourceRevenueAccount = FinancialAccountType.PLATFORM_FEE_REVENUE,
+        string? idempotencyKey = null,
+        CancellationToken cancellationToken = default);
 }
+

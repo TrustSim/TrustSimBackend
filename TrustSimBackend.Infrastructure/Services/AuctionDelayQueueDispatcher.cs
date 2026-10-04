@@ -627,6 +627,9 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                     HeldAt = now
                 };
 
+                // Gán quan hệ 2 chiều
+                trade.Escrow = escrow;
+
                 // Ghi nhận chứng từ sổ cái kép ESCROW_HOLD (Bút toán 3 dòng nguyên tử)
                 var journal = await ledgerService.PostEscrowHoldAsync(
                     winWallet.Id,
@@ -660,6 +663,15 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 };
                 await context.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
 
+                // Cập nhật trạng thái SIM sang TRANSFERRING
+                if (auction.SimNumber != null)
+                {
+                    auction.SimNumber.SimStatus = SimStatus.TRANSFERRING;
+                }
+
+                // Đảm bảo mở khóa ví người thắng sang ACTIVE
+                winWallet.WalletStatus = WalletStatus.ACTIVE;
+
                 resultEntity.AuctionResultStatus = AuctionResultStatus.CONFIRMED;
                 resultEntity.SettledAt = now;
 
@@ -668,7 +680,9 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             }
             else
             {
-                // Lập lịch Payment Deadline cho Người thắng trong Redis Delay Queue
+                // Lập lịch Payment Deadline cho Người thắng trong Redis Delay Queue và đảm bảo ví ACTIVE để nạp tiền
+                winWallet.WalletStatus = WalletStatus.ACTIVE;
+
                 resultEntity.AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT;
                 resultEntity.PaymentDeadline = paymentDeadline;
 
@@ -764,6 +778,15 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 };
                 await context.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
             }
+
+            // Cập nhật Bid của Winner cũ sang REJECTED
+            var winningBid = await context.Bids.FirstOrDefaultAsync(
+                b => b.AuctionId == result.AuctionId && b.ParticipantId == result.WinnerId && b.Status == BidStatus.WINNING,
+                cancellationToken);
+            if (winningBid != null)
+            {
+                winningBid.Status = BidStatus.REJECTED;
+            }
         }
 
         // 2. Chuyển quyền mua cho Người về nhì (nếu có) theo đúng giá Bid cuối của Runner-up (RunnerUpFinalPrice)
@@ -800,6 +823,8 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
         // Không có Người về nhì -> Phiên thất bại hoàn toàn
         result.AuctionResultStatus = AuctionResultStatus.FAILED;
+        result.CancelledAt = now;
+        result.CancelledReason = "Người thắng không hoàn tất thanh toán trong thời hạn quy định và không có Người về nhì.";
         if (result.Auction?.SimNumber != null)
         {
             result.Auction.SimNumber.SimStatus = SimStatus.AVAILABLE;
@@ -818,12 +843,22 @@ public class AuctionDelayQueueDispatcher : BackgroundService
         var result = await context.AuctionResults
             .Include(r => r.Auction)
                 .ThenInclude(a => a!.SimNumber)
+            .Include(r => r.RunnerUpParticipant)
             .FirstOrDefaultAsync(r => r.AuctionId == job.AuctionId, cancellationToken);
 
         if (result == null || result.AuctionResultStatus != AuctionResultStatus.RUNNER_UP_PENDING)
             return;
 
+        var now = DateTime.UtcNow;
         result.AuctionResultStatus = AuctionResultStatus.FAILED;
+        result.CancelledAt = now;
+        result.CancelledReason = "Người về nhì không hoàn tất thanh toán trong thời hạn quy định. Phiên đấu giá kết thúc thất bại.";
+
+        if (result.RunnerUpParticipant != null)
+        {
+            result.RunnerUpParticipant.Status = ParticipantStatus.LOST;
+        }
+
         if (result.Auction?.SimNumber != null)
         {
             result.Auction.SimNumber.SimStatus = SimStatus.AVAILABLE;

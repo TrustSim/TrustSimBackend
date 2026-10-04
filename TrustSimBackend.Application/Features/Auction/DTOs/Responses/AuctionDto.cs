@@ -39,4 +39,7 @@ public class AuctionDto
 
     // Trạng thái của người dùng hiện tại
     public bool IsUserRegistered { get; set; }
+
+    // Kết quả phiên đấu giá (nếu đã kết thúc hoặc đang giải quyết sau phiên)
+    public AuctionResultDto? Result { get; set; }
 }

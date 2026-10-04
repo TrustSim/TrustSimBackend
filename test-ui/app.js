@@ -342,17 +342,53 @@ function showSettlementPanel(data) {
   const title = document.getElementById('settlementTitle');
   const desc = document.getElementById('settlementDesc');
   const btnPay = document.getElementById('btnWinnerPay');
+  const btnForfeit = document.getElementById('btnWinnerForfeit');
   const btnAccept = document.getElementById('btnAcceptRunnerUp');
   const btnReject = document.getElementById('btnRejectRunnerUp');
 
   panel.style.display = 'flex';
-  title.textContent = `Phiên đấu giá đã hoàn tất`;
-  desc.textContent = `Người chiến thắng: ${data.winnerName || 'N/A'} - Mức giá: ${formatVND(data.finalPrice)}`;
+  const status = data.auctionResultStatus || (data.status ? String(data.status) : 'PENDING_PAYMENT');
+  const finalPrice = data.finalPrice || data.runnerUpFinalPrice || 0;
+  const currentUserId = state.currentUser?.userId?.toLowerCase();
+  const isWinner = currentUserId && (data.winnerId?.toLowerCase() === currentUserId || data.winnerUserId?.toLowerCase() === currentUserId);
+  const isRunnerUp = currentUserId && (data.runnerUpParticipantId?.toLowerCase() === currentUserId || data.runnerUpUserId?.toLowerCase() === currentUserId);
 
-  const isWinner = state.currentUser?.userId?.toLowerCase() === data.winnerId?.toLowerCase();
-  btnPay.style.display = isWinner ? 'block' : 'none';
-  btnAccept.style.display = 'none';
-  btnReject.style.display = 'none';
+  // Hide all by default
+  if (btnPay) btnPay.style.display = 'none';
+  if (btnForfeit) btnForfeit.style.display = 'none';
+  if (btnAccept) btnAccept.style.display = 'none';
+  if (btnReject) btnReject.style.display = 'none';
+
+  if (status === 'PENDING_PAYMENT' || status === 1) {
+    title.textContent = `⏳ Chờ Người Thắng Hoàn Tất Thanh Toán`;
+    const deadlineStr = data.paymentDeadline ? `Hạn chót: ${formatTime(data.paymentDeadline)}` : '';
+    desc.textContent = `Người thắng cuộc: ${data.winnerName || data.winnerUserName || data.winnerId || 'N/A'} - Mức giá chốt: ${formatVND(finalPrice)}. ${deadlineStr}`;
+    if (isWinner) {
+      if (btnPay) btnPay.style.display = 'inline-block';
+      if (btnForfeit) btnForfeit.style.display = 'inline-block';
+    }
+  } else if (status === 'RUNNER_UP_PENDING' || status === 4) {
+    title.textContent = `⚠️ Quyền Mua Chuyển Sang Á Quân (Runner-Up)`;
+    const ruDeadlineStr = data.runnerUpPaymentDeadline ? `Hạn chót: ${formatTime(data.runnerUpPaymentDeadline)}` : '';
+    desc.textContent = `Người thắng cuộc đã từ bỏ quyền mua / quá hạn thanh toán. Á Quân (${data.runnerUpUserName || data.runnerUpParticipantId || 'N/A'}) có quyền mua lại SIM với giá bid: ${formatVND(data.runnerUpFinalPrice || finalPrice)}. ${ruDeadlineStr}`;
+    if (isRunnerUp) {
+      if (btnAccept) btnAccept.style.display = 'inline-block';
+      if (btnReject) btnReject.style.display = 'inline-block';
+    }
+  } else if (status === 'CONFIRMED' || status === 2) {
+    title.textContent = `🎉 Giao Dịch Đấu Giá Thành Công`;
+    desc.textContent = `Quỹ Escrow ${formatVND(finalPrice)} đã được ký quỹ an toàn vào hệ thống. Số SIM đang trong quá trình chuyển giao sang tên!`;
+  } else if (status === 'FAILED' || status === 'CANCELLED' || status === 'NO_WINNER' || status === 3 || status === 0) {
+    title.textContent = `❌ Phiên Đấu Giá Kết Thúc Thất Bại`;
+    desc.textContent = `Lý do: ${data.cancelledReason || 'Không có người chiến thắng hoặc các bên đã từ chối nhận quyền mua SIM.'}`;
+  } else {
+    title.textContent = `Thông Báo Kết Quả Phiên`;
+    desc.textContent = `Mức giá chốt: ${formatVND(finalPrice)}`;
+    if (isWinner) {
+      if (btnPay) btnPay.style.display = 'inline-block';
+      if (btnForfeit) btnForfeit.style.display = 'inline-block';
+    }
+  }
 }
 
 // ─── 3. Auction Group Management ───
@@ -523,8 +559,19 @@ async function selectAuction(auctionId) {
     // Update Participant status & button
     updateStageParticipantStatus();
 
-    // Hide Settlement panel unless finished
-    document.getElementById('settlementPanel').style.display = 'none';
+    // Show Settlement panel if auction has ended or has a result
+    if (a.auctionStatus === 'END' || a.auctionStatus === 'ENDED' || a.auctionStatus === 'FAILED' || a.auctionStatus === 'CANCELLED' || a.result) {
+      if (a.result) {
+        showSettlementPanel(a.result);
+      } else {
+        showSettlementPanel({
+          finalPrice: a.currentPrice,
+          auctionResultStatus: a.auctionStatus
+        });
+      }
+    } else {
+      document.getElementById('settlementPanel').style.display = 'none';
+    }
 
     // Load Bids History
     await loadBids(auctionId);
@@ -769,6 +816,43 @@ async function confirmWinnerPayment() {
   }
 }
 
+// Người thắng chủ động từ bỏ mua SIM (phạt cọc & chuyển quyền mua ngay cho Á Quân)
+async function forfeitWinnerPurchase() {
+  if (!state.activeAuction || !state.currentUser?.token) return;
+  const auctionId = state.activeAuction.id;
+  if (!confirm('⚠️ BẠN CÓ CHẮC CHẮN MUỐN TỪ BỎ QUYỀN MUA SIM NÀY KHÔNG?\n\nBạn sẽ bị TỊCH THU TOÀN BỘ TIỀN ĐẶT CỌC và hệ thống sẽ hủy ngay hạn nộp tiền 24h để chuyển quyền mua ngay cho Á Quân.')) return;
+
+  const btn = document.getElementById('btnWinnerForfeit');
+  if (btn) btn.disabled = true;
+
+  try {
+    addLog('SYSTEM', `Đang gửi yêu cầu từ bỏ quyền mua SIM...`);
+    const res = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}/forfeit-purchase`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${state.currentUser.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ reason: 'Người thắng chủ động bấm từ bỏ mua SIM trên giao diện Arena.' })
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Lỗi xử lý từ bỏ mua SIM');
+    }
+
+    addLog('SYSTEM', `✅ Đã từ bỏ quyền mua SIM và xử lý phạt cọc thành công.`);
+    alert('Đã từ bỏ quyền mua SIM thành công. Tiền cọc đã bị xử phạt và quyền mua được chuyển cho Á Quân.');
+    await selectAuction(auctionId);
+    await fetchUserWallet();
+  } catch (err) {
+    addLog('SYSTEM', `❌ Lỗi: ${err.message}`);
+    alert(`Lỗi: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // Á quân chấp nhận
 async function acceptRunnerUpOffer() {
   if (!state.activeAuction || !state.currentUser?.token) return;
@@ -895,8 +979,41 @@ function closeCreateAuctionModal() {
 
 function toggleAuctionTypeFields() {
   const type = document.getElementById('modalAuctionType').value;
-  document.getElementById('englishFieldsRow').style.display = type === 'ENGLISH' ? 'flex' : 'none';
-  document.getElementById('dutchFieldsRow').style.display = type === 'DUTCH' ? 'flex' : 'none';
+  const isEnglish = type === 'ENGLISH';
+  document.getElementById('englishFieldsRow').style.display = isEnglish ? 'flex' : 'none';
+  document.getElementById('dutchFieldsRow').style.display = isEnglish ? 'none' : 'flex';
+  updateDutchPreview();
+}
+
+function updateDutchPreview() {
+  const type = document.getElementById('modalAuctionType').value;
+  const badge = document.getElementById('dutchPreviewBadge');
+  if (type !== 'DUTCH') {
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  const startPrice = Number(document.getElementById('modalStartingPrice').value) || 0;
+  const reservePrice = Number(document.getElementById('modalReservePrice').value) || 0;
+  const dropAmount = Number(document.getElementById('modalDutchDecreaseAmount').value) || 0;
+  const interval = Number(document.getElementById('modalDutchInterval').value) || 0;
+
+  if (startPrice > 0 && reservePrice > 0 && dropAmount > 0 && interval > 0 && startPrice >= reservePrice) {
+    const gap = startPrice - reservePrice;
+    const steps = Math.ceil(gap / dropAmount);
+    const totalSec = steps * interval;
+    const minutes = Math.floor(totalSec / 60);
+    const seconds = totalSec % 60;
+    const durationStr = minutes > 0 ? `${minutes} phút ${seconds > 0 ? seconds + ' giây' : ''}` : `${seconds} giây`;
+
+    if (badge) {
+      badge.style.display = 'flex';
+      badge.textContent = `💡 Dự kiến: Tự động kết thúc sau ${durationStr} (${steps} nấc giảm ${formatVND(dropAmount)} từ ${formatVND(startPrice)} về sàn ${formatVND(reservePrice)}).`;
+    }
+    document.getElementById('modalDurationMinutes').value = Math.max(1, Math.ceil(totalSec / 60));
+  } else {
+    if (badge) badge.style.display = 'none';
+  }
 }
 
 async function submitCreateAuction(event) {
@@ -917,6 +1034,7 @@ async function submitCreateAuction(event) {
   const startAt = new Date(Date.now() + presetMin * 60 * 1000).toISOString();
   const durationMin = Number(document.getElementById('modalDurationMinutes').value);
   const endAt = new Date(Date.now() + (presetMin + durationMin) * 60 * 1000).toISOString();
+  const graceHours = Number(document.getElementById('modalGracePeriodHours')?.value || 24);
 
   const body = {
     simNumberId: simNumberId,
@@ -930,7 +1048,7 @@ async function submitCreateAuction(event) {
     depositAmount: Number(document.getElementById('modalDepositAmount').value),
     maxStepMultiplier: Number(document.getElementById('modalMaxStepMultiplier')?.value || 10),
     maxSnipeExtensionsPerParticipant: 3,
-    paymentGracePeriodHours: 24,
+    paymentGracePeriodHours: graceHours,
     minimumBidIncrement: Number(document.getElementById('modalMinIncrement')?.value || 5000000),
     dutchDecreaseAmount: Number(document.getElementById('modalDutchDecreaseAmount')?.value || 2000000),
     dutchDecreaseIntervalSeconds: Number(document.getElementById('modalDutchInterval')?.value || 60),

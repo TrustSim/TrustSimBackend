@@ -115,6 +115,8 @@ public static class DependencyInjection
         services.AddScoped<ILedgerJournalRepository, LedgerJournalRepository>();
         services.AddScoped<ILedgerEntryRepository, LedgerEntryRepository>();
         services.AddScoped<IPaymentIntentRepository, PaymentIntentRepository>();
+        services.AddScoped<IEscrowRepository, EscrowRepository>();
+        services.AddScoped<IAuctionTransactionRepository, AuctionTransactionRepository>();
 
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();

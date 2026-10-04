@@ -52,6 +52,10 @@ public class AuctionFactory
 
         // 3. Tạo Auction entity với trạng thái ban đầu SCHEDULE
         var auctionId = Guid.NewGuid();
+        var endAt = strategy is DutchAuctionStrategy dutchStrategy
+            ? dutchStrategy.CalculateEndAt(request)
+            : request.EndAt;
+
         var auction = new Domain.Entities.Auctions.Auction
         {
             Id = auctionId,
@@ -64,7 +68,7 @@ public class AuctionFactory
             CurrentPrice = strategy.GetInitialCurrentPrice(request),
             ReservePrice = request.ReservePrice,
             StartAt = request.StartAt,
-            EndAt = request.EndAt,
+            EndAt = endAt,
             RegistrationStartAt = request.RegistrationStartAt,
             RegistrationEndAt = request.RegistrationEndAt,
             LockVersion = 1,

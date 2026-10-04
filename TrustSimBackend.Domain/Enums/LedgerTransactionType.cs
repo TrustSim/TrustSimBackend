@@ -36,5 +36,9 @@ public enum LedgerTransactionType
     ESCROW_REFUND = 10,
 
     /// <summary>Bút toán điều chỉnh số dư kế toán khẩn cấp từ Admin.</summary>
-    ADMIN_ADJUSTMENT = 11
+    ADMIN_ADJUSTMENT = 11,
+
+    /// <summary>Admin rút tiền lợi nhuận sàn về tài khoản ngân hàng cá nhân.</summary>
+    ADMIN_PROFIT_WITHDRAW = 12
 }
+

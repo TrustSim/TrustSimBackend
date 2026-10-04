@@ -985,8 +985,24 @@ body {
   gap: 10px;
 }
 .btn-pay { background: var(--accent-primary); color: #fff; }
+.btn-forfeit { background: var(--accent-red); color: #fff; }
+.btn-forfeit:hover { opacity: 0.9; }
 .btn-accept-runnerup { background: var(--accent-green); color: #fff; }
 .btn-reject-runnerup { background: var(--bg-alt); color: var(--text-muted); }
+
+.dutch-preview-badge {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: var(--accent-primary);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* Bids Table */
 .bids-history-box {

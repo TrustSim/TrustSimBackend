@@ -427,5 +427,28 @@ public class DoubleEntryLedgerService : ILedgerService
             cancellationToken);
     }
 
+    public async Task<LedgerJournal> PostAdminProfitWithdrawAsync(
+        decimal amount,
+        string transactionCode,
+        string destinationInfo,
+        FinancialAccountType sourceRevenueAccount = FinancialAccountType.PLATFORM_FEE_REVENUE,
+        string? idempotencyKey = null,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = new List<LedgerEntryParam>
+        {
+            new(sourceRevenueAccount, LedgerEntryType.DEBIT, amount, null, $"Rút lợi nhuận sàn {transactionCode} về {destinationInfo}"),
+            new(FinancialAccountType.EXTERNAL_GATEWAY_CLEARING, LedgerEntryType.CREDIT, amount, null, $"Chi tiền từ TK ngân hàng sàn mã GD #{transactionCode}")
+        };
 
+        return await PostJournalAsync(
+            LedgerTransactionType.ADMIN_PROFIT_WITHDRAW,
+            $"Admin rút lợi nhuận sàn {transactionCode}",
+            entries,
+            "AdminProfitWithdraw",
+            null,
+            idempotencyKey ?? $"ADM-WD-{transactionCode}",
+            cancellationToken);
+    }
 }
+
