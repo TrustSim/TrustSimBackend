@@ -981,6 +981,8 @@ function toggleAuctionTypeFields() {
   const type = document.getElementById('modalAuctionType').value;
   const isEnglish = type === 'ENGLISH';
   document.getElementById('englishFieldsRow').style.display = isEnglish ? 'flex' : 'none';
+  const advDetails = document.getElementById('advancedRulesDetails');
+  if (advDetails) advDetails.style.display = isEnglish ? 'block' : 'none';
   document.getElementById('dutchFieldsRow').style.display = isEnglish ? 'none' : 'flex';
   updateDutchPreview();
 }
@@ -1035,6 +1037,10 @@ async function submitCreateAuction(event) {
   const durationMin = Number(document.getElementById('modalDurationMinutes').value);
   const endAt = new Date(Date.now() + (presetMin + durationMin) * 60 * 1000).toISOString();
   const graceHours = Number(document.getElementById('modalGracePeriodHours')?.value || 24);
+  const extThreshold = Number(document.getElementById('modalExtensionThreshold')?.value || 120);
+  const extDuration = Number(document.getElementById('modalExtensionDuration')?.value || 300);
+  const maxSnipe = Number(document.getElementById('modalMaxSnipePerParticipant')?.value || 3);
+  const maxExt = Number(document.getElementById('modalMaxExtensions')?.value || 5);
 
   const body = {
     simNumberId: simNumberId,
@@ -1047,13 +1053,14 @@ async function submitCreateAuction(event) {
     registrationEndAt: startAt,
     depositAmount: Number(document.getElementById('modalDepositAmount').value),
     maxStepMultiplier: Number(document.getElementById('modalMaxStepMultiplier')?.value || 10),
-    maxSnipeExtensionsPerParticipant: 3,
+    maxSnipeExtensionsPerParticipant: maxSnipe,
+    maximumExtensionCount: maxExt,
     paymentGracePeriodHours: graceHours,
     minimumBidIncrement: Number(document.getElementById('modalMinIncrement')?.value || 5000000),
     dutchDecreaseAmount: Number(document.getElementById('modalDutchDecreaseAmount')?.value || 2000000),
     dutchDecreaseIntervalSeconds: Number(document.getElementById('modalDutchInterval')?.value || 60),
-    extensionThresholdSeconds: 120,
-    extensionDurationSeconds: 300
+    extensionThresholdSeconds: extThreshold,
+    extensionDurationSeconds: extDuration
   };
 
   try {
