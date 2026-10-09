@@ -26,6 +26,18 @@ public class NotificationsController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy số lượng thông báo chưa đọc của người dùng hiện tại
+    /// </summary>
+    [HttpGet("unread-count")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUnreadCount()
+    {
+        var count = await Mediator.Send(new GetUnreadNotificationCountQuery(CurrentUserId));
+        return Ok(ApiResponse<int>.SuccessResult(count, "Lấy số lượng thông báo chưa đọc thành công."));
+    }
+
+    /// <summary>
     /// Đánh dấu thông báo đã đọc
     /// </summary>
     [HttpPatch("{id:guid}/read")]

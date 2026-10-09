@@ -39,9 +39,9 @@ public class CreateDepositCommandHandler : IRequestHandler<CreateDepositCommand,
             throw new NotFoundException($"Không tìm thấy ví tiền của người dùng với ID '{request.UserId}'.");
         }
 
-        if (wallet.WalletStatus != WalletStatus.ACTIVE)
+        if (wallet.WalletStatus == WalletStatus.LOCKED)
         {
-            throw new BadRequestException("Ví tiền của bạn đang bị khóa hoặc đóng băng. Vui lòng liên hệ bộ phận hỗ trợ.");
+            throw new BadRequestException("Ví tiền của bạn đang bị khóa toàn phần do vi phạm hoặc điều tra. Vui lòng liên hệ bộ phận hỗ trợ.");
         }
 
         var idempotencyKey = string.IsNullOrWhiteSpace(request.IdempotencyKey) ? null : request.IdempotencyKey.Trim();

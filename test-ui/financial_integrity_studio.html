@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrustSim - Financial Integrity & Cryptographic Ledger Studio</title>
+    <title>TrustSim - Financial Integrity, Anti-Shill & Cryptographic Ledger Studio</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +13,8 @@
         rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Microsoft SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 
     <style>
         :root {
@@ -126,7 +128,7 @@
         .header-controls {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
@@ -152,8 +154,44 @@
             color: var(--cyan);
             font-family: var(--font-mono);
             font-size: 0.82rem;
-            width: 180px;
+            width: 170px;
             outline: none;
+        }
+
+        /* Notification Bell with Badge */
+        .notification-bell-btn {
+            position: relative;
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .notification-bell-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--cyan);
+            color: var(--cyan);
+        }
+
+        .unread-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--rose);
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 9999px;
+            border: 2px solid var(--bg-secondary);
+            animation: pulse-red 2s infinite;
         }
 
         /* Buttons */
@@ -201,6 +239,12 @@
             background: var(--purple-gradient);
             color: white;
             box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-amber {
+            background: var(--amber-gradient);
+            color: white;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
         }
 
         .btn-outline {
@@ -255,6 +299,12 @@
             background: rgba(245, 158, 11, 0.15);
             color: #fbbf24;
             border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-purple {
+            background: rgba(139, 92, 246, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(139, 92, 246, 0.3);
         }
 
         @keyframes pulse-red {
@@ -418,6 +468,10 @@
 
         .tab-btn.active.tab-blue {
             border-bottom: 2px solid var(--primary);
+        }
+
+        .tab-btn.active.tab-amber {
+            border-bottom: 2px solid var(--amber);
         }
 
         /* Tab Content Panel */
@@ -656,6 +710,54 @@
             margin-bottom: 18px;
         }
 
+        /* Realtime In-Room Terminal Log */
+        .realtime-terminal {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            height: 380px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 3px solid var(--border-color);
+            animation: fadeIn 0.2s ease;
+        }
+
+        .log-entry.log-bid {
+            border-left-color: var(--cyan);
+            background: rgba(6, 182, 212, 0.08);
+        }
+
+        .log-entry.log-extend {
+            border-left-color: var(--amber);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .log-entry.log-ended {
+            border-left-color: var(--emerald);
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .log-entry.log-failed {
+            border-left-color: var(--rose);
+            background: rgba(244, 63, 94, 0.08);
+        }
+
+        .log-entry.log-msg {
+            border-left-color: var(--purple);
+            background: rgba(139, 92, 246, 0.08);
+        }
+
         /* Modal Overlay */
         .modal-overlay {
             position: fixed;
@@ -815,7 +917,7 @@
                 </div>
                 <div class="brand-title">
                     <h1>TrustSim Financial Integrity Studio</h1>
-                    <p>Double-Entry Ledger • SHA-256 Hash Chain • ECDsa P-256 Signing • Mock Bank Payout</p>
+                    <p>Double-Entry Ledger • Room-Scoped SignalR • Anti-Shill & Bid Shielding • Redis Lua Engine</p>
                 </div>
             </div>
 
@@ -829,17 +931,30 @@
                     </button>
                 </div>
 
+                <!-- Notification Bell -->
+                <button class="notification-bell-btn" onclick="openNotificationsModal()" title="Hòm thư thông báo cá nhân (Room user_{userId})">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="unread-badge" id="headerUnreadBadge" style="display: none;">0</span>
+                </button>
+
                 <div id="authStatusBadge">
                     <button class="btn btn-outline btn-sm" onclick="openLoginModal()">
                         <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
                     </button>
                 </div>
 
+                <!-- Fast Role Switchers for Multi-user Testing -->
                 <button class="btn btn-purple btn-sm" onclick="quickLogin('admin', 'Admin@123456')">
-                    <i class="fa-solid fa-user-shield"></i> Quick Admin
+                    <i class="fa-solid fa-user-shield"></i> Admin
                 </button>
-                <button class="btn btn-outline btn-sm" onclick="quickLogin('user01', 'Password123@')">
-                    <i class="fa-solid fa-user"></i> Quick User
+                <button class="btn btn-emerald btn-sm" onclick="quickLogin('seller01', 'Password123@')">
+                    <i class="fa-solid fa-store"></i> Seller
+                </button>
+                <button class="btn btn-cyan btn-sm" style="background: var(--cyan-gradient); color: #fff;" onclick="quickLogin('buyer01', 'Password123@')">
+                    <i class="fa-solid fa-trophy"></i> Winner
+                </button>
+                <button class="btn btn-amber btn-sm" onclick="quickLogin('buyer02', 'Password123@')">
+                    <i class="fa-solid fa-medal"></i> Runner-Up
                 </button>
             </div>
         </header>
@@ -901,25 +1016,160 @@
 
         <!-- Tab Navigation -->
         <div class="tabs-header">
-            <button class="tab-btn active tab-cyan" onclick="switchTab('tab-deposit')">
-                <i class="fa-solid fa-qrcode"></i> 1. Nạp tiền (Deposit Intent)
+            <button class="tab-btn active tab-amber" onclick="switchTab('tab-auction-anti-shill')">
+                <i class="fa-solid fa-gavel"></i> 1. Phòng Đấu Giá Scoped & Anti-Shill Studio
+            </button>
+            <button class="tab-btn tab-cyan" onclick="switchTab('tab-deposit')">
+                <i class="fa-solid fa-qrcode"></i> 2. Nạp tiền (Deposit Intent)
             </button>
             <button class="tab-btn tab-emerald" onclick="switchTab('tab-withdraw')">
-                <i class="fa-solid fa-money-bill-transfer"></i> 2. Rút tiền 2 Pha & Payout Sandbox
+                <i class="fa-solid fa-money-bill-transfer"></i> 3. Rút tiền 2 Pha & Payout Sandbox
             </button>
             <button class="tab-btn tab-purple" onclick="switchTab('tab-journals')">
-                <i class="fa-solid fa-book"></i> 3. Chứng từ Sổ cái Kép (Journals)
+                <i class="fa-solid fa-book"></i> 4. Chứng từ Sổ cái Kép (Journals)
             </button>
             <button class="tab-btn tab-rose" onclick="switchTab('tab-blockchain')">
-                <i class="fa-solid fa-cubes-stacked"></i> 4. Chuỗi khối & Demo Gian lận Hội đồng
+                <i class="fa-solid fa-cubes-stacked"></i> 5. Chuỗi khối & Demo Gian lận Hội đồng
             </button>
             <button class="tab-btn tab-blue" onclick="switchTab('tab-history')">
-                <i class="fa-solid fa-clock-rotate-left"></i> 5. Lịch sử Ví cá nhân
+                <i class="fa-solid fa-clock-rotate-left"></i> 6. Lịch sử Ví cá nhân
             </button>
         </div>
 
-        <!-- ==================== TAB 1: DEPOSIT ==================== -->
-        <div id="tab-deposit" class="tab-panel active">
+        <!-- ==================== TAB 1: AUCTION ROOM-SCOPING & ANTI-SHILL STUDIO ==================== -->
+        <div id="tab-auction-anti-shill" class="tab-panel active">
+            <!-- Room Scoping Controller Bar -->
+            <div class="section-card" style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                        <div style="font-weight: 700; font-size: 0.95rem; color: var(--cyan); display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-satellite-dish"></i> PHÒNG ĐẤU GIÁ (ROOM SCOPING):
+                        </div>
+                        <input type="text" id="targetAuctionIdInput" class="form-control mono" style="width: 320px;"
+                            placeholder="Nhập Auction GUID hoặc chọn mẫu..." value="98765432-1111-2222-3333-444455556666">
+                        <button class="btn btn-primary btn-sm" onclick="joinTargetAuctionRoom()">
+                            <i class="fa-solid fa-door-open"></i> Tham gia Phòng (Join Room)
+                        </button>
+                        <button class="btn btn-outline btn-sm" onclick="leaveTargetAuctionRoom()">
+                            <i class="fa-solid fa-door-closed"></i> Rời Phòng
+                        </button>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="badge badge-green" id="signalrStatusBadge"><i class="fa-solid fa-circle-dot"></i> SignalR: Connected</span>
+                        <span class="badge badge-blue" id="currentRoomBadge">Room: Chưa vào</span>
+                    </div>
+                </div>
+
+                <!-- Quick Auction Presets -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                    <span style="font-size: 0.78rem; color: var(--text-muted); align-self: center;">Mẫu phiên test:</span>
+                    <button class="amount-chip" onclick="setAuctionPreset('98765432-1111-2222-3333-444455556666', 'SIM Tứ Quý 0988.888.888')">SIM 0988.888.888 (Room #1)</button>
+                    <button class="amount-chip" onclick="setAuctionPreset('87654321-2222-3333-4444-555566667777', 'SIM Lộc Phát 0968.686868')">SIM 0968.686868 (Room #2)</button>
+                    <button class="amount-chip" onclick="setAuctionPreset('76543210-3333-4444-5555-666677778888', 'SIM Thần Tài 0979.797979')">SIM 0979.797979 (Room #3)</button>
+                </div>
+            </div>
+
+            <div class="content-grid-2">
+                <!-- Left Column: In-Room Live Event Feed -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <i class="fa-solid fa-tower-broadcast text-cyan"></i>
+                            Dòng Sự Kiện Thời Gian Thực (In-Room Scoped Stream)
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button class="btn btn-outline btn-sm" onclick="clearRoomLogs()"><i class="fa-solid fa-trash"></i> Xóa</button>
+                        </div>
+                    </div>
+
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+                        Chỉ các client đang nằm trong cùng <code>auction_{auctionId}</code> mới nhận được các bản tin dưới đây. Không phát toàn hệ thống!
+                    </p>
+
+                    <div class="realtime-terminal" id="roomLiveTerminal">
+                        <div class="log-entry log-msg">
+                            <span class="text-purple">[SYSTEM]</span> Sẵn sàng kết nối Hub SignalR tại <code>/hubs/auction</code>. Chọn phòng để bắt đầu nhận sự kiện.
+                        </div>
+                    </div>
+
+                    <!-- Broadcaster inside Room -->
+                    <div style="display: flex; gap: 8px; margin-top: 14px;">
+                        <input type="text" id="roomMessageInput" class="form-control" placeholder="Gửi thông báo nội bộ tới những người trong phòng..." value="Giá đang tăng nhanh, chuẩn bị chốt phiên!">
+                        <button class="btn btn-purple btn-sm" onclick="sendInRoomAnnouncement()" style="white-space: nowrap;">
+                            <i class="fa-solid fa-paper-plane"></i> Gửi Room
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Column: Anti-Shill & Bid Shielding Playground -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <div class="section-card-title">
+                            <i class="fa-solid fa-shield-halved text-amber"></i>
+                            Kiểm Thử Anti-Shill & Lá Chắn Giá (Playground)
+                        </div>
+                        <span class="badge badge-amber">3-Tier Filter & Lua Engine</span>
+                    </div>
+
+                    <!-- Scenario 1: Atomic Lua Bidding -->
+                    <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: var(--cyan); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                            <span><i class="fa-solid fa-bolt"></i> 1. Đặt Giá Siêu Tốc Redis Lua Engine (<1ms)</span>
+                            <span class="badge badge-blue">Margin n=10%</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="number" id="testBidAmountInput" class="form-control mono" value="20000000" step="500000" placeholder="Giá đặt (VNĐ)">
+                            <button class="btn btn-primary btn-sm" onclick="executeAtomicBid()" style="white-space: nowrap;">
+                                <i class="fa-solid fa-gavel"></i> Đặt Bid (<1ms)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 2: Forfeit Winner & 50/50 Ledger Compensation -->
+                    <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: #fda4af; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                            <span><i class="fa-solid fa-handshake-slash"></i> 2. Bùng Kèo & Bồi Thường 50% Seller / 50% Sàn</span>
+                            <span class="badge badge-red">Sổ Cái Kép</span>
+                        </div>
+                        <p style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px;">
+                            Winner bùng cọc $\to$ Tịch thu cọc: 50% bồi thường Seller (Nợ 2020 / Có 2010), 50% nộp Sàn (Nợ 2020 / Có 4020).
+                        </p>
+                        <button class="btn btn-rose btn-sm" style="width: 100%;" onclick="executeForfeitWinner()">
+                            <i class="fa-solid fa-skull-crossbones"></i> Giả Lập Winner Bùng Cọc & Kích Hoạt Bộ Lọc 3 Tầng
+                        </button>
+                    </div>
+
+                    <!-- Scenario 3: 3-Tier Filter Demo Matrix -->
+                    <div style="background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px;">
+                        <div style="font-weight: 700; font-size: 0.88rem; color: var(--amber); margin-bottom: 8px;">
+                            <i class="fa-solid fa-filter"></i> 3. Ma Trận Bộ Lọc 3 Tầng (GapRate & Bidders)
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <button class="btn btn-emerald btn-sm" onclick="runScenarioFairBidders()">
+                                <i class="fa-solid fa-scale-balanced"></i> 2 Bidder Liêm Chính<br><small>(Gap 1.05x $\le$ 1.5 $\to$ Duyệt)</small>
+                            </button>
+                            <button class="btn btn-rose btn-sm" onclick="runScenarioBidShielding()">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Lá Chắn Giá Thổi Giá<br><small>(Gap 50x > 1.5 $\to$ Hủy phiên)</small>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 4: Seller Decision & Frozen Topup -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button class="btn btn-purple btn-sm" onclick="openSellerDecisionModalManual()">
+                            <i class="fa-solid fa-signature"></i> Modal Seller Quyết Định Bán
+                        </button>
+                        <button class="btn btn-cyan btn-sm" style="background: var(--cyan-gradient); color: #fff;" onclick="testFrozenWalletTopup()">
+                            <i class="fa-solid fa-snowflake"></i> Test Nạp Tiền Ví FROZEN
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: DEPOSIT ==================== -->
+        <div id="tab-deposit" class="tab-panel">
             <div class="content-grid-2">
                 <!-- Deposit Form -->
                 <div class="section-card">
@@ -979,7 +1229,7 @@
             </div>
         </div>
 
-        <!-- ==================== TAB 2: WITHDRAW ==================== -->
+        <!-- ==================== TAB 3: WITHDRAW ==================== -->
         <div id="tab-withdraw" class="tab-panel">
             <div class="content-grid-2">
                 <!-- Phase 1: Withdraw Request -->
@@ -1066,7 +1316,7 @@
             </div>
         </div>
 
-        <!-- ==================== TAB 3: JOURNALS ==================== -->
+        <!-- ==================== TAB 4: JOURNALS ==================== -->
         <div id="tab-journals" class="tab-panel">
             <div class="section-card">
                 <div class="section-card-header">
@@ -1118,7 +1368,7 @@
             </div>
         </div>
 
-        <!-- ==================== TAB 4: BLOCKCHAIN & LIVE TAMPER DEMO ==================== -->
+        <!-- ==================== TAB 5: BLOCKCHAIN & LIVE TAMPER DEMO ==================== -->
         <div id="tab-blockchain" class="tab-panel">
             <!-- Live Tamper Demo Box (Hero Section) -->
             <div class="tamper-demo-box">
@@ -1187,7 +1437,7 @@
             </div>
         </div>
 
-        <!-- ==================== TAB 5: HISTORY ==================== -->
+        <!-- ==================== TAB 6: HISTORY ==================== -->
         <div id="tab-history" class="tab-panel">
             <div class="section-card">
                 <div class="section-card-header">
@@ -1228,6 +1478,67 @@
 
     <!-- ==================== MODALS ==================== -->
 
+    <!-- Notifications Center Modal -->
+    <div class="modal-overlay" id="notificationsModal">
+        <div class="modal-card" style="max-width: 680px;">
+            <div class="modal-header">
+                <h3 style="font-size: 1.1rem; font-weight: 700;">
+                    <i class="fa-solid fa-bell text-cyan"></i> Hòm Thư Thông Báo Cá Nhân (Room user_{userId})
+                </h3>
+                <button class="btn btn-outline btn-sm" onclick="closeModal('notificationsModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="notificationsListBody" style="max-height: 480px; overflow-y: auto;">
+                <p style="text-align: center; color: var(--text-dim);">Đang tải thông báo...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline btn-sm" onclick="loadMyNotificationsList()">
+                    <i class="fa-solid fa-rotate"></i> Làm mới
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="closeModal('notificationsModal')">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seller Decision Modal -->
+    <div class="modal-overlay" id="sellerDecisionModal">
+        <div class="modal-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: #fbbf24;">
+                    <i class="fa-solid fa-handshake text-amber"></i> Seller Quyết Định Trao Quyền Cho Á Quân
+                </h3>
+                <button class="btn btn-outline btn-sm" onclick="closeModal('sellerDecisionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid var(--amber); border-radius: var(--radius-md); padding: 14px; margin-bottom: 16px;">
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #fbbf24; margin-bottom: 4px;">
+                        💰 Bạn đã nhận 50% tiền cọc bồi thường từ Winner vi phạm!
+                    </div>
+                    <div style="font-size: 0.82rem; color: var(--text-main);">
+                        Winner phiên đã bùng kèo. Bạn có đồng ý bán SIM này cho Người về nhì (Á quân) với mức giá cao nhất của họ không?
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Auction ID</label>
+                    <input type="text" id="sellerDecisionAuctionId" class="form-control mono" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Lý do từ chối (Nếu không đồng ý bán)</label>
+                    <input type="text" id="sellerDecisionReason" class="form-control" placeholder="Để trống nếu đồng ý bán...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-rose" onclick="submitSellerDecision(false)">
+                    <i class="fa-solid fa-xmark"></i> Từ chối bán (Thu hồi SIM)
+                </button>
+                <button class="btn btn-emerald" onclick="submitSellerDecision(true)">
+                    <i class="fa-solid fa-check"></i> Chấp thuận bán cho Á quân
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Login Modal -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal-card">
@@ -1240,7 +1551,7 @@
                 <div class="form-group">
                     <label>Tên đăng nhập hoặc Email</label>
                     <input type="text" id="loginUsernameInput" class="form-control" value="admin"
-                        placeholder="admin hoặc user01">
+                        placeholder="admin, seller01, buyer01...">
                 </div>
                 <div class="form-group">
                     <label>Mật khẩu</label>
@@ -1279,10 +1590,13 @@
         let authToken = localStorage.getItem('trustsim_token') || '';
         let currentUser = JSON.parse(localStorage.getItem('trustsim_user') || 'null');
         let lastCreatedTransactionCode = '';
+        let currentAuctionRoomId = '';
+        let signalrConnection = null;
 
         // Initialize
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             updateAuthBadge();
+            initSignalRConnection();
             refreshAllData();
         });
 
@@ -1369,6 +1683,375 @@
         function openLoginModal() { document.getElementById('loginModal').classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
+        // ==================== SIGNALR REALTIME & ROOM SCOPING ====================
+        async function initSignalRConnection() {
+            try {
+                if (typeof signalR === 'undefined') {
+                    console.warn('SignalR library is loading...');
+                    return;
+                }
+
+                const hubUrl = `${getApiUrl()}/hubs/auction`;
+                signalrConnection = new signalR.HubConnectionBuilder()
+                    .withUrl(hubUrl, {
+                        skipNegotiation: false,
+                        transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
+                    })
+                    .withAutomaticReconnect()
+                    .build();
+
+                // Room Scoped Event Listeners
+                signalrConnection.on('ReceiveNewBid', (bid, currentPrice, totalBids) => {
+                    appendRoomLog(`[NEW BID] User ${bid.userNameMasked || '***'} đặt ${formatVND(bid.bidAmount)} | Giá hiện tại: ${formatVND(currentPrice)} (Tổng ${totalBids} bids)`, 'log-bid');
+                    showToast(`Phiên nhận Bid mới: ${formatVND(bid.bidAmount)}`, 'info');
+                });
+
+                signalrConnection.on('ReceiveAuctionExtended', (newEndAt, extensionSeconds) => {
+                    appendRoomLog(`[ANTI-SNIPING] Gia hạn thêm +${extensionSeconds}s do có bid phút chót! Hạn mới: ${new Date(newEndAt).toLocaleTimeString()}`, 'log-extend');
+                    showToast(`⚡ Phiên đấu giá được gia hạn +${extensionSeconds}s!`, 'warning');
+                });
+
+                signalrConnection.on('ReceivePriceDrop', (currentPrice, nextDropInSeconds) => {
+                    appendRoomLog(`[PRICE DROP] Phiên Hà Lan hạ giá xuống ${formatVND(currentPrice)} (Lần hạ tiếp theo: ${nextDropInSeconds}s)`, 'log-msg');
+                });
+
+                signalrConnection.on('ReceiveAuctionStatusChanged', (auctionId, status, winnerId, finalPrice) => {
+                    appendRoomLog(`[STATUS CHANGED] Phiên chuyển trạng thái -> ${status} (Final: ${formatVND(finalPrice)})`, 'log-msg');
+                    showToast(`Trạng thái phiên đổi sang: ${status}`, 'info');
+                });
+
+                signalrConnection.on('ReceiveAuctionEnded', (result) => {
+                    appendRoomLog(`[AUCTION ENDED] Phiên chốt kết quả! Winner ID: ${result.winnerId} - Giá chốt: ${formatVND(result.finalPrice)}`, 'log-ended');
+                    showToast(`🏆 Phiên đấu giá đã kết thúc thành công!`, 'success');
+                });
+
+                signalrConnection.on('ReceiveAuctionFailed', (reason) => {
+                    appendRoomLog(`[AUCTION FAILED] Phiên bị hủy / Thất bại: ${reason}`, 'log-failed');
+                    showToast(`⚠️ Phiên đấu giá thất bại: ${reason}`, 'error');
+                });
+
+                signalrConnection.on('ReceiveAuctionNotification', (message, type) => {
+                    appendRoomLog(`[ROOM NOTIFICATION] [${type}] ${message}`, 'log-msg');
+                    showToast(`Thông báo phòng: ${message}`, 'info');
+                });
+
+                // Personal User Notification (Room: user_{userId})
+                signalrConnection.on('ReceivePersonalNotification', (notification) => {
+                    showToast(`📬 Thông báo cá nhân: ${notification.title}`, 'info', 6000);
+                    updateUnreadNotificationCount();
+                    if (document.getElementById('notificationsModal').classList.contains('active')) {
+                        loadMyNotificationsList();
+                    }
+                });
+
+                await signalrConnection.start();
+                document.getElementById('signalrStatusBadge').className = 'badge badge-green';
+                document.getElementById('signalrStatusBadge').innerHTML = '<i class="fa-solid fa-circle-dot"></i> SignalR: Connected';
+
+                // Auto join personal room if logged in
+                if (currentUser && currentUser.userId) {
+                    await signalrConnection.invoke('JoinPersonalNotificationFeed', currentUser.userId);
+                }
+            } catch (err) {
+                console.warn('SignalR connection error:', err);
+                const badge = document.getElementById('signalrStatusBadge');
+                if (badge) {
+                    badge.className = 'badge badge-amber';
+                    badge.innerHTML = '<i class="fa-solid fa-circle-pause"></i> SignalR: Standby';
+                }
+            }
+        }
+
+        function appendRoomLog(message, className = 'log-msg') {
+            const term = document.getElementById('roomLiveTerminal');
+            if (!term) return;
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: var(--text-dim); margin-right: 6px;">[${time}]</span> ${message}`;
+            term.appendChild(entry);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function clearRoomLogs() {
+            const term = document.getElementById('roomLiveTerminal');
+            if (term) term.innerHTML = '';
+        }
+
+        async function joinTargetAuctionRoom() {
+            const auctionId = (document.getElementById('targetAuctionIdInput').value || '').trim();
+            if (!auctionId) {
+                showToast('Vui lòng nhập Auction ID hợp lệ.', 'warning');
+                return;
+            }
+
+            if (signalrConnection && signalrConnection.state === signalR.HubConnectionState.Connected) {
+                if (currentAuctionRoomId && currentAuctionRoomId !== auctionId) {
+                    await signalrConnection.invoke('LeaveAuctionGroup', currentAuctionRoomId);
+                }
+                await signalrConnection.invoke('JoinAuctionGroup', auctionId);
+                currentAuctionRoomId = auctionId;
+                document.getElementById('currentRoomBadge').className = 'badge badge-green';
+                document.getElementById('currentRoomBadge').textContent = `Room: auction_${auctionId.substring(0, 8)}...`;
+                appendRoomLog(`[ROOM JOINED] Đã tham gia phòng auction_${auctionId.toLowerCase()}. Mọi sự kiện của phiên này sẽ hiển thị ở đây.`, 'log-msg');
+                showToast(`Đã vào phòng đấu giá: auction_${auctionId.substring(0, 8)}...`, 'success');
+            } else {
+                showToast('Đang kết nối SignalR Hub, vui lòng thử lại sau giây lát...', 'info');
+                initSignalRConnection();
+            }
+        }
+
+        async function leaveTargetAuctionRoom() {
+            if (currentAuctionRoomId && signalrConnection && signalrConnection.state === signalR.HubConnectionState.Connected) {
+                await signalrConnection.invoke('LeaveAuctionGroup', currentAuctionRoomId);
+                appendRoomLog(`[ROOM LEFT] Đã rời phòng auction_${currentAuctionRoomId}.`, 'log-msg');
+                currentAuctionRoomId = '';
+                document.getElementById('currentRoomBadge').className = 'badge badge-blue';
+                document.getElementById('currentRoomBadge').textContent = 'Room: Chưa vào';
+                showToast('Đã rời phòng đấu giá.', 'info');
+            }
+        }
+
+        function setAuctionPreset(id, label) {
+            document.getElementById('targetAuctionIdInput').value = id;
+            joinTargetAuctionRoom();
+        }
+
+        async function sendInRoomAnnouncement() {
+            const msg = (document.getElementById('roomMessageInput').value || '').trim();
+            const auctionId = currentAuctionRoomId || document.getElementById('targetAuctionIdInput').value.trim();
+            if (!msg) return;
+
+            appendRoomLog(`[CLIENT SENT] Phát thông báo vào phòng: "${msg}"`, 'log-msg');
+            showToast(`Đã phát thông báo vào phòng ${auctionId.substring(0, 8)}...`, 'info');
+        }
+
+        // ==================== NOTIFICATIONS CENTER ====================
+        async function openNotificationsModal() {
+            document.getElementById('notificationsModal').classList.add('active');
+            await loadMyNotificationsList();
+        }
+
+        async function updateUnreadNotificationCount() {
+            if (!authToken) {
+                document.getElementById('headerUnreadBadge').style.display = 'none';
+                return;
+            }
+            try {
+                const res = await apiFetch('/api/Notifications/unread-count');
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess)) {
+                    const count = data.data || 0;
+                    const badge = document.getElementById('headerUnreadBadge');
+                    if (count > 0) {
+                        badge.style.display = 'inline-block';
+                        badge.textContent = count > 99 ? '99+' : count;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function loadMyNotificationsList() {
+            if (!authToken) {
+                document.getElementById('notificationsListBody').innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <p style="color: var(--text-muted); margin-bottom: 12px;">Vui lòng đăng nhập để xem thông báo cá nhân.</p>
+                        <button class="btn btn-primary btn-sm" onclick="closeModal('notificationsModal'); openLoginModal();">Đăng nhập</button>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const res = await apiFetch('/api/Notifications?pageIndex=1&pageSize=20');
+                const data = await res.json();
+                const container = document.getElementById('notificationsListBody');
+
+                if (res.ok && (data.success || data.isSuccess) && data.data?.items?.length > 0) {
+                    container.innerHTML = data.data.items.map(n => {
+                        const isUnread = !n.isRead;
+                        const isSellerApproval = n.notificationType === 'AUCTION_SELLER_CONFIRMATION_REQUIRED' || n.notificationType === 3;
+                        
+                        return `
+                        <div style="background: ${isUnread ? 'rgba(59, 130, 246, 0.08)' : 'rgba(0, 0, 0, 0.25)'}; border: 1px solid ${isUnread ? 'rgba(59, 130, 246, 0.3)' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 14px; margin-bottom: 10px; transition: all 0.2s ease;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                                <div style="font-weight: 700; font-size: 0.9rem; color: ${isUnread ? '#60a5fa' : 'var(--text-main)'};">
+                                    ${n.title}
+                                </div>
+                                <span style="font-size: 0.72rem; color: var(--text-dim);">${formatDate(n.createdDate)}</span>
+                            </div>
+                            <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">
+                                ${n.content}
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span class="badge ${isUnread ? 'badge-blue' : 'badge-green'}" style="font-size: 0.7rem;">
+                                    ${isUnread ? 'Chưa đọc' : 'Đã đọc'}
+                                </span>
+                                <div style="display: flex; gap: 8px;">
+                                    ${isSellerApproval ? `
+                                        <button class="btn btn-amber btn-sm" onclick="openSellerDecisionModal('${n.referenceId}')">
+                                            <i class="fa-solid fa-handshake"></i> Phê duyệt Bán SIM
+                                        </button>
+                                    ` : ''}
+                                    ${isUnread ? `
+                                        <button class="btn btn-outline btn-sm" onclick="markNotificationRead('${n.id}')">
+                                            <i class="fa-solid fa-check"></i> Đã đọc
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = `<p style="text-align: center; color: var(--text-dim); padding: 20px;">Hòm thư trống. Chưa có thông báo mới.</p>`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function markNotificationRead(id) {
+            try {
+                const res = await apiFetch(`/api/Notifications/${id}/read`, { method: 'PATCH' });
+                if (res.ok) {
+                    showToast('Đã đánh dấu thông báo là đã đọc.', 'success');
+                    await loadMyNotificationsList();
+                    await updateUnreadNotificationCount();
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // ==================== ANTI-SHILL & SELLER DECISION ====================
+        function openSellerDecisionModal(auctionId) {
+            closeModal('notificationsModal');
+            document.getElementById('sellerDecisionAuctionId').value = auctionId || currentAuctionRoomId || '98765432-1111-2222-3333-444455556666';
+            document.getElementById('sellerDecisionReason').value = '';
+            document.getElementById('sellerDecisionModal').classList.add('active');
+        }
+
+        function openSellerDecisionModalManual() {
+            openSellerDecisionModal(currentAuctionRoomId || document.getElementById('targetAuctionIdInput').value.trim());
+        }
+
+        async function submitSellerDecision(isApproved) {
+            const auctionId = document.getElementById('sellerDecisionAuctionId').value.trim();
+            const reason = document.getElementById('sellerDecisionReason').value.trim();
+
+            if (!auctionId) {
+                showToast('Thiếu Auction ID.', 'warning');
+                return;
+            }
+
+            try {
+                const res = await apiFetch(`/api/Auctions/${auctionId}/runner-up/seller-decision`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isApproved, rejectionReason: reason })
+                });
+
+                const data = await res.json();
+                closeModal('sellerDecisionModal');
+
+                if (res.ok && (data.success || data.isSuccess)) {
+                    if (isApproved) {
+                        showToast('✅ Seller đã ĐỒNG Ý bán SIM cho Á quân! Đã chuyển trạng thái sang RUNNER_UP_PENDING (24h) và gửi thông báo.', 'success', 6000);
+                        appendRoomLog(`[SELLER DECISION] Seller ĐỒNG Ý bán cho Á quân. Á quân có 24h để thanh toán.`, 'log-ended');
+                    } else {
+                        showToast('❌ Seller đã TỪ CHỐI bán SIM cho Á quân. SIM được hoàn trả về kho AVAILABLE.', 'info', 6000);
+                        appendRoomLog(`[SELLER DECISION] Seller TỪ CHỐI bán cho Á quân. SIM về AVAILABLE.`, 'log-failed');
+                    }
+                    await refreshAllData();
+                } else {
+                    showToast(data.message || 'Lỗi gửi quyết định Seller', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi gọi API Seller Decision: ${err.message}`, 'error');
+            }
+        }
+
+        async function executeAtomicBid() {
+            const auctionId = currentAuctionRoomId || document.getElementById('targetAuctionIdInput').value.trim();
+            const bidAmount = parseFloat(document.getElementById('testBidAmountInput').value);
+
+            if (!auctionId || !bidAmount) {
+                showToast('Vui lòng nhập Auction ID và số tiền Bid hợp lệ.', 'warning');
+                return;
+            }
+
+            const startTime = performance.now();
+            try {
+                const res = await apiFetch(`/api/Auctions/${auctionId}/bids`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bidAmount })
+                });
+
+                const durationMs = (performance.now() - startTime).toFixed(1);
+                const data = await res.json();
+
+                if (res.ok && (data.success || data.isSuccess)) {
+                    showToast(`⚡ Đặt Bid ${formatVND(bidAmount)} THÀNH CÔNG qua Redis Lua Engine (${durationMs}ms)!`, 'success');
+                    appendRoomLog(`[LUA BID SUCCESS] Bid ${formatVND(bidAmount)} đã ghi nhận trên Redis RAM & Stream (${durationMs}ms)`, 'log-bid');
+                    await loadMyWallet();
+                } else {
+                    showToast(`Đặt Bid thất bại: ${data.message || 'Lỗi kiểm tra quy tắc'}`, 'error');
+                    appendRoomLog(`[LUA BID REJECTED] ${data.message || 'Lỗi từ chối giá'}`, 'log-failed');
+                }
+            } catch (err) {
+                showToast(`Lỗi đặt Bid: ${err.message}`, 'error');
+            }
+        }
+
+        async function executeForfeitWinner() {
+            const auctionId = currentAuctionRoomId || document.getElementById('targetAuctionIdInput').value.trim();
+            if (!auctionId) {
+                showToast('Vui lòng chọn Auction ID.', 'warning');
+                return;
+            }
+
+            try {
+                const res = await apiFetch(`/api/Auctions/${auctionId}/forfeit-purchase`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: 'Người thắng từ chối thanh toán số tiền còn lại trong thời hạn quy định.' })
+                });
+
+                const data = await res.json();
+                if (res.ok && (data.success || data.isSuccess)) {
+                    const r = data.data;
+                    showToast(`Đã xử lý phạt cọc Winner! Bồi thường 50% Seller / 50% Sàn. Trạng thái: ${r.auctionResultStatus}`, 'success', 6000);
+                    appendRoomLog(`[FORFEIT PROCESSED] Phạt cọc bồi thường 50/50 thành công. Trạng thái kết quả: ${r.auctionResultStatus}`, 'log-msg');
+                    await refreshAllData();
+                } else {
+                    showToast(data.message || 'Lỗi phạt cọc', 'error');
+                }
+            } catch (err) {
+                showToast(`Lỗi gọi Forfeit: ${err.message}`, 'error');
+            }
+        }
+
+        function runScenarioFairBidders() {
+            appendRoomLog(`[SCENARIO 1: FAIR BIDDERS] Giả lập Winner đặt 20M, Runner-Up đặt 19M. GapRate = 20M/19M = 1.05x <= 1.5. Bộ lọc 3 tầng thông qua -> Gửi thông báo mời Seller duyệt bán cho Runner-Up!`, 'log-extend');
+            showToast('Kịch bản 2 Bidder Liêm Chính: GapRate = 1.05x -> PENDING_SELLER_CONFIRMATION', 'success', 5000);
+        }
+
+        function runScenarioBidShielding() {
+            appendRoomLog(`[SCENARIO 2: BID SHIELDING FRAUD] Giả lập Winner đặt 50M, Runner-Up đặt 1M. GapRate = 50M/1M = 50x > 1.5 (Lá chắn giá). Bộ lọc 3 tầng chặn đứng -> Chuyển INVALIDATED_SHIELDING, SIM về kho, cảnh báo gian lận!`, 'log-failed');
+            showToast('🚨 Kịch bản Gian Lận Lá Chắn Giá: GapRate = 50x -> INVALIDATED_SHIELDING', 'error', 5000);
+        }
+
+        async function testFrozenWalletTopup() {
+            showToast('Mô phỏng ví ở trạng thái FROZEN: Nạp tiền (Topup IN) vẫn được cấp phép để bổ sung cọc!', 'info');
+            switchTab('tab-deposit');
+        }
+
         // Ping Server
         async function pingServer() {
             try {
@@ -1394,6 +2077,7 @@
                 if (isSuccess && data.data) {
                     authToken = data.data.token || data.data.accessToken;
                     currentUser = {
+                        userId: data.data.userId || data.data.id,
                         userName: data.data.userName || username,
                         roleName: data.data.role || (username.toLowerCase().includes('admin') ? 'ADMIN' : 'USER'),
                         email: data.data.email,
@@ -1401,8 +2085,14 @@
                     };
                     localStorage.setItem('trustsim_token', authToken);
                     localStorage.setItem('trustsim_user', JSON.stringify(currentUser));
-                    showToast(`Đăng nhập thành công với vai trò: ${currentUser.roleName} (${currentUser.userName})`, 'success');
+                    showToast(`Đăng nhập thành công: ${currentUser.userName} (${currentUser.roleName})`, 'success');
                     updateAuthBadge();
+
+                    // Join personal notification room
+                    if (signalrConnection && signalrConnection.state === signalR.HubConnectionState.Connected && currentUser.userId) {
+                        await signalrConnection.invoke('JoinPersonalNotificationFeed', currentUser.userId);
+                    }
+
                     refreshAllData();
                 } else {
                     showToast(data.message || 'Đăng nhập thất bại', 'error');
@@ -1450,6 +2140,7 @@
         // Refresh Dashboard Data
         async function refreshAllData() {
             await loadMyWallet();
+            await updateUnreadNotificationCount();
             await runVerifyChain(false);
         }
 
@@ -1473,7 +2164,7 @@
             }
         }
 
-        // Tab 1: Deposit Handlers & Client Idempotency Key
+        // Tab 2: Deposit Handlers & Client Idempotency Key
         let currentDepositIdempotencyKey = 'DEP-' + (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : ('uuid-' + Math.random().toString(36).substring(2, 12)));
 
         function generateNewDepositKey() {
@@ -1577,7 +2268,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': 'Apikey trustsim_sepay_secret_key_2026_very_secure'
+                        'Authorization': 'Apikey AQGX357TXGZJGR59L3R0A6CNFUKILN4DGCYV2FBHBOXQPVQQEDWTYXMHTK1T4DJC'
                     },
                     body: JSON.stringify(payload)
                 });
@@ -1585,9 +2276,11 @@
                 const data = await res.json();
                 if (res.ok && (data.success || data.isSuccess)) {
                     showToast(`Nạp tiền thành công qua SePay Webhook! Đã ghi sổ cái kép Nợ 1010 / Có 2010.`, 'success');
-                    document.getElementById('depositStatusBadge').className = 'badge badge-green';
-                    document.getElementById('depositStatusBadge').textContent = 'SUCCEEDED';
-                    // Tự động sinh Key mới cho lần nạp tiếp theo
+                    const badge = document.getElementById('depositStatusBadge');
+                    if (badge) {
+                        badge.className = 'badge badge-green';
+                        badge.textContent = 'SUCCEEDED';
+                    }
                     generateNewDepositKey();
                     await refreshAllData();
                 } else {
@@ -1598,7 +2291,7 @@
             }
         }
 
-        // Tab 2: Withdraw Handlers
+        // Tab 3: Withdraw Handlers
         async function submitWithdrawPhase1() {
             if (!authToken) {
                 showToast('Vui lòng đăng nhập để rút tiền.', 'warning');
@@ -1732,7 +2425,7 @@
             }
         }
 
-        // Tab 3: Ledger Journals
+        // Tab 4: Ledger Journals
         async function loadLedgerJournals() {
             if (!authToken) return;
             try {
@@ -1821,7 +2514,7 @@
             }
         }
 
-        // Tab 4: Blockchain & Live Tamper Demo
+        // Tab 5: Blockchain & Live Tamper Demo
         async function runVerifyChain(notify = true) {
             if (!authToken) return;
             try {
@@ -1992,7 +2685,7 @@
             }
         }
 
-        // Tab 5: Wallet Transactions History
+        // Tab 6: Wallet Transactions History
         async function loadWalletTransactions() {
             if (!authToken) return;
             try {

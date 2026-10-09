@@ -306,6 +306,14 @@ public class AuctionRepository : IAuctionRepository
             .FirstOrDefaultAsync(p => p.AuctionId == auctionId && p.UserAccountId == userId, cancellationToken);
     }
 
+    public async Task<AuctionParticipant?> GetParticipantByIdAsync(Guid participantId, CancellationToken cancellationToken = default)
+    {
+        return await _context.AuctionParticipants
+            .Include(p => p.Deposits)
+            .Include(p => p.UserAccount)
+            .FirstOrDefaultAsync(p => p.Id == participantId, cancellationToken);
+    }
+
     public async Task<bool> HasOverlappingRegisteredAuctionAsync(Guid userId, DateTime startAt, DateTime endAt, Guid? excludeAuctionId = null, CancellationToken cancellationToken = default)
     {
         return await _context.AuctionParticipants
@@ -332,7 +340,31 @@ public class AuctionRepository : IAuctionRepository
                 .ThenInclude(w => w!.UserAccount)
             .Include(r => r.RunnerUpParticipant)
                 .ThenInclude(p => p!.UserAccount)
+            .Include(r => r.InitialWinner)
+                .ThenInclude(w => w!.UserAccount)
             .FirstOrDefaultAsync(r => r.AuctionId == auctionId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<AuctionResult>> GetPendingSettlementsForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.AuctionResults
+            .Include(r => r.Auction)
+                .ThenInclude(a => a!.SimNumber)
+                    .ThenInclude(s => s!.PhonePrefix)
+                        .ThenInclude(p => p!.SimCarrier)
+            .Include(r => r.Auction)
+                .ThenInclude(a => a!.AuctionRule)
+            .Include(r => r.Winner)
+                .ThenInclude(w => w!.Deposits)
+            .Include(r => r.RunnerUpParticipant)
+                .ThenInclude(p => p!.Deposits)
+            .Where(r => 
+                (r.AuctionResultStatus == AuctionResultStatus.PENDING_PAYMENT && r.Winner != null && r.Winner.UserAccountId == userId) ||
+                (r.AuctionResultStatus == AuctionResultStatus.RUNNER_UP_PENDING && r.RunnerUpParticipant != null && r.RunnerUpParticipant.UserAccountId == userId) ||
+                (r.AuctionResultStatus == AuctionResultStatus.PENDING_SELLER_CONFIRMATION && r.Auction != null && r.Auction.AuthorId == userId)
+            )
+            .OrderByDescending(r => r.CreatedDate)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task AddResultAsync(AuctionResult result, CancellationToken cancellationToken = default)

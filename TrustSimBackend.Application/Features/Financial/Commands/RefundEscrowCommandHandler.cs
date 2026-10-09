@@ -41,9 +41,9 @@ public class RefundEscrowCommandHandler : IRequestHandler<RefundEscrowCommand, L
             throw new NotFoundException($"Không tìm thấy ví tiền của người mua ID '{request.BuyerUserId}'.");
         }
 
-        if (buyerWallet.WalletStatus != WalletStatus.ACTIVE)
+        if (buyerWallet.WalletStatus == WalletStatus.LOCKED)
         {
-            throw new BadRequestException("Ví tiền người mua đang bị khóa hoặc đóng băng, không thể nhận tiền hoàn.");
+            throw new BadRequestException("Ví tiền người mua đang bị khóa toàn phần kỷ luật, không thể nhận tiền hoàn.");
         }
 
         var reason = request.RefundReason ?? "Hủy giao dịch chuyển nhượng SIM";

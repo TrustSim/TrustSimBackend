@@ -17,6 +17,7 @@ public record CreateAuctionCommand(
     int MaxStepMultiplier = 10,
     int MaxSnipeExtensionsPerParticipant = 3,
     int PaymentGracePeriodHours = 24,
+    int? PaymentGracePeriodMinutes = null,
     decimal DutchDecreaseAmount = 0m,
     float DutchDecreaseIntervalSeconds = 0f,
     decimal DepositAmount = 0m,
@@ -26,5 +27,9 @@ public record CreateAuctionCommand(
     float ExtensionThresholdSeconds = 120.0f,
     float ExtensionDurationSeconds = 300.0f,
     int MaximumExtensionCount = 5,
+    decimal MarginPercentage = 0.10m,
+    decimal MaxPriceGapRatioForRunnerUp = 1.50m,
+    int MinimumUniqueBiddersForRunnerUp = 2,
+    bool RequireSellerApprovalForRunnerUp = true,
     Guid AuthorId = default
 ) : IRequest<AuctionDto>;

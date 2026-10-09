@@ -18,17 +18,20 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
     private readonly ILedgerService _ledgerService;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly INotificationService _notificationService;
 
     public AcceptRunnerUpOfferCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
-        IAuctionDelayQueueService delayQueue)
+        IAuctionDelayQueueService delayQueue,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
+        _notificationService = notificationService;
     }
 
     public async Task<AuctionResultDto> Handle(AcceptRunnerUpOfferCommand request, CancellationToken cancellationToken)
@@ -174,17 +177,48 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
 
         auctionResult.WinnerId = participant.Id;
         auctionResult.FinalPrice = priceToPay;
+        auctionResult.WinType = AuctionWinType.RUNNER_UP_TAKEOVER;
         auctionResult.AuctionResultStatus = AuctionResultStatus.CONFIRMED;
         auctionResult.SettledAt = now;
         _unitOfWork.Auctions.UpdateResult(auctionResult);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Gửi thông báo cho Á quân và Seller
+        await _notificationService.SendNotificationAsync(
+            userId: participant.UserAccountId,
+            type: NotificationType.AUCTION_WON,
+            title: $"🎉 Chúc mừng bạn đã mua thành công SIM {sim?.PhoneNumber}!",
+            content: $"Bạn đã hoàn tất thanh toán {priceToPay:N0} VNĐ cho phiên {auction.AuctionCode}. Tiền đã được ký quỹ Escrow bảo đảm và đang chờ chuyển nhượng SIM.",
+            actionUrl: $"/trades/{trade.Id}",
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
+            cancellationToken: cancellationToken);
+
+        await _notificationService.SendNotificationAsync(
+            userId: auction.AuthorId,
+            type: NotificationType.TRADE_TRANSFERRING_SIM,
+            title: $"💰 Á quân đã thanh toán mua SIM {sim?.PhoneNumber}!",
+            content: $"Á quân phiên {auction.AuctionCode} đã thanh toán đủ {priceToPay:N0} VNĐ vào quỹ Escrow. Vui lòng tiến hành thủ tục sang tên SIM.",
+            actionUrl: $"/trades/{trade.Id}",
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
+            cancellationToken: cancellationToken);
+
         var resultDto = new AuctionResultDto
         {
+            Id = auctionResult.Id,
             AuctionId = auction.Id,
             WinnerId = participant.Id,
+            WinnerUserName = participant.UserAccount?.UserName,
             FinalPrice = priceToPay,
+            InitialWinnerId = auctionResult.InitialWinnerId,
+            InitialWinningPrice = auctionResult.InitialWinningPrice,
+            RunnerUpParticipantId = auctionResult.RunnerUpParticipantId,
+            RunnerUpFinalPrice = auctionResult.RunnerUpFinalPrice,
+            WinType = AuctionWinType.RUNNER_UP_TAKEOVER,
             AuctionResultStatus = AuctionResultStatus.CONFIRMED,
             SettledAt = now
         };

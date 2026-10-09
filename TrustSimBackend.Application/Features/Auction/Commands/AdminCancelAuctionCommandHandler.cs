@@ -17,17 +17,20 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
     private readonly ILedgerService _ledgerService;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly INotificationService _notificationService;
 
     public AdminCancelAuctionCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
-        IAuctionDelayQueueService delayQueue)
+        IAuctionDelayQueueService delayQueue,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
+        _notificationService = notificationService;
     }
 
     public async Task<bool> Handle(AdminCancelAuctionCommand request, CancellationToken cancellationToken)
@@ -52,6 +55,7 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.DUTCH_PRICE_DROP, cancellationToken);
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.PAYMENT_DEADLINE, cancellationToken);
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.RUNNER_UP_DEADLINE, cancellationToken);
+        await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.SELLER_DECISION_DEADLINE, cancellationToken);
 
         // 2. Trả SIM về AVAILABLE
         var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
@@ -98,6 +102,17 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
                     CompletedAt = now
                 };
                 await _unitOfWork.AuctionTransactions.AddAsync(refundTx, cancellationToken);
+
+                // Gửi thông báo hoàn cọc do Admin hủy phiên
+                await _notificationService.SendNotificationAsync(
+                    userId: participant.UserAccountId,
+                    type: NotificationType.AUCTION_DEPOSIT_REFUNDED,
+                    title: $"ℹ️ Hoàn tiền cọc phiên {auction.AuctionCode}",
+                    content: $"Phiên đấu giá SIM {auction.SimNumber?.PhoneNumber} đã bị Quản trị viên hủy bỏ (Lý do: {request.Reason}). Tiền cọc {deposit.DepositAmount:N0} VNĐ của bạn đã được giải phóng hoàn trả về ví.",
+                    referenceType: "Auction",
+                    referenceId: auction.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
             }
 
             if (wallet != null)
@@ -111,6 +126,8 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
         var auctionResult = await _unitOfWork.Auctions.GetResultByAuctionIdAsync(auction.Id, cancellationToken);
         if (auctionResult != null)
         {
+            auctionResult.WinnerId = null;
+            auctionResult.WinType = AuctionWinType.NONE;
             auctionResult.AuctionResultStatus = AuctionResultStatus.CANCELLED;
             auctionResult.CancelledAt = now;
             auctionResult.CancelledReason = request.Reason;
@@ -124,6 +141,7 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
                 AuctionId = auction.Id,
                 WinnerId = null,
                 FinalPrice = auction.CurrentPrice,
+                WinType = AuctionWinType.NONE,
                 AuctionResultStatus = AuctionResultStatus.CANCELLED,
                 DeterminedAt = now,
                 ConfirmedAt = now,
@@ -135,6 +153,17 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
 
         _unitOfWork.Auctions.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Gửi thông báo cho Seller
+        await _notificationService.SendNotificationAsync(
+            userId: auction.AuthorId,
+            type: NotificationType.AUCTION_FAILED,
+            title: $"⚠️ Phiên đấu giá SIM {auction.SimNumber?.PhoneNumber} đã bị hủy bởi Quản trị viên",
+            content: $"Phiên đấu giá {auction.AuctionCode} đã bị hủy bỏ bởi Quản trị viên. Lý do: {request.Reason}. SIM đã được chuyển về trạng thái Sẵn sàng.",
+            referenceType: "Auction",
+            referenceId: auction.Id,
+            sendEmail: true,
+            cancellationToken: cancellationToken);
 
         await _realtimeNotifier.NotifyAuctionFailedAsync(
             auction.Id,

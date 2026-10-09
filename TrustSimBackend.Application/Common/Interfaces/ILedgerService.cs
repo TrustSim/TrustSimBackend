@@ -101,6 +101,17 @@ public interface ILedgerService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Nghiệp vụ Chống Bơm Giá / Winner Bùng Kèo: Tịch thu cọc Winner (Nợ 2020) và chia 50% bồi thường Người bán (Có 2010 Seller) + 50% doanh thu phạt Sàn (Có 4020).
+    /// </summary>
+    Task<LedgerJournal> PostAuctionDepositForfeitedWithCompensationAsync(
+        Guid winnerWalletId,
+        Guid sellerWalletId,
+        decimal totalDepositAmount,
+        Guid auctionDepositId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Nghiệp vụ 3.5.4: Ký quỹ Escrow sau khi thắng đấu giá (Nợ 2020 / Có 2030).
     /// </summary>
     Task<LedgerJournal> PostEscrowHoldAsync(

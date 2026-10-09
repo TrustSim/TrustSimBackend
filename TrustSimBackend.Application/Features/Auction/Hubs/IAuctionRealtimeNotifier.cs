@@ -46,4 +46,9 @@ public interface IAuctionRealtimeNotifier
     /// Bắn thông báo nội bộ trong phòng đấu giá.
     /// </summary>
     Task NotifyAuctionNotificationAsync(Guid auctionId, string message, string type, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bắn thông báo cá nhân đến hòm thư người dùng (SignalR room user_{userId}).
+    /// </summary>
+    Task NotifyPersonalNotificationAsync(Guid userId, TrustSimBackend.Application.Features.System.DTOs.Responses.NotificationDto notification, CancellationToken cancellationToken = default);
 }

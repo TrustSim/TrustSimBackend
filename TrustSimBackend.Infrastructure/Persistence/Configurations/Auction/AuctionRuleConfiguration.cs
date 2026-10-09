@@ -18,6 +18,11 @@ public class AuctionRuleConfiguration : IEntityTypeConfiguration<AuctionRule>
         builder.Property(x => x.MaxSnipeExtensionsPerParticipant).HasDefaultValue(3).IsRequired();
         builder.Property(x => x.PaymentGracePeriodHours).HasDefaultValue(24).IsRequired();
 
+        builder.Property(x => x.MarginPercentage).HasPrecision(5, 2).HasDefaultValue(0.10m).IsRequired();
+        builder.Property(x => x.MaxPriceGapRatioForRunnerUp).HasPrecision(5, 2).HasDefaultValue(1.50m).IsRequired();
+        builder.Property(x => x.MinimumUniqueBiddersForRunnerUp).HasDefaultValue(2).IsRequired();
+        builder.Property(x => x.RequireSellerApprovalForRunnerUp).HasDefaultValue(true).IsRequired();
+
         builder.HasOne(x => x.Auction)
                .WithOne(a => a.AuctionRule)
                .HasForeignKey<AuctionRule>(x => x.AuctionId)

@@ -39,17 +39,21 @@ public class DutchAuctionStrategy : IAuctionStrategy
             MinimumBidIncrement = 0,
             // Dutch-specific
             DutchDecreaseAmount = request.DutchDecreaseAmount,
-            DutchDecreaseIntervalSeconds = request.DutchDecreaseIntervalSeconds,
             PaymentGracePeriodHours = request.PaymentGracePeriodHours > 0 ? request.PaymentGracePeriodHours : 24,
+            PaymentGracePeriodMinutes = request.PaymentGracePeriodMinutes.HasValue && request.PaymentGracePeriodMinutes.Value > 0
+                ? request.PaymentGracePeriodMinutes.Value
+                : (request.PaymentGracePeriodHours > 0 ? request.PaymentGracePeriodHours * 60 : 1440),
             // Common fields
             DepositAmount = request.DepositAmount,
             MaximumBidCountPerParticipant = request.MaximumBidCountPerParticipant,
             MaximumBidCountPerMinute = request.MaximumBidCountPerMinute,
             MinimumBidIntervalSeconds = request.MinimumBidIntervalSeconds,
             // Dutch không cần Anti-Sniping vì kết thúc khi người đầu tiên chấp nhận
-            ExtensionThresholdSeconds = 0,
-            ExtensionDurationSeconds = 0,
-            MaximumExtensionCount = 0,
+            // Anti-Shill & Bid Shielding
+            MarginPercentage = request.MarginPercentage > 0 ? request.MarginPercentage : 0.10m,
+            MaxPriceGapRatioForRunnerUp = request.MaxPriceGapRatioForRunnerUp > 0 ? request.MaxPriceGapRatioForRunnerUp : 1.50m,
+            MinimumUniqueBiddersForRunnerUp = request.MinimumUniqueBiddersForRunnerUp > 0 ? request.MinimumUniqueBiddersForRunnerUp : 2,
+            RequireSellerApprovalForRunnerUp = request.RequireSellerApprovalForRunnerUp,
             IsActive = true
         };
     }

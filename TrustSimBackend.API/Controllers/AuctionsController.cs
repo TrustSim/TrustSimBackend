@@ -29,6 +29,18 @@ public class AuctionsController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy danh sách các giao dịch / phiên đấu giá đang cần người dùng xử lý quyết định hoặc thanh toán (Pending Settlements)
+    /// </summary>
+    [HttpGet("my-pending-settlements")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PendingSettlementDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyPendingSettlements()
+    {
+        var result = await Mediator.Send(new GetMyPendingSettlementsQuery(CurrentUserId));
+        return Ok(ApiResponse<IReadOnlyList<PendingSettlementDto>>.SuccessResult(result, "Lấy danh sách phiên chờ xử lý thành công."));
+    }
+
+    /// <summary>
     /// Lấy thông tin chi tiết phiên đấu giá
     /// </summary>
     [HttpGet("{id:guid}")]
@@ -153,6 +165,22 @@ public class AuctionsController : BaseApiController
     {
         var result = await Mediator.Send(new RejectRunnerUpOfferCommand(id, CurrentUserId));
         return Ok(ApiResponse<bool>.SuccessResult(result, "Từ chối nhận quyền mua SIM thành công."));
+    }
+
+    /// <summary>
+    /// Người bán (Seller) duyệt bán hoặc từ chối bán SIM cho Á quân khi Winner bùng kèo
+    /// </summary>
+    [HttpPost("{id:guid}/runner-up/seller-decision")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<AuctionResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SellerDecideRunnerUp(
+        [FromRoute] Guid id,
+        [FromBody] SellerApproveRunnerUpRequest request)
+    {
+        var result = await Mediator.Send(new SellerApproveRunnerUpCommand(id, CurrentUserId, request.IsApproved, request.RejectionReason));
+        var msg = request.IsApproved ? "Đã chấp thuận bán SIM cho Á quân." : "Đã từ chối bán SIM cho Á quân.";
+        return Ok(ApiResponse<AuctionResultDto>.SuccessResult(result, msg));
     }
 
     /// <summary>

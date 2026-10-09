@@ -10,6 +10,7 @@ public static class AuctionDelayJobTypes
     public const string DUTCH_PRICE_DROP = "DUTCH_PRICE_DROP";
     public const string PAYMENT_DEADLINE = "PAYMENT_DEADLINE";
     public const string RUNNER_UP_DEADLINE = "RUNNER_UP_DEADLINE";
+    public const string SELLER_DECISION_DEADLINE = "SELLER_DECISION_DEADLINE";
 }
 
 /// <summary>

@@ -35,6 +35,22 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// <summary>Thời hạn X giờ: Thời gian cho phép người thắng / người về nhì hoàn tất thanh toán trước khi bị phạt cọc.</summary>
         public int PaymentGracePeriodHours { get; set; } = 24;
 
+        /// <summary>Thời hạn tính bằng phút: Cho phép cấu hình linh hoạt (hỗ trợ test nhanh timeout 1-2 phút). Mặc định 1440 phút = 24 giờ.</summary>
+        public int PaymentGracePeriodMinutes { get; set; } = 1440;
+
+        // --- Cấu hình Ký Quỹ Lũy Tiến & Chống Bơm Giá / Lá Chắn Giá (Anti-Shill & Bid Shielding) ---
+        /// <summary>Tỷ lệ ký quỹ lũy tiến n% (Mặc định 10% = 0.10). A = X * MarginPercentage.</summary>
+        public decimal MarginPercentage { get; set; } = 0.10m;
+
+        /// <summary>Hệ số chênh lệch giá tối đa cho phép giữa Winner và Runner-Up (Mặc định 1.50 = 150%).</summary>
+        public decimal MaxPriceGapRatioForRunnerUp { get; set; } = 1.50m;
+
+        /// <summary>Số lượng người đặt giá độc lập tối thiểu để kích hoạt chuyển giao quyền mua cho Á quân (Mặc định 2 người).</summary>
+        public int MinimumUniqueBiddersForRunnerUp { get; set; } = 2;
+
+        /// <summary>Yêu cầu Người bán (Seller) phê duyệt trước khi trao quyền mua SIM cho Á quân kèm nhận tiền bồi thường.</summary>
+        public bool RequireSellerApprovalForRunnerUp { get; set; } = true;
+
         // --- Cấu hình Anti-Sniping ---
         /// <summary>
         /// Ngưỡng thời gian (giây) trước khi phiên kết thúc: nếu có bid mới trong khoảng này,

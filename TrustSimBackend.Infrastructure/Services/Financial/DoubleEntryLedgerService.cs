@@ -348,6 +348,37 @@ public class DoubleEntryLedgerService : ILedgerService
             cancellationToken);
     }
 
+    public async Task<LedgerJournal> PostAuctionDepositForfeitedWithCompensationAsync(
+        Guid winnerWalletId,
+        Guid sellerWalletId,
+        decimal totalDepositAmount,
+        Guid auctionDepositId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var compensationAmount = Math.Round(totalDepositAmount * 0.50m, 2);
+        var platformPenaltyAmount = totalDepositAmount - compensationAmount;
+
+        var entries = new List<LedgerEntryParam>
+        {
+            // Dòng 1: Nợ 2020 (Winner) - Giảm tiền cọc bị phong tỏa của Winner
+            new(FinancialAccountType.USER_LOCKED, LedgerEntryType.DEBIT, totalDepositAmount, winnerWalletId, $"Tịch thu tiền cọc do từ bỏ quyền mua SIM phiên {auctionId}"),
+            // Dòng 2: Có 2010 (Seller) - Tăng số dư khả dụng bồi thường 50% cho Người bán
+            new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.CREDIT, compensationAmount, sellerWalletId, $"Nhận 50% tiền bồi thường từ cọc Winner vi phạm phiên {auctionId}"),
+            // Dòng 3: Có 4020 (Sàn) - Ghi nhận 50% doanh thu tiền phạt vi phạm quy chế cho Sàn
+            new(FinancialAccountType.PLATFORM_PENALTY_REVENUE, LedgerEntryType.CREDIT, platformPenaltyAmount, null, $"Doanh thu 50% tiền phạt cọc vi phạm quy chế phiên {auctionId}")
+        };
+
+        return await PostJournalAsync(
+            LedgerTransactionType.AUCTION_DEPOSIT_FORFEITED,
+            $"Tịch thu cọc #{auctionDepositId} & bồi thường 50% Seller #{sellerWalletId}",
+            entries,
+            "AuctionDeposit",
+            auctionDepositId,
+            $"AUC-DEP-FORFEIT-COMP-{auctionDepositId}",
+            cancellationToken);
+    }
+
     public async Task<LedgerJournal> PostEscrowHoldAsync(
         Guid buyerWalletId,
         decimal totalEscrowAmount,
