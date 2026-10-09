@@ -71,8 +71,23 @@ public class AuctionRealtimeNotifier : IAuctionRealtimeNotifier
 
     public async Task NotifyAuctionNotificationAsync(Guid auctionId, string message, string type, CancellationToken cancellationToken = default)
     {
-        var groupName = $"auction_{auctionId.ToString().ToLower()}";
-        _logger.LogInformation("[Realtime] Phát sóng Notification [{Type}: {Message}] tới nhóm {GroupName}", type, message, groupName);
-        await _hubContext.Clients.Group(groupName).ReceiveAuctionNotification(message, type);
+        if (auctionId != Guid.Empty)
+        {
+            var groupName = $"auction_{auctionId.ToString().ToLower()}";
+            _logger.LogInformation("[Realtime] Phát sóng Room Notification [{Type}: {Message}] tới phòng {GroupName}", type, message, groupName);
+            await _hubContext.Clients.Group(groupName).ReceiveAuctionNotification(message, type);
+        }
+        else
+        {
+            _logger.LogInformation("[Realtime] Phát sóng System-wide Notification [{Type}: {Message}] tới toàn hệ thống", type, message);
+            await _hubContext.Clients.All.ReceiveAuctionNotification(message, type);
+        }
+    }
+
+    public async Task NotifyPersonalNotificationAsync(Guid userId, TrustSimBackend.Application.Features.System.DTOs.Responses.NotificationDto notification, CancellationToken cancellationToken = default)
+    {
+        var groupName = $"user_{userId.ToString().ToLower()}";
+        _logger.LogInformation("[Realtime] Phát thông báo cá nhân tới {GroupName}: {Title}", groupName, notification.Title);
+        await _hubContext.Clients.Group(groupName).ReceivePersonalNotification(notification);
     }
 }

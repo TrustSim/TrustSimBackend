@@ -30,8 +30,13 @@ public class GetMyNotificationsQueryHandler : IRequestHandler<GetMyNotifications
             UserId = n.UserId,
             Title = n.Title,
             Content = n.Content,
+            NotificationType = n.NotificationType,
+            ReferenceType = n.ReferenceType,
+            ReferenceId = n.ReferenceId,
+            MetadataJson = n.MetadataJson,
             ActionUrl = n.ActionUrl,
             IsRead = n.IsRead,
+            ReadAt = n.ReadAt,
             CreatedDate = n.CreatedDate
         }).ToList();
 

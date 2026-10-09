@@ -81,10 +81,43 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// </summary>
         public string? CancelledReason { get; set; }
 
+        // --- CÁC TRƯỜNG MỞ RỘNG KIỂM TOÁN LIÊM CHÍNH & RUNNER-UP ---
+        /// <summary>
+        /// ID của Quán quân ban đầu khi gõ búa kết thúc phiên (Bất biến, không bao giờ bị ghi đè để lưu vết lịch sử nếu Quán quân bùng cọc).
+        /// </summary>
+        public Guid? InitialWinnerId { get; set; }
+
+        /// <summary>
+        /// Mức giá trúng đấu giá ban đầu của Quán quân.
+        /// </summary>
+        public decimal? InitialWinningPrice { get; set; }
+
+        /// <summary>
+        /// Nguồn xác định người chiến thắng cuối cùng (Thắng trực tiếp vs Á quân tiếp quản mua lại vs Mua ngay Hà Lan).
+        /// </summary>
+        public AuctionWinType WinType { get; set; } = AuctionWinType.NONE;
+
+        /// <summary>Tỷ lệ chênh lệch giá giữa Winner và Runner-Up (FinalPrice / RunnerUpFinalPrice).</summary>
+        public decimal? PriceGapRatio { get; set; }
+
+        /// <summary>Số lượng người đặt giá độc lập (Unique Bidders) trong phiên.</summary>
+        public int? UniqueBiddersCount { get; set; }
+
+        /// <summary>Số tiền bồi thường đã chuyển vào ví Người bán từ tiền phạt cọc (50%).</summary>
+        public decimal? SellerCompensationAmount { get; set; }
+
+        /// <summary>Đánh dấu Người bán đã đồng ý (true) hoặc từ chối (false) bán cho Runner-Up.</summary>
+        public bool? IsSellerApproved { get; set; }
+
+        /// <summary>Hạn chót để Người bán đưa ra quyết định duyệt bán cho Runner-Up (24h).</summary>
+        public DateTime? SellerDecisionDeadline { get; set; }
+
         public virtual Auction? Auction { get; set; }
 
         public virtual AuctionParticipant? Winner { get; set; }
 
         public virtual AuctionParticipant? RunnerUpParticipant { get; set; }
+
+        public virtual AuctionParticipant? InitialWinner { get; set; }
     }
 }

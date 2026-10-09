@@ -54,6 +54,28 @@ public class AuctionHub : Hub<IAuctionHubClient>
         _logger.LogInformation("[AuctionHub] Client {ConnectionId} rời danh sách auctions_listing", Context.ConnectionId);
     }
 
+    /// <summary>
+    /// Tham gia phòng nhận thông báo cá nhân theo userId.
+    /// </summary>
+    public async Task JoinPersonalNotificationFeed(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return;
+        var groupName = $"user_{userId.Trim().ToLower()}";
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+        _logger.LogInformation("[AuctionHub] Client {ConnectionId} tham gia hòm thư cá nhân {GroupName}", Context.ConnectionId, groupName);
+    }
+
+    /// <summary>
+    /// Rời phòng nhận thông báo cá nhân.
+    /// </summary>
+    public async Task LeavePersonalNotificationFeed(string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return;
+        var groupName = $"user_{userId.Trim().ToLower()}";
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+        _logger.LogInformation("[AuctionHub] Client {ConnectionId} rời hòm thư cá nhân {GroupName}", Context.ConnectionId, groupName);
+    }
+
     public override async Task OnConnectedAsync()
     {
         _logger.LogInformation("[AuctionHub] Client kết nối: {ConnectionId}", Context.ConnectionId);

@@ -140,6 +140,13 @@ public static class DependencyInjection
         services.AddSingleton<IAuctionDelayQueueService, RedisDelayQueueService>();
         services.AddHostedService<AuctionDelayQueueDispatcher>();
 
+        // Redis In-Memory Hot State Engine, Lua Script & Write-Behind Persistence Worker
+        services.AddSingleton<IRedisAuctionCacheService, RedisAuctionCacheService>();
+        services.AddHostedService<AuctionBidPersistenceWorker>();
+
+        // Multi-Channel Notification Dispatcher
+        services.AddScoped<INotificationService, NotificationService>();
+
         // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
         services.AddScoped<IBulkDataService, BulkDataService>();
         services.AddScoped<ICsvService, CsvService>();

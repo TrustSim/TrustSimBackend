@@ -28,6 +28,11 @@ public class ActivateAuctionCommandHandler : IRequestHandler<ActivateAuctionComm
             throw new NotFoundException($"Không tìm thấy phiên đấu giá với ID '{request.AuctionId}'.");
         }
 
+        if (auction.Participants.Count == 0)
+        {
+            throw new BadRequestException("Không thể kích hoạt phiên đấu giá khi chưa có người tham gia đặt cọc.");
+        }
+
         var state = AuctionStateContext.GetState(auction.AuctionStatus);
         state.Activate(auction);
 

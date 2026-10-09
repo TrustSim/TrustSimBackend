@@ -30,8 +30,10 @@ public class EnglishAuctionStrategy : IAuctionStrategy
             // English-specific
             MinimumBidIncrement = request.MinimumBidIncrement,
             MaxStepMultiplier = request.MaxStepMultiplier > 0 ? request.MaxStepMultiplier : 10,
-            MaxSnipeExtensionsPerParticipant = request.MaxSnipeExtensionsPerParticipant > 0 ? request.MaxSnipeExtensionsPerParticipant : 3,
             PaymentGracePeriodHours = request.PaymentGracePeriodHours > 0 ? request.PaymentGracePeriodHours : 24,
+            PaymentGracePeriodMinutes = request.PaymentGracePeriodMinutes.HasValue && request.PaymentGracePeriodMinutes.Value > 0
+                ? request.PaymentGracePeriodMinutes.Value
+                : (request.PaymentGracePeriodHours > 0 ? request.PaymentGracePeriodHours * 60 : 1440),
             // Dutch-specific fields: không áp dụng
             DutchDecreaseAmount = 0,
             DutchDecreaseIntervalSeconds = 0,
@@ -42,7 +44,11 @@ public class EnglishAuctionStrategy : IAuctionStrategy
             MinimumBidIntervalSeconds = request.MinimumBidIntervalSeconds,
             ExtensionThresholdSeconds = request.ExtensionThresholdSeconds,
             ExtensionDurationSeconds = request.ExtensionDurationSeconds,
-            MaximumExtensionCount = request.MaximumExtensionCount,
+            // Anti-Shill & Bid Shielding
+            MarginPercentage = request.MarginPercentage > 0 ? request.MarginPercentage : 0.10m,
+            MaxPriceGapRatioForRunnerUp = request.MaxPriceGapRatioForRunnerUp > 0 ? request.MaxPriceGapRatioForRunnerUp : 1.50m,
+            MinimumUniqueBiddersForRunnerUp = request.MinimumUniqueBiddersForRunnerUp > 0 ? request.MinimumUniqueBiddersForRunnerUp : 2,
+            RequireSellerApprovalForRunnerUp = request.RequireSellerApprovalForRunnerUp,
             IsActive = true
         };
     }

@@ -10,24 +10,31 @@ namespace TrustSimBackend.Application.Features.Financial.Commands;
 
 /// <summary>
 /// Xử lý Webhook tự động từ SePay: xác thực Token, đối soát mã giao dịch, kiểm tra Idempotency
-/// và ghi nhận dòng tiền qua Sổ cái Ghi kép (Double-Entry Ledger) có gắn mã băm Hash Chain SHA-256.
+/// và ghi nhận dòng tiền qua Sổ cái Ghi kép (Double-Entry Ledger) có gắn mã băm Hash Chain SHA-256,
+/// đồng thời đồng bộ số dư khả dụng lên Redis Hot Cache và gửi thông báo cho người dùng.
 /// </summary>
 public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWebhookCommand, bool>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISePayService _sePayService;
     private readonly ILedgerService _ledgerService;
+    private readonly IRedisAuctionCacheService _redisCache;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ProcessSepayWebhookCommandHandler> _logger;
 
     public ProcessSepayWebhookCommandHandler(
         IUnitOfWork unitOfWork,
         ISePayService sePayService,
         ILedgerService ledgerService,
+        IRedisAuctionCacheService redisCache,
+        INotificationService notificationService,
         ILogger<ProcessSepayWebhookCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _sePayService = sePayService;
         _ledgerService = ledgerService;
+        _redisCache = redisCache;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -98,10 +105,10 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
             throw new NotFoundException($"Không tìm thấy ví tiền với ID '{transaction.WalletId}'.");
         }
 
-        if (wallet.WalletStatus != WalletStatus.ACTIVE)
+        if (wallet.WalletStatus == WalletStatus.LOCKED)
         {
-            _logger.LogWarning("[SePay Webhook] Ví '{WalletId}' đang ở trạng thái '{Status}' (không phải ACTIVE). Tạm giữ giao dịch nạp tiền để đối soát thủ công.", wallet.Id, wallet.WalletStatus);
-            throw new BadRequestException($"Ví tiền của bạn đang ở trạng thái {wallet.WalletStatus}. Giao dịch nạp tiền đã được tạm giữ để đối soát an toàn.");
+            _logger.LogWarning("[SePay Webhook] Ví '{WalletId}' đang bị LOCKED. Tạm giữ giao dịch nạp tiền để đối soát thủ công.", wallet.Id);
+            throw new BadRequestException("Ví tiền của bạn đang bị khóa toàn phần. Giao dịch nạp tiền đã được tạm giữ để đối soát an toàn.");
         }
 
         var amountToCredit = payload.TransferAmount;
@@ -139,6 +146,20 @@ public class ProcessSepayWebhookCommandHandler : IRequestHandler<ProcessSepayWeb
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // 10. Đồng bộ số dư mới lên Redis Cache Hot State
+        await _redisCache.SyncWalletBalanceAsync(wallet.UserAccountId, wallet.AvailableBalance, wallet.LockedBalance, cancellationToken);
+
+        // 11. Bắn thông báo nạp tiền thành công
+        await _notificationService.SendNotificationAsync(
+            userId: wallet.UserAccountId,
+            type: NotificationType.WALLET_TOPUP_SUCCESS,
+            title: $"💵 Nạp tiền thành công +{amountToCredit:N0} VNĐ",
+            content: $"Bạn vừa nạp thành công {amountToCredit:N0} VNĐ vào ví TrustSim qua {payload.Gateway}. Số dư khả dụng hiện tại: {wallet.AvailableBalance:N0} VNĐ.",
+            referenceType: "WalletTransaction",
+            referenceId: transaction.Id,
+            sendEmail: false,
+            cancellationToken: cancellationToken);
 
         _logger.LogInformation(
             "[SePay Webhook] Nạp tiền THÀNH CÔNG cho ví '{WalletId}'. Số tiền: {Amount:N0} VNĐ. Số dư mới: {NewBalance:N0} VNĐ. Chứng từ sổ cái: '{JournalCode}'.",

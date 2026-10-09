@@ -1,4 +1,5 @@
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Application.Features.System.DTOs.Responses;
 
 namespace TrustSimBackend.API.Hubs;
 
@@ -51,4 +52,9 @@ public interface IAuctionHubClient
     /// Cập nhật số lượng người xem trực tuyến trong phòng đấu giá.
     /// </summary>
     Task UpdateViewerCount(int viewerCount);
+
+    /// <summary>
+    /// Nhận thông báo cá nhân (Ví dụ: Thắng đấu giá, hoàn cọc, mời người bán xác nhận Á quân, v.v.).
+    /// </summary>
+    Task ReceivePersonalNotification(NotificationDto notification);
 }

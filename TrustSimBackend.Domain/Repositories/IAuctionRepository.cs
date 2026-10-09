@@ -54,10 +54,12 @@ public interface IAuctionRepository
     Task AddAsync(Auction auction, CancellationToken cancellationToken = default);
     void Update(Auction auction);
     Task<AuctionParticipant?> GetParticipantAsync(Guid auctionId, Guid userId, CancellationToken cancellationToken = default);
+    Task<AuctionParticipant?> GetParticipantByIdAsync(Guid participantId, CancellationToken cancellationToken = default);
     Task<bool> HasOverlappingRegisteredAuctionAsync(Guid userId, DateTime startAt, DateTime endAt, Guid? excludeAuctionId = null, CancellationToken cancellationToken = default);
     Task AddParticipantAsync(AuctionParticipant participant, CancellationToken cancellationToken = default);
     void UpdateParticipant(AuctionParticipant participant);
     Task<AuctionResult?> GetResultByAuctionIdAsync(Guid auctionId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<AuctionResult>> GetPendingSettlementsForUserAsync(Guid userId, CancellationToken cancellationToken = default);
     Task AddResultAsync(AuctionResult result, CancellationToken cancellationToken = default);
     void UpdateResult(AuctionResult result);
 }

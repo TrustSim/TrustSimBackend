@@ -43,11 +43,21 @@
 
     <!-- Active Profile & Theme Switcher Card -->
     <div class="header-right">
+      <!-- Notification Bell with Unread Badge -->
+      <button class="btn-notif-bell" id="btnNotifBell" onclick="toggleNotificationModal()" title="Xem thông báo của tôi">
+        <span class="bell-icon">🔔</span>
+        <span class="badge-notif-count" id="headerNotifBadge" style="display: none;">0</span>
+      </button>
+
       <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Chuyển chế độ sáng/tối">
         <span id="themeIcon">☀️</span> <span id="themeText">Giao diện sáng</span>
       </button>
 
-      <div class="user-profile-card" id="userProfileCard">
+      <button class="btn-topup-header" onclick="openDepositModal()" title="Nạp tiền vào ví qua VietQR SePay">
+        <span>💳 Nạp Tiền Ví</span>
+      </button>
+
+      <div class="user-profile-card" id="userProfileCard" onclick="openDepositModal()" style="cursor: pointer;" title="Nhấp để nạp tiền vào ví">
         <div class="avatar" id="userAvatar">NA</div>
         <div class="user-meta">
           <div class="user-name-role">
@@ -87,8 +97,8 @@
       <button class="pill-btn" data-username="bidder_alpha" onclick="quickLogin('bidder_alpha')">
         <span class="icon">⚡</span> <strong>bidder_alpha</strong> (500Tr)
       </button>
-      <button class="pill-btn" data-username="bidder_beta" onclick="quickLogin('bidder_beta')">
-        <span class="icon">🚀</span> <strong>bidder_beta</strong> (500Tr)
+      <button class="pill-btn warning" data-username="bidder_beta" onclick="quickLogin('bidder_beta')" style="border-color: #8b5cf6; color: #8b5cf6;">
+        <span class="icon">🥈</span> <strong>bidder_beta</strong> (12Tr - Á Quân Thiếu Tiền)
       </button>
       <button class="pill-btn warning" data-username="bidder_moderate_funds" onclick="quickLogin('bidder_moderate_funds')" style="border-color: #f59e0b; color: #f59e0b;">
         <span class="icon">🪙</span> <strong>bidder_moderate</strong> (15Tr - Thiếu Tiền)
@@ -105,6 +115,21 @@
     </div>
   </section>
 
+  <!-- Section: My Pending Settlement Actions & Live Countdowns -->
+  <section class="pending-settlements-section" id="pendingSettlementsSection" style="display: none;">
+    <div class="pending-header">
+      <div class="pending-title">
+        <span class="bell-icon">🔔</span>
+        <h3>Việc Cần Quyết Toán & Xử Lý Của Tôi (<span id="pendingSettlementsCount">0</span>)</h3>
+        <span class="badge-pending-pulse">Yêu Cầu Hành Động</span>
+      </div>
+      <button class="btn-refresh-pending" onclick="loadMyPendingSettlements()" title="Cập nhật danh sách">🔄 Làm mới</button>
+    </div>
+    <div class="pending-settlements-grid" id="pendingSettlementsGrid">
+      <!-- Dynamically filled by loadMyPendingSettlements() -->
+    </div>
+  </section>
+
   <!-- Main 3-Column Workspace -->
   <main class="main-layout">
     
@@ -118,6 +143,7 @@
       <!-- Filter Tabs -->
       <div class="filter-tabs">
         <button class="filter-tab active" data-filter="ALL" onclick="filterAuctions('ALL')">Tất Cả</button>
+        <button class="filter-tab" data-filter="MY_AUCTIONS" onclick="filterAuctions('MY_AUCTIONS')">🎯 Của Tôi (<span id="myAuctionsCount">0</span>)</button>
         <button class="filter-tab" data-filter="ENGLISH" onclick="filterAuctions('ENGLISH')">Đấu Giá Anh</button>
         <button class="filter-tab" data-filter="DUTCH" onclick="filterAuctions('DUTCH')">Đấu Giá Hà Lan</button>
       </div>
@@ -253,16 +279,24 @@
               💳 Hoàn Tất Thanh Toán Số Tiền Còn Lại
             </button>
             <button class="btn-action btn-forfeit" id="btnWinnerForfeit" onclick="forfeitWinnerPurchase()" style="display: none;">
-              ❌ Bỏ Mua SIM (Phạt cọc)
+              💥 Người Thắng: Bỏ Mua SIM (Phạt Cọc 50/50)
+            </button>
+            <button class="btn-action btn-seller-approve" id="btnSellerApproveRunnerUp" onclick="sellerDecideRunnerUp(true)" style="display: none; background: #10b981;">
+              ✅ Người Bán: Duyệt Bán Cho Á Quân
+            </button>
+            <button class="btn-action btn-seller-reject" id="btnSellerRejectRunnerUp" onclick="sellerDecideRunnerUp(false)" style="display: none; background: #ef4444;">
+              🚫 Người Bán: Từ Chối Bán Cho Á Quân
             </button>
             <button class="btn-action btn-accept-runnerup" id="btnAcceptRunnerUp" onclick="acceptRunnerUpOffer()" style="display: none;">
               🤝 Á Quân: Chấp Nhận Mua SIM
             </button>
             <button class="btn-action btn-reject-runnerup" id="btnRejectRunnerUp" onclick="rejectRunnerUpOffer()" style="display: none;">
-              ❌ Á Quân: Từ Chối
+              ❌ Á Quân: Từ Chối Mua SIM
             </button>
           </div>
         </div>
+
+
 
         <!-- Realtime Bids Stream Table -->
         <div class="bids-history-box">
@@ -344,9 +378,9 @@
           <div class="form-group">
             <label>Thời Gian Khởi Động Phiên:</label>
             <select id="modalStartPreset">
+              <option value="0" selected>Bắt đầu ngay lập tức (0s)</option>
               <option value="1">Bắt đầu sau 1 phút (Test Delay Queue)</option>
               <option value="2">Bắt đầu sau 2 phút</option>
-              <option value="0">Bắt đầu ngay lập tức (0s)</option>
             </select>
           </div>
         </div>
@@ -376,15 +410,15 @@
 
         <!-- Anti-Sniping & Advanced Rules for English Auction -->
         <details id="advancedRulesDetails" style="margin-bottom: 12px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 8px 12px; background: rgba(0,0,0,0.15);">
-          <summary style="cursor: pointer; font-weight: bold; color: var(--accent-color, #38bdf8);">⚙️ Cấu Hình Bù Giờ Anti-Sniping & Nâng Cao</summary>
+          <summary style="cursor: pointer; font-weight: bold; color: var(--accent-color, #38bdf8);">⚙️ Cấu Hình Anti-Sniping, Ký Quỹ & Chống Bơm Giá (Anti-Shill)</summary>
           <div class="form-row" style="margin-top: 10px;">
             <div class="form-group">
               <label>Ngưỡng Bù Giờ (Giây):</label>
-              <input type="number" id="modalExtensionThreshold" value="120" min="10" max="600" step="10">
+              <input type="number" id="modalExtensionThreshold" value="30" min="5" max="600" step="5" title="Chỉ bù giờ khi có bid trong 30s cuối">
             </div>
             <div class="form-group">
               <label>Gia Hạn Mỗi Lần (Giây):</label>
-              <input type="number" id="modalExtensionDuration" value="300" min="30" max="1800" step="30">
+              <input type="number" id="modalExtensionDuration" value="30" min="5" max="1800" step="5" title="Mỗi lần bù giờ thêm 30s">
             </div>
           </div>
           <div class="form-row">
@@ -395,6 +429,32 @@
             <div class="form-group">
               <label>Bù Giờ Tối Đa Của Phiên:</label>
               <input type="number" id="modalMaxExtensions" value="5" min="1" max="20">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tỷ Lệ Ký Quỹ Lũy Tiến ($n$%):</label>
+              <input type="number" id="modalMarginRate" value="0.10" min="0.01" max="0.50" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Gap Rate Tối Đa Á Quân:</label>
+              <input type="number" id="modalMaxPriceGap" value="1.50" min="1.05" max="3.00" step="0.05">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Số Lượng Á Quân:</label>
+              <input type="number" id="modalMaxRunnerUp" value="1" readonly disabled style="background: rgba(255,255,255,0.1); cursor: not-allowed;" title="Hệ thống chỉ xét duy nhất 1 Á quân (Top 2)">
+            </div>
+            <div class="form-group">
+              <label>Bidders Tối Thiểu Để Xét Á Quân (Anti-Shill):</label>
+              <input type="number" id="modalMinUniqueBidders" value="2" min="1" max="10" title="Cần tối thiểu bao nhiêu người đấu giá khác nhau trong phiên để kích hoạt cơ chế Á quân">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+              <input type="checkbox" id="modalRequireSellerApproval" checked style="width: 18px; height: 18px;">
+              <label for="modalRequireSellerApproval" style="margin-bottom: 0; cursor: pointer;">Seller Duyệt Bán Á Quân</label>
             </div>
           </div>
         </details>
@@ -423,9 +483,19 @@
             <label>Thời Gian Diễn Ra (Phút):</label>
             <input type="number" id="modalDurationMinutes" value="10" min="2" max="1440">
           </div>
-          <div class="form-group">
-            <label>Hạn Thanh Toán (Giờ):</label>
-            <input type="number" id="modalGracePeriodHours" value="24" min="1" max="168">
+          <div class="form-group" id="gracePeriodGroup">
+            <label>Hạn Thanh Toán (Grace Period):</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="modalGracePreset" onchange="handleGracePresetChange(this.value)" style="flex: 1.2;">
+                <option value="1">1 Phút (Test Timeout Siêu Tốc)</option>
+                <option value="2">2 Phút (Test Nhanh)</option>
+                <option value="5">5 Phút</option>
+                <option value="60">60 Phút (1 Giờ)</option>
+                <option value="1440" selected>1440 Phút (24 Giờ - Chuẩn)</option>
+                <option value="custom">Tùy chỉnh...</option>
+              </select>
+              <input type="number" id="modalGracePeriodMinutes" value="1440" min="1" max="10080" style="flex: 0.8;" title="Số phút ân hạn">
+            </div>
           </div>
         </div>
 
@@ -436,6 +506,115 @@
       </form>
     </div>
   </div>
+
+  <!-- Topup / Deposit Modal with SePay Webhook Simulator -->
+  <div class="modal-backdrop" id="depositModalBackdrop" style="display: none;" onclick="handleBackdropClick(event, 'depositModalBackdrop')">
+    <div class="modal-card modal-deposit" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <span class="modal-icon">💳</span>
+          <div>
+            <h2>Nạp Tiền Vào Ví TrustSim (Deposit Intent)</h2>
+            <p>Khởi tạo mã VietQR SePay & Giả lập Webhook thanh toán tức thì</p>
+          </div>
+        </div>
+        <button class="btn-close-modal" onclick="closeDepositModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Số tiền muốn nạp (VNĐ):</label>
+          <input type="number" id="depositAmountInput" value="50000000" step="5000000" min="10000">
+          <div class="quick-amounts-grid">
+            <button type="button" class="amount-pill" onclick="setDepositAmount(10000000)">10 Triệu</button>
+            <button type="button" class="amount-pill" onclick="setDepositAmount(50000000)">50 Triệu</button>
+            <button type="button" class="amount-pill" onclick="setDepositAmount(100000000)">100 Triệu</button>
+            <button type="button" class="amount-pill" onclick="setDepositAmount(500000000)">500 Triệu</button>
+            <button type="button" class="amount-pill" onclick="setDepositAmount(1000000000)">1 Tỷ</button>
+            <button type="button" class="amount-pill" onclick="setDepositAmount(5000000000)">5 Tỷ</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="margin-bottom: 0;">Khóa chống lặp (Idempotency Key):</label>
+            <button type="button" class="btn-text-action" onclick="generateNewDepositKey()">🔄 Sinh Key mới</button>
+          </div>
+          <input type="text" id="depositIdempotencyInput" class="font-mono" placeholder="Tự sinh tự động...">
+        </div>
+
+        <button type="button" class="btn-action-primary" style="width: 100%; margin-top: 6px;" onclick="createDepositIntent()">
+          ⚡ Tạo Intent & Sinh Mã VietQR Thanh Toán
+        </button>
+
+        <!-- Result / QR & Webhook Simulator Display Area -->
+        <div id="depositResultBox" class="deposit-result-box" style="display: none;">
+          <div class="qr-container">
+            <img id="depositQrImage" src="" alt="VietQR Code">
+            <div class="qr-caption">QUÉT MÃ VIETQR ĐỂ THANH TOÁN</div>
+          </div>
+
+          <div class="transfer-syntax-card">
+            <div class="syntax-row">
+              <span class="syntax-lbl">Số tiền:</span>
+              <strong class="syntax-val text-cyan" id="depositDisplayAmount">0 ₫</strong>
+            </div>
+            <div class="syntax-row">
+              <span class="syntax-lbl">Cú pháp chuyển khoản:</span>
+              <strong class="syntax-val text-highlight" id="depositDisplaySyntax">TS...</strong>
+            </div>
+            <div class="syntax-row">
+              <span class="syntax-lbl">Ngân hàng thụ hưởng:</span>
+              <span>Sacombank (STK: <code>070131881841</code>)</span>
+            </div>
+          </div>
+
+          <div class="webhook-sim-action">
+            <button type="button" class="btn-webhook-sim" id="btnSimulateWebhook" onclick="simulateSepayWebhook()">
+              ⚡ GIẢ LẬP SEPAY WEBHOOK THANH TOÁN THÀNH CÔNG
+            </button>
+            <p class="webhook-desc">Gửi tín hiệu Webhook giả lập tới Backend $\to$ Ghi nhận tức thì vào Sổ cái Kép (Nợ 1010 / Có 2010), nạp số dư ví và phát thông báo SignalR!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeDepositModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Center Modal / Drawer -->
+  <div class="modal-backdrop" id="notificationModalBackdrop" style="display: none;" onclick="handleBackdropClick(event, 'notificationModalBackdrop')">
+    <div class="modal-card modal-notifications" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <span class="modal-icon">📬</span>
+          <div>
+            <h2>Trung Tâm Thông Báo</h2>
+            <p id="notifModalSubtitle">Thông báo quyết toán, hoàn cọc và kết quả đấu giá của bạn</p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn-text-action" onclick="markAllNotificationsAsRead()" title="Đánh dấu tất cả là đã đọc">✓ Đã đọc tất cả</button>
+          <button class="btn-close-modal" onclick="closeNotificationModal()">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding: 12px 16px;">
+        <div class="notifications-list" id="notificationsListContainer">
+          <div class="loading-spinner">Đang tải thông báo...</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeNotificationModal()">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container for Realtime & Switch Alerts -->
+  <div class="toast-container" id="toastContainer"></div>
 
   <script src="app.js"></script>
 </body>

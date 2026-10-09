@@ -9,6 +9,8 @@ namespace TrustSimBackend.Domain.Enums
         SETTLED,            // Đã hoàn tất quyết toán tài chính toàn bộ
         CANCELLED,          // Bị hủy bởi Admin do gian lận
         NO_WINNER,          // Không có người tham gia đặt giá / Chạm sàn Dutch không ai mua
-        FAILED              // Thất bại hoàn toàn (Người thắng bùng kèo & Người về nhì từ chối/bùng kèo)
+        FAILED,             // Thất bại hoàn toàn (Người thắng bùng kèo & Người về nhì từ chối/bùng kèo)
+        INVALIDATED_SHIELDING, // Bị hủy do phát hiện dấu hiệu Lá chắn giá / Thổi giá bất thường
+        PENDING_SELLER_CONFIRMATION // Đang chờ Người bán duyệt bán cho Á quân kèm nhận tiền bồi thường
     }
 }

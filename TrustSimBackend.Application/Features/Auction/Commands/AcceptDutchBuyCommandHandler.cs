@@ -1,5 +1,6 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Exceptions;
+using TrustSimBackend.Application.Common.Helpers;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
@@ -19,17 +20,20 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
     private readonly ILedgerService _ledgerService;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly INotificationService _notificationService;
 
     public AcceptDutchBuyCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
-        IAuctionDelayQueueService delayQueue)
+        IAuctionDelayQueueService delayQueue,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
+        _notificationService = notificationService;
     }
 
     public async Task<AuctionResultDto> Handle(AcceptDutchBuyCommand request, CancellationToken cancellationToken)
@@ -101,17 +105,22 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
         participant.AcceptedBidCount++;
         _unitOfWork.Auctions.UpdateParticipant(participant);
 
-        var graceHours = rule?.PaymentGracePeriodHours ?? 24;
-        var paymentDeadline = now.AddHours(graceHours);
+        var graceMinutes = rule?.PaymentGracePeriodMinutes > 0
+            ? rule.PaymentGracePeriodMinutes
+            : (rule?.PaymentGracePeriodHours > 0 ? rule.PaymentGracePeriodHours * 60 : 1440);
+        var paymentDeadline = now.AddMinutes(graceMinutes);
 
         var resultEntity = new AuctionResult
         {
             Id = Guid.NewGuid(),
             AuctionId = auction.Id,
+            InitialWinnerId = participant.Id,
+            InitialWinningPrice = currentPrice,
             WinnerId = participant.Id,
             FinalPrice = currentPrice,
             RunnerUpParticipantId = null,
             RunnerUpFinalPrice = null,
+            WinType = AuctionWinType.NONE,
             AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT,
             PaymentDeadline = paymentDeadline,
             DeterminedAt = now,
@@ -157,6 +166,16 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     CompletedAt = now
                 };
                 await _unitOfWork.AuctionTransactions.AddAsync(refundTx, cancellationToken);
+
+                // Gửi thông báo hoàn cọc cho người tham gia khác
+                await _notificationService.SendNotificationAsync(
+                    userId: p.UserAccountId,
+                    type: NotificationType.AUCTION_DEPOSIT_REFUNDED,
+                    title: $"💵 Hoàn cọc phiên Hà Lan {auction.AuctionCode}",
+                    content: $"Phiên đấu giá SIM {auction.SimNumber?.PhoneNumber} đã kết thúc do có người mua ngay. Khoản tiền cọc {dep.DepositAmount:N0} VNĐ của bạn đã được hoàn trả về ví khả dụng.",
+                    referenceType: "Auction",
+                    referenceId: auction.Id,
+                    cancellationToken: cancellationToken);
             }
 
             if (w != null)
@@ -168,6 +187,8 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
 
         // 2. Quyết toán Người thắng: Nếu đủ tiền -> Tự động quyết toán ngay; Nếu thiếu -> Chờ thời hạn (Grace Period)
         var winnerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(participant.UserAccountId, cancellationToken);
+        var buyerName = participant.UserAccount?.UserName ?? "Người mua";
+
         if (winnerWallet != null)
         {
             var winnerDeposit = participant.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
@@ -253,11 +274,35 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                 _unitOfWork.Wallets.Update(winnerWallet);
 
                 resultEntity.AuctionResultStatus = AuctionResultStatus.CONFIRMED;
+                resultEntity.WinType = AuctionWinType.DUTCH_BUY_NOW;
                 resultEntity.SettledAt = now;
 
                 await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);
                 await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
                 await _unitOfWork.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
+
+                // Thông báo cho Người mua và Người bán
+                await _notificationService.SendNotificationAsync(
+                    userId: participant.UserAccountId,
+                    type: NotificationType.AUCTION_WON,
+                    title: $"🎉 Chúc mừng bạn đã mua thành công SIM {sim?.PhoneNumber}!",
+                    content: $"Bạn đã mua thành công SIM {sim?.PhoneNumber} trong phiên đấu giá Hà Lan {auction.AuctionCode} với mức giá {currentPrice:N0} VNĐ. Toàn bộ số tiền đã được chuyển vào quỹ Escrow bảo đảm.",
+                    actionUrl: $"/trades/{trade.Id}",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
+
+                await _notificationService.SendNotificationAsync(
+                    userId: auction.AuthorId,
+                    type: NotificationType.TRADE_TRANSFERRING_SIM,
+                    title: $"🎉 Phiên đấu giá Hà Lan SIM {auction.SimNumber?.PhoneNumber} đã có người mua!",
+                    content: $"Phiên đấu giá {auction.AuctionCode} đã kết thúc. Người mua là {buyerName} với mức giá {currentPrice:N0} VNĐ (Đã thanh toán đủ vào quỹ Escrow). Vui lòng tiến hành thủ tục chuyển nhượng.",
+                    actionUrl: $"/trades/{trade.Id}",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
             }
             else
             {
@@ -266,6 +311,7 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                 _unitOfWork.Wallets.Update(winnerWallet);
 
                 resultEntity.AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT;
+                resultEntity.WinType = AuctionWinType.NONE;
                 resultEntity.PaymentDeadline = paymentDeadline;
 
                 await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
@@ -274,6 +320,28 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     JobType = AuctionDelayJobTypes.PAYMENT_DEADLINE,
                     ExecuteAt = paymentDeadline
                 }, cancellationToken);
+
+                // Thông báo cho Người mua và Người bán
+                await _notificationService.SendNotificationAsync(
+                    userId: participant.UserAccountId,
+                    type: NotificationType.AUCTION_WON,
+                    title: $"🎉 Bạn đã trúng quyền mua SIM {auction.SimNumber?.PhoneNumber}!",
+                    content: $"Mức giá mua của bạn trong phiên đấu giá Hà Lan là {currentPrice:N0} VNĐ. Vui lòng nạp thêm và hoàn tất thanh toán trước {paymentDeadline.ToVietnamTimeString("HH:mm dd/MM/yyyy")}.",
+                    actionUrl: $"/auctions/{auction.Id}/payment",
+                    referenceType: "Auction",
+                    referenceId: auction.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
+
+                await _notificationService.SendNotificationAsync(
+                    userId: auction.AuthorId,
+                    type: NotificationType.SYSTEM_ALERT,
+                    title: $"ℹ️ Phiên Hà Lan SIM {auction.SimNumber?.PhoneNumber} đã kết thúc (Chờ thanh toán)",
+                    content: $"Phiên đấu giá {auction.AuctionCode} đã kết thúc. Người mua là {buyerName} với mức giá {currentPrice:N0} VNĐ (Chưa thanh toán - Hạn thanh toán đến {paymentDeadline.ToVietnamTimeString("HH:mm dd/MM/yyyy")}). Hệ thống sẽ tự động thông báo khi người mua thanh toán hoặc quá hạn.",
+                    referenceType: "Auction",
+                    referenceId: auction.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
             }
         }
 
@@ -286,7 +354,11 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
             Id = resultEntity.Id,
             AuctionId = resultEntity.AuctionId,
             WinnerId = resultEntity.WinnerId,
+            WinnerUserName = buyerName,
             FinalPrice = resultEntity.FinalPrice,
+            InitialWinnerId = resultEntity.InitialWinnerId,
+            InitialWinningPrice = resultEntity.InitialWinningPrice,
+            WinType = resultEntity.WinType,
             AuctionResultStatus = resultEntity.AuctionResultStatus,
             PaymentDeadline = resultEntity.PaymentDeadline,
             SettledAt = resultEntity.SettledAt,

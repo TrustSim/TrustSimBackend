@@ -18,17 +18,20 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
     private readonly ILedgerService _ledgerService;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly INotificationService _notificationService;
 
     public ConfirmWinnerPaymentCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
-        IAuctionDelayQueueService delayQueue)
+        IAuctionDelayQueueService delayQueue,
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
+        _notificationService = notificationService;
     }
 
     public async Task<AuctionResultDto> Handle(ConfirmWinnerPaymentCommand request, CancellationToken cancellationToken)
@@ -155,18 +158,61 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
         var auctionResult = await _unitOfWork.Auctions.GetResultByAuctionIdAsync(auction.Id, cancellationToken);
         if (auctionResult != null)
         {
+            auctionResult.WinnerId = participant.Id;
+            auctionResult.FinalPrice = auction.CurrentPrice;
             auctionResult.AuctionResultStatus = AuctionResultStatus.CONFIRMED;
             auctionResult.SettledAt = now;
+            if (auctionResult.WinType == AuctionWinType.NONE)
+            {
+                auctionResult.WinType = auction.AuctionType == AuctionType.DUTCH 
+                    ? AuctionWinType.DUTCH_BUY_NOW 
+                    : AuctionWinType.ORIGINAL_WINNER;
+            }
+            if (!auctionResult.InitialWinnerId.HasValue)
+            {
+                auctionResult.InitialWinnerId = auctionResult.WinnerId;
+                auctionResult.InitialWinningPrice = auctionResult.FinalPrice;
+            }
             _unitOfWork.Auctions.UpdateResult(auctionResult);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Gửi thông báo cho Người thắng và Người bán
+        var buyerName = participant.UserAccount?.UserName ?? "Người thắng cuộc";
+
+        await _notificationService.SendNotificationAsync(
+            userId: participant.UserAccountId,
+            type: NotificationType.AUCTION_WON,
+            title: $"🎉 Thanh toán thành công SIM {sim?.PhoneNumber}!",
+            content: $"Bạn đã hoàn tất thanh toán {remainingRequired:N0} VNĐ cho phiên {auction.AuctionCode}. Toàn bộ số tiền đã được Escrow bảo đảm an toàn. Đang chờ chuyển giao SIM.",
+            actionUrl: $"/trades/{trade.Id}",
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
+            cancellationToken: cancellationToken);
+
+        await _notificationService.SendNotificationAsync(
+            userId: auction.AuthorId,
+            type: NotificationType.TRADE_TRANSFERRING_SIM,
+            title: $"💰 Người mua {buyerName} đã thanh toán xong SIM {sim?.PhoneNumber}!",
+            content: $"Người thắng ({buyerName}) phiên {auction.AuctionCode} đã thanh toán đủ {totalEscrowAmount:N0} VNĐ vào quỹ Escrow. Vui lòng tiến hành thủ tục sang tên SIM.",
+            actionUrl: $"/trades/{trade.Id}",
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
+            cancellationToken: cancellationToken);
+
         var resultDto = new AuctionResultDto
         {
+            Id = auctionResult?.Id ?? Guid.Empty,
             AuctionId = auction.Id,
             WinnerId = participant.Id,
+            WinnerUserName = buyerName,
             FinalPrice = auction.CurrentPrice,
+            InitialWinnerId = auctionResult?.InitialWinnerId ?? participant.Id,
+            InitialWinningPrice = auctionResult?.InitialWinningPrice ?? auction.CurrentPrice,
+            WinType = auctionResult?.WinType ?? (auction.AuctionType == AuctionType.DUTCH ? AuctionWinType.DUTCH_BUY_NOW : AuctionWinType.ORIGINAL_WINNER),
             AuctionResultStatus = AuctionResultStatus.CONFIRMED,
             SettledAt = now
         };
