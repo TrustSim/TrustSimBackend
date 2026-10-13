@@ -54,6 +54,13 @@ public class DutchAuctionStrategy : IAuctionStrategy
             MaxPriceGapRatioForRunnerUp = request.MaxPriceGapRatioForRunnerUp > 0 ? request.MaxPriceGapRatioForRunnerUp : 1.50m,
             MinimumUniqueBiddersForRunnerUp = request.MinimumUniqueBiddersForRunnerUp > 0 ? request.MinimumUniqueBiddersForRunnerUp : 2,
             RequireSellerApprovalForRunnerUp = request.RequireSellerApprovalForRunnerUp,
+            // Seller Listing Deposit & Signing Grace Period
+            SellerDepositAmount = request.SellerDepositAmount,
+            SellerDepositRate = request.SellerDepositRate > 0 ? request.SellerDepositRate : 0.05m,
+            SigningGracePeriodHours = request.SigningGracePeriodHours > 0 ? request.SigningGracePeriodHours : 24,
+            SigningGracePeriodMinutes = request.SigningGracePeriodMinutes.HasValue && request.SigningGracePeriodMinutes.Value > 0
+                ? request.SigningGracePeriodMinutes.Value
+                : (request.SigningGracePeriodHours > 0 ? request.SigningGracePeriodHours * 60 : 1440),
             IsActive = true
         };
     }

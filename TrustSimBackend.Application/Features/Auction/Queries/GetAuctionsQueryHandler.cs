@@ -3,6 +3,7 @@ using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Auction.Queries;
@@ -41,7 +42,9 @@ public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedRe
             AuctionStatus = a.AuctionStatus,
             StartingPrice = a.StartingPrice,
             CurrentPrice = a.CurrentPrice,
-            ReservePrice = a.ReservePrice,
+            ReservePrice = (a.AuctionType == AuctionType.DUTCH && (!currentUserId.HasValue || (a.AuthorId != currentUserId.Value && _currentUserService.Role != "ADMIN")))
+                ? 0m
+                : a.ReservePrice,
             StartAt = a.StartAt,
             EndAt = a.EndAt,
             RegistrationStartAt = a.RegistrationStartAt,

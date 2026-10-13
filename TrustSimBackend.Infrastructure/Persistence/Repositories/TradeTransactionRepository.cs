@@ -19,6 +19,26 @@ public class TradeTransactionRepository : ITradeTransactionRepository
         await _dbContext.TradeTransactions.AddAsync(tradeTransaction, cancellationToken);
     }
 
+    public async Task AddTransferContractAsync(TransferContract contract, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.TransferContracts.AddAsync(contract, cancellationToken);
+    }
+
+    public async Task AddDigitalSignatureAsync(DigitalSignature signature, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.DigitalSignatures.AddAsync(signature, cancellationToken);
+    }
+
+    public async Task AddSimTransferAsync(SimTransfer simTransfer, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.SimTransfers.AddAsync(simTransfer, cancellationToken);
+    }
+
+    public async Task AddTransferProofAsync(TransferProof transferProof, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.TransferProofs.AddAsync(transferProof, cancellationToken);
+    }
+
     public async Task<TradeTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbContext.TradeTransactions
@@ -28,8 +48,12 @@ public class TradeTransactionRepository : ITradeTransactionRepository
                 .ThenInclude(u => u!.UserProfile)
             .Include(t => t.SimNumber)
             .Include(t => t.Escrow)
+            .Include(t => t.Auction)
+                .ThenInclude(a => a!.AuctionRule)
             .Include(t => t.TransferContract)
+                .ThenInclude(c => c!.DigitalSignatures)
             .Include(t => t.SimTransfer)
+                .ThenInclude(st => st!.TransferProofs)
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
 
@@ -48,6 +72,7 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .Include(t => t.Escrow)
             .Include(t => t.TransferContract)
             .Include(t => t.SimTransfer)
+                .ThenInclude(st => st!.TransferProofs)
             .AsQueryable();
 
         if (status.HasValue)
@@ -80,6 +105,9 @@ public class TradeTransactionRepository : ITradeTransactionRepository
                 .ThenInclude(u => u!.UserProfile)
             .Include(t => t.SimNumber)
             .Include(t => t.Escrow)
+            .Include(t => t.TransferContract)
+            .Include(t => t.SimTransfer)
+                .ThenInclude(st => st!.TransferProofs)
             .Where(t => t.BuyerId == userId || t.SellerId == userId);
 
         if (status.HasValue)

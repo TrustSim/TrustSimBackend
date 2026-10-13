@@ -41,6 +41,14 @@ namespace TrustSimBackend.Domain.Entities.Trade
 
         private readonly List<TransferProof> _transferProofs = new();
         public IReadOnlyCollection<TransferProof> TransferProofs => _transferProofs.AsReadOnly();
+
+        /// <summary>
+        /// Bổ sung bằng chứng chuyển nhượng SIM từ nhà mạng.
+        /// </summary>
+        public void AddTransferProof(TransferProof proof)
+        {
+            _transferProofs.Add(proof);
+        }
         
     }
 }

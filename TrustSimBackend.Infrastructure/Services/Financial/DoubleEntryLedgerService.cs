@@ -304,6 +304,29 @@ public class DoubleEntryLedgerService : ILedgerService
             cancellationToken);
     }
 
+    public async Task<LedgerJournal> PostAuctionProgressiveDepositLockAsync(
+        Guid walletId,
+        decimal amount,
+        Guid auctionDepositId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = new List<LedgerEntryParam>
+        {
+            new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.DEBIT, amount, walletId, $"Khấu trừ khả dụng bổ sung cọc lũy tiến phiên {auctionId}"),
+            new(FinancialAccountType.USER_LOCKED, LedgerEntryType.CREDIT, amount, walletId, $"Khóa tiền cọc bổ sung lũy tiến phiên {auctionId}")
+        };
+
+        return await PostJournalAsync(
+            LedgerTransactionType.AUCTION_PROGRESSIVE_DEPOSIT_LOCK,
+            $"Khóa cọc bổ sung lũy tiến #{auctionDepositId} phiên {auctionId}",
+            entries,
+            "AuctionDeposit",
+            auctionDepositId,
+            $"AUC-PROG-DEP-LOCK-{auctionDepositId}",
+            cancellationToken);
+    }
+
     public async Task<LedgerJournal> PostAuctionDepositReleaseAsync(
         Guid walletId,
         decimal amount,
@@ -479,6 +502,77 @@ public class DoubleEntryLedgerService : ILedgerService
             "AdminProfitWithdraw",
             null,
             idempotencyKey ?? $"ADM-WD-{transactionCode}",
+            cancellationToken);
+    }
+
+    public async Task<LedgerJournal> PostSellerListingDepositLockAsync(
+        Guid sellerWalletId,
+        decimal depositAmount,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = new List<LedgerEntryParam>
+        {
+            new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.DEBIT, depositAmount, sellerWalletId, $"Khóa cọc Người bán cam kết giao SIM cho phiên #{auctionId}"),
+            new(FinancialAccountType.USER_LOCKED, LedgerEntryType.CREDIT, depositAmount, sellerWalletId, $"Ghi có cọc cam kết bán vào số dư phong tỏa")
+        };
+
+        return await PostJournalAsync(
+            LedgerTransactionType.SELLER_LISTING_DEPOSIT_LOCK,
+            $"Khóa cọc cam kết bán cho phiên đấu giá #{auctionId}",
+            entries,
+            "Auction",
+            auctionId,
+            $"SELLER-LOCK-{auctionId}",
+            cancellationToken);
+    }
+
+    public async Task<LedgerJournal> PostSellerListingDepositReleaseAsync(
+        Guid sellerWalletId,
+        decimal depositAmount,
+        Guid auctionId,
+        CancellationToken cancellationToken = default)
+    {
+        var entries = new List<LedgerEntryParam>
+        {
+            new(FinancialAccountType.USER_LOCKED, LedgerEntryType.DEBIT, depositAmount, sellerWalletId, $"Giải phóng cọc cam kết bán của phiên #{auctionId}"),
+            new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.CREDIT, depositAmount, sellerWalletId, $"Hoàn trả tiền cọc cam kết bán về ví khả dụng")
+        };
+
+        return await PostJournalAsync(
+            LedgerTransactionType.SELLER_LISTING_DEPOSIT_RELEASED,
+            $"Hoàn cọc cam kết bán cho phiên đấu giá #{auctionId}",
+            entries,
+            "Auction",
+            auctionId,
+            $"SELLER-REL-{auctionId}",
+            cancellationToken);
+    }
+
+    public async Task<LedgerJournal> PostSellerListingDepositForfeitedWithCompensationAsync(
+        Guid sellerWalletId,
+        Guid buyerWalletId,
+        decimal depositAmount,
+        Guid tradeId,
+        CancellationToken cancellationToken = default)
+    {
+        var halfAmount = Math.Round(depositAmount / 2m, 2);
+        var platformFee = depositAmount - halfAmount;
+
+        var entries = new List<LedgerEntryParam>
+        {
+            new(FinancialAccountType.USER_LOCKED, LedgerEntryType.DEBIT, depositAmount, sellerWalletId, $"Tịch thu 100% cọc cam kết bán do Seller vi phạm giao dịch #{tradeId}"),
+            new(FinancialAccountType.USER_AVAILABLE, LedgerEntryType.CREDIT, halfAmount, buyerWalletId, $"Bồi thường 50% cọc vi phạm từ Người bán cho Người mua"),
+            new(FinancialAccountType.PLATFORM_PENALTY_REVENUE, LedgerEntryType.CREDIT, platformFee, null, $"Doanh thu phạt vi phạm quy chế bán của Sàn")
+        };
+
+        return await PostJournalAsync(
+            LedgerTransactionType.SELLER_LISTING_DEPOSIT_FORFEITED,
+            $"Tịch thu cọc Người bán & Bồi thường Người mua giao dịch #{tradeId}",
+            entries,
+            "TradeTransaction",
+            tradeId,
+            $"SELLER-FORFEIT-{tradeId}",
             cancellationToken);
     }
 }

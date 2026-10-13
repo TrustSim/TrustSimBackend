@@ -284,14 +284,14 @@ public static class DbSeeder
         {
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000001"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000001"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000001"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000001"), UserName = "admin",               Email = "admin@trustsim.vn",          Role = UserRole.ADMIN,      FullName = "Tổng Quản Trị Hệ Thống",          Phone = "0900000001", Identity = "001088000001", Dob = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000002"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000002"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000002"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000002"), UserName = "consultant_01",       Email = "consultant01@trustsim.vn",  Role = UserRole.CONSULTANT, FullName = "Lê Hoàng Chuyên Viên",              Phone = "0900000002", Identity = "079092000002", Dob = new DateTime(1992, 5, 15, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000003"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000003"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000003"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000003"), UserName = "seller_vip_phuquy",   Email = "phuquy.sim@gmail.com",       Role = UserRole.USER,       FullName = "Trần Phú Quý (SIM Phú Quý)",       Phone = "0909999001", Identity = "001085009999", Dob = new DateTime(1985, 10, 20, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000003"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000003"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000003"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000003"), UserName = "seller_vip_phuquy",   Email = "supperidol6224@gmail.com",   Role = UserRole.USER,       FullName = "Trần Phú Quý (SIM Phú Quý)",       Phone = "0909999001", Identity = "001085009999", Dob = new DateTime(1985, 10, 20, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000004"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000004"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000004"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000004"), UserName = "seller_daiphat",      Email = "daiphat.telecom@gmail.com",  Role = UserRole.USER,       FullName = "Nguyễn Đại Phát (Đại Phát Telecom)",Phone = "0912333002", Identity = "079087008888", Dob = new DateTime(1987, 3, 12, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000005"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000005"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000005"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000005"), UserName = "bidder_dai_gia",      Email = "hoangnam.invest@gmail.com",  Role = UserRole.USER,       FullName = "Phạm Hoàng Nam (Đầu Tư BĐS)",      Phone = "0988777003", Identity = "001080007777", Dob = new DateTime(1980, 7, 8, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 5000000000m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000005"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000005"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000005"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000005"), UserName = "bidder_dai_gia",      Email = "quanidol6224@gmail.com",     Role = UserRole.USER,       FullName = "Phạm Hoàng Nam (Đầu Tư BĐS)",      Phone = "0988777003", Identity = "001080007777", Dob = new DateTime(1980, 7, 8, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 5000000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000006"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000006"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000006"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000006"), UserName = "bidder_kinh_doanh",  Email = "minhtri.bds@gmail.com",      Role = UserRole.USER,       FullName = "Vũ Minh Trí (Kinh Doanh)",         Phone = "0903444004", Identity = "079090006666", Dob = new DateTime(1990, 11, 25, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 2000000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000007"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000007"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000007"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000007"), UserName = "bidder_phong_thuy",  Email = "quangduc.fengshui@gmail.com",Role = UserRole.USER,       FullName = "Đặng Quang Đức (Phong Thủy Gia)",  Phone = "0935555005", Identity = "048083005555", Dob = new DateTime(1983, 9, 9, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = false },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000011"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000011"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000011"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000011"), UserName = "bidder_alpha",       Email = "alpha.bidder@gmail.com",     Role = UserRole.USER,       FullName = "Hoàng Gia Bảo (Đấu Giá Viên Alpha)",Phone = "0981111222", Identity = "001095001111", Dob = new DateTime(1995, 2, 2, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 500000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000012"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000012"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000012"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000012"), UserName = "bidder_beta",        Email = "beta.bidder@gmail.com",      Role = UserRole.USER,       FullName = "Lê Anh Tuấn (Á Quân Thiếu Tiền)",  Phone = "0983333444", Identity = "001096002222", Dob = new DateTime(1996, 6, 6, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 12000000m, Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000013"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000013"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000013"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000013"), UserName = "bidder_moderate_funds", Email = "moderate.bidder@gmail.com", Role = UserRole.USER,       FullName = "Trần Văn Cọc (Đấu Giá Viên Vừa Đủ Cọc)", Phone = "0984444555", Identity = "001097003333", Dob = new DateTime(1997, 7, 7, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 15000000m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000013"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000013"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000013"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000013"), UserName = "bidder_moderate_funds", Email = "moderate@gmail.com",         Role = UserRole.USER,       FullName = "Trần Văn Cọc (Đấu Giá Viên Vừa Đủ Cọc)", Phone = "0984444555", Identity = "001097003333", Dob = new DateTime(1997, 7, 7, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 15000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000008"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000008"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000008"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000008"), UserName = "user_ekyc_pending",  Email = "thanhha.new@gmail.com",      Role = UserRole.USER,       FullName = "Bùi Thanh Hà",                     Phone = "0977111006", Identity = "001098004444", Dob = new DateTime(1998, 12, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.PENDING_VERIFICATION, Available = 0m, Locked = 0m, HasPki = false },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000009"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000009"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000009"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000009"), UserName = "user_ekyc_rejected", Email = "vietcuong.fake@gmail.com",     Role = UserRole.USER,       FullName = "Ngô Việt Cường",                    Phone = "0944222007", Identity = "040095003333", Dob = new DateTime(1995, 4, 4, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.REJECTED, Available = 0m, Locked = 0m, HasPki = false },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000010"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000010"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000010"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000010"), UserName = "user_suspicious_bot", Email = "spambidder99@botmail.com",   Role = UserRole.USER,       FullName = "Bot Nghi Vấn Spam",                Phone = "0966000008", Identity = "001200002222", Dob = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false }
@@ -320,6 +320,8 @@ public static class DbSeeder
             }
             else
             {
+                existingUser.Email = u.Email;
+                existingUser.NormalizedEmail = u.Email.ToUpperInvariant();
                 existingUser.PasswordHash = DefaultPasswordHash;
                 existingUser.EmailConfirmed = true;
             }
@@ -346,6 +348,7 @@ public static class DbSeeder
             }
             else
             {
+                existingProfile.Email = u.Email;
                 existingProfile.VerificationStatus = u.Status;
             }
 
@@ -1108,6 +1111,31 @@ public static class DbSeeder
             await context.Auctions.AddAsync(auc5);
         }
 
+        // 6. AUC6: English - END (Phiên vừa kết thúc thành công, quỹ Escrow đã nạp, đang Chờ Ký Hợp Đồng)
+        var sim06 = Guid.Parse("21000000-0000-0000-0000-000000000006"); // 0966668888
+        var auc6 = await context.Auctions.FirstOrDefaultAsync(a => a.Id == Guid.Parse("31000000-0000-0000-0000-000000000006"));
+        if (auc6 == null)
+        {
+            auc6 = new Auction
+            {
+                Id = Guid.Parse("31000000-0000-0000-0000-000000000006"),
+                AuctionCode = "AUC-20261010-006",
+                AuctionType = AuctionType.ENGLISH,
+                AuctionStatus = AuctionStatus.END,
+                StartingPrice = 100000000m,
+                CurrentPrice = 120000000m,
+                ReservePrice = 100000000m,
+                StartAt = DateTime.UtcNow.AddHours(-3),
+                EndAt = DateTime.UtcNow.AddMinutes(-30),
+                RegistrationStartAt = DateTime.UtcNow.AddDays(-1),
+                RegistrationEndAt = DateTime.UtcNow.AddHours(-3),
+                LockVersion = 3,
+                AuthorId = sellerPhuQuy,
+                SimNumberId = sim06
+            };
+            await context.Auctions.AddAsync(auc6);
+        }
+
         await context.SaveChangesAsync();
 
         // 2. Auction Rules (32000000-...)
@@ -1120,6 +1148,10 @@ public static class DbSeeder
                 AuctionId = auc1.Id,
                 MinimumBidIncrement = 10000000m,
                 DepositAmount = 50000000m,
+                SellerDepositAmount = 25000000m,
+                SellerDepositRate = 0.05m,
+                SigningGracePeriodHours = 24,
+                SigningGracePeriodMinutes = 1440,
                 MaxStepMultiplier = 10,
                 MaxSnipeExtensionsPerParticipant = 3,
                 PaymentGracePeriodHours = 24,
@@ -1142,6 +1174,10 @@ public static class DbSeeder
                 AuctionId = auc2.Id,
                 MinimumBidIncrement = 0m,
                 DepositAmount = 10000000m,
+                SellerDepositAmount = 5000000m,
+                SellerDepositRate = 0.05m,
+                SigningGracePeriodHours = 24,
+                SigningGracePeriodMinutes = 1440,
                 PaymentGracePeriodHours = 24,
                 MaximumBidCountPerParticipant = 1,
                 MaximumBidCountPerMinute = 1,
@@ -1161,6 +1197,10 @@ public static class DbSeeder
                 AuctionId = auc3.Id,
                 MinimumBidIncrement = 50000000m,
                 DepositAmount = 150000000m,
+                SellerDepositAmount = 75000000m,
+                SellerDepositRate = 0.05m,
+                SigningGracePeriodHours = 24,
+                SigningGracePeriodMinutes = 1440,
                 MaxStepMultiplier = 10,
                 MaxSnipeExtensionsPerParticipant = 3,
                 PaymentGracePeriodHours = 24,
@@ -1183,6 +1223,10 @@ public static class DbSeeder
                 AuctionId = auc4.Id,
                 MinimumBidIncrement = 0m,
                 DepositAmount = 8000000m,
+                SellerDepositAmount = 4000000m,
+                SellerDepositRate = 0.05m,
+                SigningGracePeriodHours = 24,
+                SigningGracePeriodMinutes = 1440,
                 PaymentGracePeriodHours = 24,
                 MaximumBidCountPerParticipant = 1,
                 MaximumBidCountPerMinute = 1,
@@ -1191,6 +1235,29 @@ public static class DbSeeder
                 DutchDecreaseIntervalSeconds = 60.0f
             };
             await context.AuctionRules.AddAsync(rule4);
+        }
+
+        var rule6 = await context.AuctionRules.FirstOrDefaultAsync(r => r.AuctionId == auc6.Id);
+        if (rule6 == null)
+        {
+            rule6 = new AuctionRule
+            {
+                Id = Guid.Parse("32000000-0000-0000-0000-000000000006"),
+                AuctionId = auc6.Id,
+                MinimumBidIncrement = 10000000m,
+                DepositAmount = 10000000m,
+                SellerDepositAmount = 5000000m,
+                SellerDepositRate = 0.05m,
+                SigningGracePeriodHours = 24,
+                SigningGracePeriodMinutes = 1440,
+                MaxStepMultiplier = 10,
+                MaxSnipeExtensionsPerParticipant = 3,
+                PaymentGracePeriodHours = 24,
+                MaximumBidCountPerParticipant = 50,
+                MaximumBidCountPerMinute = 10,
+                MinimumBidIntervalSeconds = 1.0f
+            };
+            await context.AuctionRules.AddAsync(rule6);
         }
 
         // Dọn sạch toàn bộ participants, bids, deposits, results cũ khỏi tất cả các phiên test (auc1, auc2, auc3, auc4)
@@ -1219,12 +1286,18 @@ public static class DbSeeder
         if (await context.TradeTransactions.AnyAsync()) return;
 
         var auc5Id = Guid.Parse("31000000-0000-0000-0000-000000000005");
+        var auc6Id = Guid.Parse("31000000-0000-0000-0000-000000000006");
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
+        var bidderDaiGia = Guid.Parse("11000000-0000-0000-0000-000000000005");
         var bidderKinhDoanh = Guid.Parse("11000000-0000-0000-0000-000000000006");
-        var sim02 = Guid.Parse("21000000-0000-0000-0000-000000000002");
+        var sim02 = Guid.Parse("21000000-0000-0000-0000-000000000002"); // 0909999999
+        var sim06 = Guid.Parse("21000000-0000-0000-0000-000000000006"); // 0966668888
 
-        // 1. TradeTransaction (41000000-...)
-        var trade = new TradeTransaction
+        // ══════════════════════════════════════════════════════════════
+        // GIAO DỊCH 1: TRD-20260830-001 (ĐÃ KÝ XONG - FULLY_SIGNED)
+        // Dùng test Tab 2 (Xem/Tải PDF) và Tab 3 (Kiểm định SHA-256 PAdES)
+        // ══════════════════════════════════════════════════════════════
+        var trade1 = new TradeTransaction
         {
             Id = Guid.Parse("41000000-0000-0000-0000-000000000001"),
             TradeTransactionCode = "TRD-20260830-001",
@@ -1238,41 +1311,50 @@ public static class DbSeeder
             SellerId = sellerPhuQuy,
             SimNumberId = sim02
         };
-        await context.TradeTransactions.AddAsync(trade);
+        await context.TradeTransactions.AddAsync(trade1);
 
-        // 2. Escrow (42000000-...)
-        var escrow = new Escrow
+        var escrow1 = new Escrow
         {
             Id = Guid.Parse("42000000-0000-0000-0000-000000000001"),
-            EscrowAmount = 0m,
+            EscrowAmount = 210000000m,
             EscrowStatus = EscrowStatus.HELD,
             HeldAt = DateTime.UtcNow.AddDays(-2),
             AuctionDepositId = null,
-            TradeTransactionId = trade.Id
+            TradeTransactionId = trade1.Id
         };
-        await context.Escrows.AddAsync(escrow);
+        await context.Escrows.AddAsync(escrow1);
 
-        // 3. TransferContract (43000000-...)
-        var contract = new TransferContract
+        var contract1 = new TransferContract
         {
             Id = Guid.Parse("43000000-0000-0000-0000-000000000001"),
             DocumentUrl = "https://storage.trustsim.vn/contracts/TRD-20260830-001.pdf",
             DocumentHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             BlockchainTxHash = "0x7f9fad1c0e5a83b275c4e976ec4e0626a23531b79f83526d11f71a938c0f5f84",
             ContractStatus = ContractStatus.FULLY_SIGNED,
-            TradeTransactionId = trade.Id
+            PadesSignatureSerial = "4A8F9C1288B1",
+            PadesSignatureHash = "7f9fad1c0e5a83b275c4e976ec4e0626a23531b79f83526d11f71a938c0f5f84",
+            TsaTimestamp = DateTime.UtcNow.AddDays(-1),
+            TsaAuthority = "freetsa.org",
+            SealedAt = DateTime.UtcNow.AddDays(-1),
+            IsAutoEnforced = false,
+            TradeTransactionId = trade1.Id
         };
-        await context.TransferContracts.AddAsync(contract);
+        await context.TransferContracts.AddAsync(contract1);
 
-        // 4. DigitalSignatures (44000000-...)
         var sigSeller = new DigitalSignature
         {
             Id = Guid.Parse("44000000-0000-0000-0000-000000000001"),
             SignatureRole = SignatureRole.SELLER,
+            AuthMethod = "EMAIL_OTP",
+            IpAddress = "127.0.0.1",
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0 TrustSim-Seeder",
+            OtpCodeHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            OtpVerifiedAt = DateTime.UtcNow.AddDays(-1),
+            SignedAt = DateTime.UtcNow.AddDays(-1),
+            AuditMetadataJson = "{\"role\":\"SELLER\",\"method\":\"EMAIL_OTP\",\"consent\":true}",
             PublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3003...",
             CryptographicSignature = "KycSig_Seller_PhuQuy_RSA_Signature_Hash_Value_001...",
-            SignedAt = DateTime.UtcNow.AddDays(-1),
-            ContracId = contract.Id,
+            TransferContractId = contract1.Id,
             UserId = sellerPhuQuy
         };
 
@@ -1280,22 +1362,27 @@ public static class DbSeeder
         {
             Id = Guid.Parse("44000000-0000-0000-0000-000000000002"),
             SignatureRole = SignatureRole.BUYER,
+            AuthMethod = "EMAIL_OTP",
+            IpAddress = "127.0.0.1",
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0 TrustSim-Seeder",
+            OtpCodeHash = "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+            OtpVerifiedAt = DateTime.UtcNow.AddHours(-22),
+            SignedAt = DateTime.UtcNow.AddHours(-22),
+            AuditMetadataJson = "{\"role\":\"BUYER\",\"method\":\"EMAIL_OTP\",\"consent\":true}",
             PublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6006...",
             CryptographicSignature = "KycSig_Buyer_MinhTri_RSA_Signature_Hash_Value_002...",
-            SignedAt = DateTime.UtcNow.AddHours(-22),
-            ContracId = contract.Id,
+            TransferContractId = contract1.Id,
             UserId = bidderKinhDoanh
         };
         await context.DigitalSignatures.AddRangeAsync(sigSeller, sigBuyer);
 
-        // 5. SimTransfer & Proof (45000000-... & 46000000-...)
         var transfer = new SimTransfer
         {
             Id = Guid.Parse("45000000-0000-0000-0000-000000000001"),
             StartAt = DateTime.UtcNow.AddDays(-1),
             Deadline = DateTime.UtcNow.AddDays(3),
             SimTransferStatus = SimTransferStatus.SELLER_PROOF_SUBMITTED,
-            TradeTransactionId = trade.Id
+            TradeTransactionId = trade1.Id
         };
         await context.SimTransfers.AddAsync(transfer);
 
@@ -1309,6 +1396,48 @@ public static class DbSeeder
             SimTransferId = transfer.Id
         };
         await context.TransferProofs.AddAsync(proof);
+
+        // ══════════════════════════════════════════════════════════════
+        // GIAO DỊCH 2: TRD-20261010-002 (CHỜ KÝ SỐ - PendingSignature)
+        // Dùng test Tab 1 (Xem Preview HTML) và Bàn điều khiển Ký OTP
+        // ══════════════════════════════════════════════════════════════
+        var trade2 = new TradeTransaction
+        {
+            Id = Guid.Parse("41000000-0000-0000-0000-000000000002"),
+            TradeTransactionCode = "TRD-20261010-002",
+            TradeTransactionStatus = TradeTransactionStatus.PendingSignature,
+            EscrowDeadline = DateTime.UtcNow.AddDays(1),
+            SigningDeadline = DateTime.UtcNow.AddHours(24),
+            TransferDeadline = DateTime.UtcNow.AddDays(4),
+            CompletedAt = DateTime.UtcNow,
+            AuctionId = auc6Id,
+            BuyerId = bidderDaiGia,
+            SellerId = sellerPhuQuy,
+            SimNumberId = sim06
+        };
+        await context.TradeTransactions.AddAsync(trade2);
+
+        var escrow2 = new Escrow
+        {
+            Id = Guid.Parse("42000000-0000-0000-0000-000000000002"),
+            EscrowAmount = 120000000m,
+            EscrowStatus = EscrowStatus.HELD,
+            HeldAt = DateTime.UtcNow.AddMinutes(-10),
+            AuctionDepositId = null,
+            TradeTransactionId = trade2.Id
+        };
+        await context.Escrows.AddAsync(escrow2);
+
+        var contract2 = new TransferContract
+        {
+            Id = Guid.Parse("43000000-0000-0000-0000-000000000002"),
+            DocumentUrl = string.Empty,
+            DocumentHash = string.Empty,
+            BlockchainTxHash = string.Empty,
+            ContractStatus = ContractStatus.DRAFT,
+            TradeTransactionId = trade2.Id
+        };
+        await context.TransferContracts.AddAsync(contract2);
 
         await context.SaveChangesAsync();
     }

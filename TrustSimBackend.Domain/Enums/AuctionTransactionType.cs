@@ -39,6 +39,10 @@ namespace TrustSimBackend.Domain.Enums
         SELLER_PAYOUT,
 
         /// <summary>Khấu trừ tiền phạt vi phạm nghĩa vụ.</summary>
-        PENALTY
+        PENALTY,
+
+        /// <summary>Khóa tiền cọc bổ sung lũy tiến theo giá trúng đấu giá khi phiên kết thúc.</summary>
+        AUCTION_PROGRESSIVE_DEPOSIT_LOCK
     }
 }
+

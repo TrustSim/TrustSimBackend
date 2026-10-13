@@ -54,8 +54,8 @@ public class GetMyPendingSettlementsQueryHandler : IRequestHandler<GetMyPendingS
                 dto.ActionRequired = "PAY_SETTLEMENT";
                 dto.FinalPrice = r.FinalPrice;
 
-                var deposit = r.Winner.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
-                dto.DepositLocked = deposit?.DepositAmount ?? 0m;
+                var lockedDeposits = r.Winner.Deposits.Where(d => d.DepositStatus == DepositStatus.LOCKED).ToList();
+                dto.DepositLocked = lockedDeposits.Sum(d => d.DepositAmount);
                 dto.RemainingPaymentRequired = Math.Max(0, dto.FinalPrice - dto.DepositLocked);
                 dto.DeficitAmount = Math.Max(0, dto.RemainingPaymentRequired - availableBalance);
                 dto.CanDirectPay = dto.DeficitAmount == 0;
@@ -73,8 +73,8 @@ public class GetMyPendingSettlementsQueryHandler : IRequestHandler<GetMyPendingS
                 dto.ActionRequired = "RESPOND_RUNNER_UP_OFFER";
                 dto.FinalPrice = r.RunnerUpFinalPrice ?? 0m;
 
-                var deposit = r.RunnerUpParticipant.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
-                dto.DepositLocked = deposit?.DepositAmount ?? 0m;
+                var runnerUpLockedDeposits = r.RunnerUpParticipant.Deposits.Where(d => d.DepositStatus == DepositStatus.LOCKED).ToList();
+                dto.DepositLocked = runnerUpLockedDeposits.Sum(d => d.DepositAmount);
                 dto.RemainingPaymentRequired = Math.Max(0, dto.FinalPrice - dto.DepositLocked);
                 dto.DeficitAmount = Math.Max(0, dto.RemainingPaymentRequired - availableBalance);
                 dto.CanDirectPay = dto.DeficitAmount == 0;

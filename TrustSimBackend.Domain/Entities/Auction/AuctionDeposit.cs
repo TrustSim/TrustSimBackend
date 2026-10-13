@@ -21,6 +21,9 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// <summary>Số tiền cọc (VNĐ).</summary>
         public decimal DepositAmount { get; set; }
 
+        /// <summary>Phân loại khoản cọc: INITIAL (cọc ban đầu) hoặc PROGRESSIVE_ADDITIONAL (cọc bổ sung lũy tiến).</summary>
+        public DepositType DepositType { get; set; } = DepositType.INITIAL;
+
         /// <summary>Trạng thái cọc: PENDING, LOCKED, RELEASED, APPLIED_TO_ESCROW, FORFEITED, FAILED.</summary>
         public DepositStatus DepositStatus { get; set; } = DepositStatus.PENDING;
 

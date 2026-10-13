@@ -59,10 +59,10 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
             throw new NotFoundException("Không tìm thấy ví tiền của người dùng.");
         }
 
-        var deposit = participant.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
-        var depositPaid = deposit?.DepositAmount ?? 0m;
+        var lockedDeposits = participant.Deposits.Where(d => d.DepositStatus == DepositStatus.LOCKED).ToList();
+        var totalDepositPaid = lockedDeposits.Sum(d => d.DepositAmount);
         var totalEscrowAmount = auction.CurrentPrice;
-        var remainingRequired = totalEscrowAmount - depositPaid;
+        var remainingRequired = totalEscrowAmount - totalDepositPaid;
 
         if (wallet.AvailableBalance < remainingRequired)
         {
@@ -74,20 +74,33 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
         var escrowId = Guid.NewGuid();
         var tradeId = Guid.NewGuid();
 
+        var signingGraceMinutes = auction.AuctionRule?.SigningGracePeriodMinutes ?? 1440;
+        var signingDeadline = now.AddMinutes(signingGraceMinutes);
+
         var trade = new TradeTransaction
         {
             Id = tradeId,
             TradeTransactionCode = $"TRD-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-            TradeTransactionStatus = TradeTransactionStatus.PendingTransfer,
+            TradeTransactionStatus = TradeTransactionStatus.PendingSignature,
             AuctionId = auction.Id,
             BuyerId = participant.UserAccountId,
             SellerId = auction.AuthorId,
             SimNumberId = auction.SimNumberId,
             EscrowDeadline = now.AddDays(2),
-            SigningDeadline = now.AddDays(3),
+            SigningDeadline = signingDeadline,
             TransferDeadline = now.AddDays(7),
             IsActive = true
         };
+
+        var contract = new TransferContract
+        {
+            Id = Guid.NewGuid(),
+            TradeTransactionId = trade.Id,
+            ContractStatus = ContractStatus.DRAFT,
+            DocumentUrl = string.Empty,
+            DocumentHash = string.Empty
+        };
+        trade.TransferContract = contract;
 
         var escrow = new Escrow
         {
@@ -95,7 +108,7 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
             TradeTransactionId = trade.Id,
             EscrowAmount = totalEscrowAmount,
             EscrowStatus = EscrowStatus.HELD,
-            AuctionDepositId = deposit?.Id,
+            AuctionDepositId = lockedDeposits.FirstOrDefault()?.Id,
             HeldAt = now
         };
 
@@ -103,16 +116,16 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
         var journal = await _ledgerService.PostEscrowHoldAsync(
             wallet.Id,
             totalEscrowAmount,
-            depositPaid,
+            totalDepositPaid,
             escrowId,
             cancellationToken);
 
-        // Cập nhật trạng thái cọc sang APPLIED_TO_ESCROW
-        if (deposit != null)
+        // Cập nhật trạng thái tất cả các khoản cọc sang APPLIED_TO_ESCROW
+        foreach (var dep in lockedDeposits)
         {
-            deposit.DepositStatus = DepositStatus.APPLIED_TO_ESCROW;
-            deposit.AppliedtoEscrowedAt = now;
-            deposit.Escrow = escrow;
+            dep.DepositStatus = DepositStatus.APPLIED_TO_ESCROW;
+            dep.AppliedtoEscrowedAt = now;
+            dep.Escrow = escrow;
         }
 
         // Tạo bản ghi AuctionTransaction
@@ -136,8 +149,15 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
         // Gán quan hệ 2 chiều
         trade.Escrow = escrow;
 
-        // Hủy deadline trong Redis Delay Queue
+        // Hủy deadline thanh toán trong Redis Delay Queue và nạp deadline ký hợp đồng
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.PAYMENT_DEADLINE, cancellationToken);
+        await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+        {
+            AuctionId = auction.Id,
+            JobType = AuctionDelayJobTypes.SIGNING_DEADLINE,
+            ExecuteAt = trade.SigningDeadline,
+            ExtraData = trade.Id.ToString()
+        }, cancellationToken);
 
         // Cập nhật trạng thái SIM sang TRANSFERRING
         var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
@@ -180,12 +200,13 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
 
         // Gửi thông báo cho Người thắng và Người bán
         var buyerName = participant.UserAccount?.UserName ?? "Người thắng cuộc";
+        var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
 
         await _notificationService.SendNotificationAsync(
             userId: participant.UserAccountId,
-            type: NotificationType.AUCTION_WON,
-            title: $"🎉 Thanh toán thành công SIM {sim?.PhoneNumber}!",
-            content: $"Bạn đã hoàn tất thanh toán {remainingRequired:N0} VNĐ cho phiên {auction.AuctionCode}. Toàn bộ số tiền đã được Escrow bảo đảm an toàn. Đang chờ chuyển giao SIM.",
+            type: NotificationType.CONTRACT_SIGNING_REQUIRED,
+            title: $"📝 Yêu cầu ký hợp đồng SIM {sim?.PhoneNumber}!",
+            content: $"Bạn đã thanh toán thành công {remainingRequired:N0} VNĐ cho phiên {auction.AuctionCode}. Tiền đã vào quỹ Escrow bảo đảm an toàn. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
             actionUrl: $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
@@ -194,9 +215,9 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
 
         await _notificationService.SendNotificationAsync(
             userId: auction.AuthorId,
-            type: NotificationType.TRADE_TRANSFERRING_SIM,
-            title: $"💰 Người mua {buyerName} đã thanh toán xong SIM {sim?.PhoneNumber}!",
-            content: $"Người thắng ({buyerName}) phiên {auction.AuctionCode} đã thanh toán đủ {totalEscrowAmount:N0} VNĐ vào quỹ Escrow. Vui lòng tiến hành thủ tục sang tên SIM.",
+            type: NotificationType.CONTRACT_SIGNING_REQUIRED,
+            title: $"📝 Người mua {buyerName} đã thanh toán SIM {sim?.PhoneNumber}! Vui lòng ký hợp đồng",
+            content: $"Người thắng ({buyerName}) phiên {auction.AuctionCode} đã thanh toán đủ {totalEscrowAmount:N0} VNĐ vào quỹ Escrow. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
             actionUrl: $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,

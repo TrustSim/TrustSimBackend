@@ -83,6 +83,16 @@ public interface ILedgerService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Khóa cọc bổ sung lũy tiến khi người thắng chưa thanh toán đủ 100% tại thời điểm kết thúc phiên (Nợ 2010 / Có 2020).
+    /// </summary>
+    Task<LedgerJournal> PostAuctionProgressiveDepositLockAsync(
+        Guid walletId,
+        decimal amount,
+        Guid auctionDepositId,
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Nghiệp vụ 3.5.3 (KQ_A): Hoàn cọc khi không trúng đấu giá (Nợ 2020 / Có 2010).
     /// </summary>
     Task<LedgerJournal> PostAuctionDepositReleaseAsync(
@@ -149,6 +159,34 @@ public interface ILedgerService
         string destinationInfo,
         FinancialAccountType sourceRevenueAccount = FinancialAccountType.PLATFORM_FEE_REVENUE,
         string? idempotencyKey = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Nghiệp vụ Seller Listing Deposit: Khóa cọc Người bán khi tạo phiên đấu giá (Nợ 2010 / Có 2020).
+    /// </summary>
+    Task<LedgerJournal> PostSellerListingDepositLockAsync(
+        Guid sellerWalletId,
+        decimal depositAmount,
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Nghiệp vụ Seller Listing Deposit: Hoàn cọc Người bán khi phiên không có người mua hoặc giao dịch hoàn tất (Nợ 2020 / Có 2010).
+    /// </summary>
+    Task<LedgerJournal> PostSellerListingDepositReleaseAsync(
+        Guid sellerWalletId,
+        decimal depositAmount,
+        Guid auctionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Nghiệp vụ Seller Listing Deposit: Tịch thu cọc Người bán khi lật kèo (Nợ 2020 Seller / Có 2010 Buyer 50% + Có 4020 Sàn 50%).
+    /// </summary>
+    Task<LedgerJournal> PostSellerListingDepositForfeitedWithCompensationAsync(
+        Guid sellerWalletId,
+        Guid buyerWalletId,
+        decimal depositAmount,
+        Guid tradeId,
         CancellationToken cancellationToken = default);
 }
 

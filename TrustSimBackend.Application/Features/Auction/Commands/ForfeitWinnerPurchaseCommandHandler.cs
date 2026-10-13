@@ -65,45 +65,50 @@ public class ForfeitWinnerPurchaseCommandHandler : IRequestHandler<ForfeitWinner
         participant.Status = ParticipantStatus.DEFAULTED;
         _unitOfWork.Auctions.UpdateParticipant(participant);
 
-        var deposit = participant.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
+        var lockedDeposits = participant.Deposits.Where(d => d.DepositStatus == DepositStatus.LOCKED).ToList();
+        decimal totalDepositAmount = lockedDeposits.Sum(d => d.DepositAmount);
         decimal compensationAmount = 0m;
 
-        if (deposit != null)
+        if (lockedDeposits.Count > 0)
         {
-            deposit.DepositStatus = DepositStatus.FORFEITED;
-            deposit.ForfeitedAt = now;
-            deposit.ForfeitedReason = string.IsNullOrWhiteSpace(request.Reason)
-                ? "Người thắng chủ động từ bỏ quyền mua SIM sau đấu giá."
-                : request.Reason;
-
-            compensationAmount = Math.Round(deposit.DepositAmount * 0.50m, 2);
+            compensationAmount = Math.Round(totalDepositAmount * 0.50m, 2);
             auctionResult.SellerCompensationAmount = compensationAmount;
+            var primaryDepositId = lockedDeposits.First().Id;
 
             var forfeitJournal = await _ledgerService.PostAuctionDepositForfeitedWithCompensationAsync(
                 winnerWallet.Id,
                 sellerWallet.Id,
-                deposit.DepositAmount,
-                deposit.Id,
+                totalDepositAmount,
+                primaryDepositId,
                 auction.Id,
                 cancellationToken);
 
-            var forfeitureTx = new AuctionTransaction
+            foreach (var dep in lockedDeposits)
             {
-                Id = Guid.NewGuid(),
-                WalletId = winnerWallet.Id,
-                AuctionId = auction.Id,
-                AuctionDeposit = deposit,
-                AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED,
-                TransactionStatus = TransactionStatus.COMPLETED,
-                Amount = deposit.DepositAmount,
-                BalanceBefore = winnerWallet.AvailableBalance,
-                BalanceAfter = winnerWallet.AvailableBalance,
-                LedgerJournalId = forfeitJournal.Id,
-                JournalCode = forfeitJournal.JournalCode,
-                CreatedAt = now,
-                CompletedAt = now
-            };
-            await _unitOfWork.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
+                dep.DepositStatus = DepositStatus.FORFEITED;
+                dep.ForfeitedAt = now;
+                dep.ForfeitedReason = string.IsNullOrWhiteSpace(request.Reason)
+                    ? "Người thắng chủ động từ bỏ quyền mua SIM sau đấu giá."
+                    : request.Reason;
+
+                var forfeitureTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = winnerWallet.Id,
+                    AuctionId = auction.Id,
+                    AuctionDeposit = dep,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = dep.DepositAmount,
+                    BalanceBefore = winnerWallet.AvailableBalance,
+                    BalanceAfter = winnerWallet.AvailableBalance,
+                    LedgerJournalId = forfeitJournal.Id,
+                    JournalCode = forfeitJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await _unitOfWork.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
+            }
         }
 
         // Bắn thông báo phạt cọc cho Winner trong mọi trường hợp bùng kèo
@@ -111,7 +116,7 @@ public class ForfeitWinnerPurchaseCommandHandler : IRequestHandler<ForfeitWinner
             userId: request.UserId,
             type: NotificationType.AUCTION_DEPOSIT_FORFEITED,
             title: $"⚠️ Tịch thu tiền cọc phiên {auction.AuctionCode}",
-            content: $"Bạn đã từ bỏ quyền mua SIM {auction.SimNumber?.PhoneNumber}. Tiền cọc {deposit?.DepositAmount:N0} VNĐ đã bị tịch thu theo quy chế.",
+            content: $"Bạn đã từ bỏ quyền mua SIM {auction.SimNumber?.PhoneNumber}. Tổng tiền cọc {totalDepositAmount:N0} VNĐ đã bị tịch thu theo quy chế.",
             referenceType: "Auction",
             referenceId: auction.Id,
             sendEmail: true,

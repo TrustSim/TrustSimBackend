@@ -21,5 +21,8 @@ public enum OtpPurpose
     SimTransferApproval = 5,
 
     /// <summary>Xác thực quyền sở hữu SIM số đẹp</summary>
-    SimOwnershipVerification = 6
+    SimOwnershipVerification = 6,
+
+    /// <summary>Xác thực giao kết Hợp đồng chuyển nhượng số hóa 3 bên.</summary>
+    ContractSigning = 7
 }

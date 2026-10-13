@@ -181,6 +181,24 @@ public class SellerApproveRunnerUpCommandHandler : IRequestHandler<SellerApprove
             await _unitOfWork.AuctionTransactions.AddAsync(refundTx, cancellationToken);
         }
 
+        // Hoàn cọc cam kết bán cho Người bán khi Người bán từ chối bán cho Á quân
+        if (auction.AuctionRule?.SellerDepositAmount > 0)
+        {
+            var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(auction.AuthorId, cancellationToken);
+            if (sellerWallet != null)
+            {
+                var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                await _ledgerService.PostSellerListingDepositReleaseAsync(
+                    sellerWallet.Id,
+                    sellerDeposit,
+                    auction.Id,
+                    cancellationToken);
+                sellerWallet.AvailableBalance += sellerDeposit;
+                sellerWallet.LockedBalance -= sellerDeposit;
+                _unitOfWork.Wallets.Update(sellerWallet);
+            }
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Gửi thông báo cho Runner-Up

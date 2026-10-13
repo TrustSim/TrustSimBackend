@@ -1,13 +1,15 @@
 using MediatR;
+using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
+using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Application.Features.Auction.Factory;
 using TrustSimBackend.Application.Features.Auction.Hubs;
+using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
-
-using TrustSimBackend.Application.Features.Auction.Services;
 
 namespace TrustSimBackend.Application.Features.Auction.Commands;
 
@@ -17,17 +19,23 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
     private readonly AuctionFactory _auctionFactory;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly ILedgerService _ledgerService;
+    private readonly SellerDepositSettings _depositSettings;
 
     public CreateAuctionCommandHandler(
         IUnitOfWork unitOfWork,
         AuctionFactory auctionFactory,
         IAuctionRealtimeNotifier realtimeNotifier,
-        IAuctionDelayQueueService delayQueue)
+        IAuctionDelayQueueService delayQueue,
+        ILedgerService ledgerService,
+        IOptions<SellerDepositSettings> depositOptions)
     {
         _unitOfWork = unitOfWork;
         _auctionFactory = auctionFactory;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
+        _ledgerService = ledgerService;
+        _depositSettings = depositOptions.Value;
     }
 
     public async Task<AuctionDto> Handle(CreateAuctionCommand request, CancellationToken cancellationToken)
@@ -43,6 +51,23 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
             throw new BadRequestException("Số SIM này không ở trạng thái sẵn sàng để tạo phiên đấu giá.");
         }
 
+        // Kiểm tra và tính toán tiền cọc Người Bán (Seller Listing Deposit) tại Server: Clamp(StartingPrice * Rate, Min, Max)
+        var depositRate = _depositSettings.DepositRate;
+        var rawDeposit = Math.Round(request.StartingPrice * depositRate);
+        var sellerDeposit = Math.Clamp(rawDeposit, _depositSettings.MinDepositAmount, _depositSettings.MaxDepositAmount);
+
+        var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.AuthorId, cancellationToken);
+        if (sellerWallet == null)
+        {
+            throw new NotFoundException("Không tìm thấy ví tiền của người bán.");
+        }
+
+        if (sellerWallet.AvailableBalance < sellerDeposit)
+        {
+            throw new BadRequestException(
+                $"Số dư khả dụng trong ví ({sellerWallet.AvailableBalance:N0} VNĐ) không đủ để tạm khóa cọc cam kết bán ({sellerDeposit:N0} VNĐ). Vui lòng nạp thêm tiền vào ví.");
+        }
+
         var auctionCode = $"AUC-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
         while (await _unitOfWork.Auctions.ExistsByCodeAsync(auctionCode, cancellationToken))
         {
@@ -50,7 +75,18 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         }
 
         var auction = _auctionFactory.Create(request, auctionCode, request.AuthorId);
+        if (auction.AuctionRule != null)
+        {
+            auction.AuctionRule.SellerDepositAmount = sellerDeposit;
+        }
+
         sim.SimStatus = SimStatus.IN_AUCTION;
+
+        // Khóa cọc Seller vào Sổ cái kép
+        await _ledgerService.PostSellerListingDepositLockAsync(sellerWallet.Id, sellerDeposit, auction.Id, cancellationToken);
+        sellerWallet.AvailableBalance -= sellerDeposit;
+        sellerWallet.LockedBalance += sellerDeposit;
+        _unitOfWork.Wallets.Update(sellerWallet);
 
         await _unitOfWork.Auctions.AddAsync(auction, cancellationToken);
         _unitOfWork.SimNumbers.Update(sim);

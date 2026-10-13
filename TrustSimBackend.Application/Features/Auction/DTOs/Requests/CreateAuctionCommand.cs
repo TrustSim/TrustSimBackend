@@ -31,5 +31,9 @@ public record CreateAuctionCommand(
     decimal MaxPriceGapRatioForRunnerUp = 1.50m,
     int MinimumUniqueBiddersForRunnerUp = 2,
     bool RequireSellerApprovalForRunnerUp = true,
+    decimal SellerDepositAmount = 0m,
+    decimal SellerDepositRate = 0m,
+    int SigningGracePeriodHours = 24,
+    int? SigningGracePeriodMinutes = null,
     Guid AuthorId = default
 ) : IRequest<AuctionDto>;

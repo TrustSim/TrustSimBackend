@@ -39,6 +39,19 @@ public enum LedgerTransactionType
     ADMIN_ADJUSTMENT = 11,
 
     /// <summary>Admin rút tiền lợi nhuận sàn về tài khoản ngân hàng cá nhân.</summary>
-    ADMIN_PROFIT_WITHDRAW = 12
+    ADMIN_PROFIT_WITHDRAW = 12,
+
+    /// <summary>Khóa tiền cọc cam kết bán khi Seller tạo phiên đấu giá.</summary>
+    SELLER_LISTING_DEPOSIT_LOCK = 13,
+
+    /// <summary>Hoàn trả tiền cọc bán cho Seller khi phiên không thành công hoặc đã bàn giao SIM.</summary>
+    SELLER_LISTING_DEPOSIT_RELEASED = 14,
+
+    /// <summary>Tịch thu tiền cọc bán khi Seller lật kèo (bồi thường 50% Buyer, 50% Sàn).</summary>
+    SELLER_LISTING_DEPOSIT_FORFEITED = 15,
+
+    /// <summary>Khóa tiền cọc bổ sung lũy tiến khi người thắng chưa thanh toán đủ 100% tại thời điểm kết thúc phiên.</summary>
+    AUCTION_PROGRESSIVE_DEPOSIT_LOCK = 16
 }
+
 

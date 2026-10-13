@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel;
+using StackExchange.Redis;
 using TrustSimBackend.Application.Ai.Plugins;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
@@ -34,6 +35,22 @@ public static class DependencyInjection
         services.Configure<SpeedSmsSettings>(configuration.GetSection(SpeedSmsSettings.SectionName));
         services.Configure<AwsRekognitionSettings>(configuration.GetSection(AwsRekognitionSettings.SectionName));
         services.Configure<GeminiSettings>(configuration.GetSection(GeminiSettings.SectionName));
+        services.Configure<SellerDepositSettings>(configuration.GetSection(SellerDepositSettings.SectionName));
+
+        // ─── 1.1. Cấu hình Redis ConnectionMultiplexer Singleton ───────────────────
+        var redisConn = configuration.GetConnectionString("Redis") ?? configuration["Redis:ConnectionString"];
+        if (!string.IsNullOrWhiteSpace(redisConn))
+        {
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var configOptions = ConfigurationOptions.Parse(redisConn);
+                configOptions.AbortOnConnectFail = false;
+                configOptions.ConnectTimeout = 10000;
+                configOptions.SyncTimeout = 10000;
+                configOptions.KeepAlive = 60;
+                return ConnectionMultiplexer.Connect(configOptions);
+            });
+        }
 
         // ─── 2. DbContext ─────────────────────────────────────────────────────────
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
@@ -146,6 +163,12 @@ public static class DependencyInjection
 
         // Multi-Channel Notification Dispatcher
         services.AddScoped<INotificationService, NotificationService>();
+
+        // Digital Contract & PAdES Signing Services
+        services.AddScoped<IPdfContractService, PdfContractService>();
+        services.AddScoped<IPdfSigningService, PdfSigningService>();
+        services.AddScoped<IContractSigningQueueService, ContractSigningQueueService>();
+        services.AddHostedService<PdfSigningBackgroundWorker>();
 
         // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
         services.AddScoped<IBulkDataService, BulkDataService>();
