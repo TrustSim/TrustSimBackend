@@ -89,20 +89,33 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
         var escrowId = Guid.NewGuid();
         var tradeId = Guid.NewGuid();
 
+        var signingGraceMinutes = auction.AuctionRule?.SigningGracePeriodMinutes ?? 1440;
+        var signingDeadline = now.AddMinutes(signingGraceMinutes);
+
         var trade = new TradeTransaction
         {
             Id = tradeId,
             TradeTransactionCode = $"TRD-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-            TradeTransactionStatus = TradeTransactionStatus.PendingTransfer,
+            TradeTransactionStatus = TradeTransactionStatus.PendingSignature,
             AuctionId = auction.Id,
             BuyerId = participant.UserAccountId,
             SellerId = auction.AuthorId,
             SimNumberId = auction.SimNumberId,
             EscrowDeadline = now.AddDays(2),
-            SigningDeadline = now.AddDays(3),
+            SigningDeadline = signingDeadline,
             TransferDeadline = now.AddDays(7),
             IsActive = true
         };
+
+        var contract = new TransferContract
+        {
+            Id = Guid.NewGuid(),
+            TradeTransactionId = trade.Id,
+            ContractStatus = ContractStatus.DRAFT,
+            DocumentUrl = string.Empty,
+            DocumentHash = string.Empty
+        };
+        trade.TransferContract = contract;
 
         var escrow = new Escrow
         {
@@ -142,8 +155,15 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
         // Gán quan hệ 2 chiều
         trade.Escrow = escrow;
 
-        // Hủy deadline trong Delay Queue
+        // Hủy deadline Á quân trong Delay Queue và nạp deadline ký hợp đồng
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.RUNNER_UP_DEADLINE, cancellationToken);
+        await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+        {
+            AuctionId = auction.Id,
+            JobType = AuctionDelayJobTypes.SIGNING_DEADLINE,
+            ExecuteAt = trade.SigningDeadline,
+            ExtraData = trade.Id.ToString()
+        }, cancellationToken);
 
         // Cập nhật trạng thái SIM sang TRANSFERRING
         var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
@@ -185,11 +205,13 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Gửi thông báo cho Á quân và Seller
+        var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
+
         await _notificationService.SendNotificationAsync(
             userId: participant.UserAccountId,
-            type: NotificationType.AUCTION_WON,
-            title: $"🎉 Chúc mừng bạn đã mua thành công SIM {sim?.PhoneNumber}!",
-            content: $"Bạn đã hoàn tất thanh toán {priceToPay:N0} VNĐ cho phiên {auction.AuctionCode}. Tiền đã được ký quỹ Escrow bảo đảm và đang chờ chuyển nhượng SIM.",
+            type: NotificationType.CONTRACT_SIGNING_REQUIRED,
+            title: $"📝 Yêu cầu ký hợp đồng SIM {sim?.PhoneNumber}!",
+            content: $"Bạn đã mua thành công SIM theo đề nghị Á quân phiên {auction.AuctionCode}. Tiền đã được ký quỹ Escrow an toàn. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
             actionUrl: $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
@@ -198,9 +220,9 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
 
         await _notificationService.SendNotificationAsync(
             userId: auction.AuthorId,
-            type: NotificationType.TRADE_TRANSFERRING_SIM,
-            title: $"💰 Á quân đã thanh toán mua SIM {sim?.PhoneNumber}!",
-            content: $"Á quân phiên {auction.AuctionCode} đã thanh toán đủ {priceToPay:N0} VNĐ vào quỹ Escrow. Vui lòng tiến hành thủ tục sang tên SIM.",
+            type: NotificationType.CONTRACT_SIGNING_REQUIRED,
+            title: $"📝 Á quân đã mua SIM {sim?.PhoneNumber}! Vui lòng ký hợp đồng",
+            content: $"Á quân phiên {auction.AuctionCode} đã thanh toán đủ {priceToPay:N0} VNĐ vào quỹ Escrow. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
             actionUrl: $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,

@@ -9,18 +9,25 @@ public class DigitalSignatureConfiguration : IEntityTypeConfiguration<DigitalSig
     public void Configure(EntityTypeBuilder<DigitalSignature> builder)
     {
         builder.HasKey(x => x.Id);
+        builder.Property(x => x.Id).ValueGeneratedNever();
 
         builder.Property(x => x.SignatureRole)
                .IsRequired()
                .HasConversion<string>()
                .HasMaxLength(50);
 
-        builder.Property(x => x.PublicKey).IsRequired();
-        builder.Property(x => x.CryptographicSignature).IsRequired();
+        builder.Property(x => x.AuthMethod).IsRequired().HasMaxLength(50);
+        builder.Property(x => x.IpAddress).IsRequired().HasMaxLength(50);
+        builder.Property(x => x.UserAgent).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.OtpCodeHash).IsRequired().HasMaxLength(128);
+        builder.Property(x => x.AuditMetadataJson).HasColumnType("jsonb");
 
-        builder.HasOne(x => x.Contract)
-               .WithMany()
-               .HasForeignKey(x => x.ContracId)
+        builder.Property(x => x.PublicKey).HasMaxLength(500);
+        builder.Property(x => x.CryptographicSignature).HasMaxLength(1000);
+
+        builder.HasOne(x => x.TransferContract)
+               .WithMany(c => c.DigitalSignatures)
+               .HasForeignKey(x => x.TransferContractId)
                .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.User)
@@ -28,7 +35,8 @@ public class DigitalSignatureConfiguration : IEntityTypeConfiguration<DigitalSig
                .HasForeignKey(x => x.UserId)
                .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(x => x.ContracId);
+        // Chặn Race Condition: 1 Hợp đồng chỉ được phép có DUY NHẤT 1 chữ ký cho mỗi vai trò (BUYER / SELLER / PLATFORM_ARBITRATOR)
+        builder.HasIndex(x => new { x.TransferContractId, x.SignatureRole }).IsUnique();
         builder.HasIndex(x => x.UserId);
     }
 }

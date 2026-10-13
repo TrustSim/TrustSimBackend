@@ -11,6 +11,7 @@ using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
+using StackExchange.Redis;
 using TrustSimBackend.Infrastructure.Persistence;
 
 namespace TrustSimBackend.Infrastructure.Services;
@@ -209,7 +210,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
         switch (job.JobType)
         {
             case AuctionDelayJobTypes.AUCTION_START:
-                await HandleAuctionStartAsync(job, context, realtimeNotifier, redisCache, notificationService, cancellationToken);
+                await HandleAuctionStartAsync(job, context, realtimeNotifier, ledgerService, redisCache, notificationService, cancellationToken);
                 break;
 
             case AuctionDelayJobTypes.DUTCH_PRICE_DROP:
@@ -232,6 +233,10 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 await HandleSellerDecisionDeadlineAsync(job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
                 break;
 
+            case AuctionDelayJobTypes.SIGNING_DEADLINE:
+                await HandleSigningDeadlineAsync(job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
+                break;
+
             default:
                 _logger.LogWarning("[AuctionDelayDispatcher] Không hỗ trợ JobType '{JobType}'", job.JobType);
                 break;
@@ -242,6 +247,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
         AuctionDelayJob job,
         TrustSimDbContext context,
         IAuctionRealtimeNotifier realtimeNotifier,
+        ILedgerService ledgerService,
         IRedisAuctionCacheService? redisCache,
         INotificationService? notificationService,
         CancellationToken cancellationToken)
@@ -286,6 +292,24 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 ConfirmedAt = now
             };
             await context.AuctionResults.AddAsync(failedResult, cancellationToken);
+
+            // Hoàn cọc cho Người bán nếu có
+            if (auction.AuctionRule?.SellerDepositAmount > 0)
+            {
+                var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == auction.AuthorId, cancellationToken);
+                if (sellerWallet != null)
+                {
+                    var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                        sellerWallet.Id,
+                        sellerDeposit,
+                        auction.Id,
+                        cancellationToken);
+                    sellerWallet.AvailableBalance += sellerDeposit;
+                    sellerWallet.LockedBalance -= sellerDeposit;
+                }
+            }
+
             await context.SaveChangesAsync(cancellationToken);
 
             if (notificationService != null)
@@ -489,6 +513,23 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 }
             }
 
+            // Hoàn cọc cho Người bán khi phiên Hà Lan chạm sàn không ai mua
+            if (auction.AuctionRule?.SellerDepositAmount > 0)
+            {
+                var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == auction.AuthorId, cancellationToken);
+                if (sellerWallet != null)
+                {
+                    var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                        sellerWallet.Id,
+                        sellerDeposit,
+                        auction.Id,
+                        cancellationToken);
+                    sellerWallet.AvailableBalance += sellerDeposit;
+                    sellerWallet.LockedBalance -= sellerDeposit;
+                }
+            }
+
             await context.SaveChangesAsync(cancellationToken);
 
             if (notificationService != null)
@@ -652,6 +693,23 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 }
             }
 
+            // Hoàn cọc cho Người bán khi phiên kết thúc không có ai đặt giá
+            if (auction.AuctionRule?.SellerDepositAmount > 0)
+            {
+                var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == auction.AuthorId, cancellationToken);
+                if (sellerWallet != null)
+                {
+                    var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                        sellerWallet.Id,
+                        sellerDeposit,
+                        auction.Id,
+                        cancellationToken);
+                    sellerWallet.AvailableBalance += sellerDeposit;
+                    sellerWallet.LockedBalance -= sellerDeposit;
+                }
+            }
+
             await context.SaveChangesAsync(cancellationToken);
 
             // Gửi thông báo cho Người bán
@@ -789,20 +847,33 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 var escrowId = Guid.NewGuid();
                 var tradeId = Guid.NewGuid();
 
+                var signingGraceMinutes = auction.AuctionRule?.SigningGracePeriodMinutes ?? 1440;
+                var signingDeadline = now.AddMinutes(signingGraceMinutes);
+
                 var trade = new TradeTransaction
                 {
                     Id = tradeId,
                     TradeTransactionCode = $"TRD-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-                    TradeTransactionStatus = TradeTransactionStatus.PendingTransfer,
+                    TradeTransactionStatus = TradeTransactionStatus.PendingSignature,
                     AuctionId = auction.Id,
                     BuyerId = winnerParticipant.UserAccountId,
                     SellerId = auction.AuthorId,
                     SimNumberId = auction.SimNumberId,
                     EscrowDeadline = now.AddDays(2),
-                    SigningDeadline = now.AddDays(3),
+                    SigningDeadline = signingDeadline,
                     TransferDeadline = now.AddDays(7),
                     IsActive = true
                 };
+
+                var contract = new TransferContract
+                {
+                    Id = Guid.NewGuid(),
+                    TradeTransactionId = trade.Id,
+                    ContractStatus = ContractStatus.DRAFT,
+                    DocumentUrl = string.Empty,
+                    DocumentHash = string.Empty
+                };
+                trade.TransferContract = contract;
 
                 var escrow = new Escrow
                 {
@@ -861,15 +932,25 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 await context.Escrows.AddAsync(escrow, cancellationToken);
                 await context.TradeTransactions.AddAsync(trade, cancellationToken);
 
+                // Nạp deadline ký hợp đồng vào Delay Queue
+                await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+                {
+                    AuctionId = auction.Id,
+                    JobType = AuctionDelayJobTypes.SIGNING_DEADLINE,
+                    ExecuteAt = trade.SigningDeadline,
+                    ExtraData = trade.Id.ToString()
+                }, cancellationToken);
+
                 var winnerName = winnerParticipant.UserAccount?.UserName ?? "Người tham gia";
+                var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
 
                 if (notificationService != null)
                 {
                     await notificationService.SendNotificationAsync(
                         userId: winnerParticipant.UserAccountId,
-                        type: NotificationType.AUCTION_WON,
-                        title: $"🏆 Bạn đã thắng phiên đấu giá SIM {auction.SimNumber?.PhoneNumber}!",
-                        content: $"Chúc mừng bạn đã trúng đấu giá SIM {auction.SimNumber?.PhoneNumber} với mức giá {topBid.BidAmount:N0} VNĐ. Số tiền đã được chuyển vào quỹ Escrow bảo đảm.",
+                        type: NotificationType.CONTRACT_SIGNING_REQUIRED,
+                        title: $"📝 Yêu cầu ký hợp đồng SIM {auction.SimNumber?.PhoneNumber}!",
+                        content: $"Chúc mừng bạn đã trúng đấu giá SIM {auction.SimNumber?.PhoneNumber} với mức giá {topBid.BidAmount:N0} VNĐ (Đã thanh toán Escrow). Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
                         actionUrl: $"/trades/{trade.Id}",
                         referenceType: "TradeTransaction",
                         referenceId: trade.Id,
@@ -878,9 +959,9 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
                     await notificationService.SendNotificationAsync(
                         userId: auction.AuthorId,
-                        type: NotificationType.TRADE_TRANSFERRING_SIM,
-                        title: $"🎉 Phiên đấu giá SIM {auction.SimNumber?.PhoneNumber} kết thúc thành công!",
-                        content: $"Phiên đấu giá {auction.AuctionCode} đã kết thúc. Người thắng là {winnerName} với mức giá {topBid.BidAmount:N0} VNĐ (Đã thanh toán đủ vào quỹ Escrow). Vui lòng tiến hành thủ tục chuyển nhượng.",
+                        type: NotificationType.CONTRACT_SIGNING_REQUIRED,
+                        title: $"📝 Người thắng {winnerName} đã thanh toán! Vui lòng ký hợp đồng",
+                        content: $"Phiên {auction.AuctionCode} đã kết thúc. Người thắng ({winnerName}) đã thanh toán đủ {topBid.BidAmount:N0} VNĐ vào Escrow. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
                         actionUrl: $"/trades/{trade.Id}",
                         referenceType: "TradeTransaction",
                         referenceId: trade.Id,
@@ -890,6 +971,63 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             }
             else
             {
+                // Người thắng chưa đủ 100% tiền thanh toán -> Thu ngay phần cọc lũy tiến còn thiếu Delta
+                var marginRate = auction.AuctionRule?.MarginPercentage ?? 0.10m;
+                var requiredMarginTotal = Math.Round(topBid.BidAmount * marginRate, 2);
+                var deltaMargin = Math.Max(0, requiredMarginTotal - depositPaid);
+
+                if (deltaMargin > 0 && winWallet.AvailableBalance > 0)
+                {
+                    // Thu tối đa số dư khả dụng hiện có (lên đến deltaMargin)
+                    var actualHoldAmount = Math.Min(winWallet.AvailableBalance, deltaMargin);
+
+                    var addDepositId = Guid.NewGuid();
+                    var depCode = $"DEP-ADD-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+
+                    // Ghi sổ cái khóa tiền cọc bổ sung qua method chuyên biệt
+                    var holdJournal = await ledgerService.PostAuctionProgressiveDepositLockAsync(
+                        winWallet.Id,
+                        actualHoldAmount,
+                        addDepositId,
+                        auction.Id,
+                        cancellationToken);
+
+                    var progressiveDeposit = new AuctionDeposit
+                    {
+                        Id = addDepositId,
+                        ParticipantId = winnerParticipant.Id,
+                        DepositCode = depCode,
+                        DepositAmount = actualHoldAmount,
+                        DepositType = DepositType.PROGRESSIVE_ADDITIONAL,
+                        DepositStatus = DepositStatus.LOCKED,
+                        AuctionTransactionId = Guid.NewGuid()
+                    };
+
+                    var lockTx = new AuctionTransaction
+                    {
+                        Id = progressiveDeposit.AuctionTransactionId,
+                        WalletId = winWallet.Id,
+                        AuctionId = auction.Id,
+                        AuctionDeposit = progressiveDeposit,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_PROGRESSIVE_DEPOSIT_LOCK,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = actualHoldAmount,
+                        BalanceBefore = winWallet.AvailableBalance + actualHoldAmount,
+                        BalanceAfter = winWallet.AvailableBalance,
+                        LedgerJournalId = holdJournal.Id,
+                        JournalCode = holdJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+
+                    await context.AuctionDeposits.AddAsync(progressiveDeposit, cancellationToken);
+                    await context.AuctionTransactions.AddAsync(lockTx, cancellationToken);
+
+                    _logger.LogInformation(
+                        "[AuctionDelayDispatcher] 🔒 Đã thu cọc bổ sung lũy tiến {Amount:N0} VNĐ từ Winner {User} cho phiên {Auction}",
+                        actualHoldAmount, winnerParticipant.UserAccount?.UserName, auction.AuctionCode);
+                }
+
                 winWallet.WalletStatus = WalletStatus.ACTIVE;
                 resultEntity.AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT;
                 resultEntity.WinType = AuctionWinType.NONE;
@@ -984,7 +1122,11 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
         var now = DateTime.UtcNow;
         decimal compensationAmount = 0m;
-        var deposit = result.Winner?.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
+        var lockedDeposits = result.Winner?.Deposits
+            .Where(d => d.DepositStatus == DepositStatus.LOCKED)
+            .ToList() ?? new List<AuctionDeposit>();
+
+        decimal totalDepositAmount = lockedDeposits.Sum(d => d.DepositAmount);
 
         // 1. Tịch thu tiền cọc và bồi thường 50% Seller / 50% Sàn qua Sổ cái kép
         if (result.Winner != null)
@@ -993,40 +1135,48 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             var winnerWallet = result.Winner.UserAccount?.Wallet;
             var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == auction.AuthorId, cancellationToken);
 
-            if (deposit != null && winnerWallet != null && sellerWallet != null)
+            if (lockedDeposits.Count > 0 && winnerWallet != null && sellerWallet != null)
             {
-                deposit.DepositStatus = DepositStatus.FORFEITED;
-                deposit.ForfeitedAt = now;
-                deposit.ForfeitedReason = "Quá hạn thanh toán tiền mua SIM đấu giá.";
-
-                compensationAmount = Math.Round(deposit.DepositAmount * 0.50m, 2);
+                compensationAmount = Math.Round(totalDepositAmount * 0.50m, 2);
                 result.SellerCompensationAmount = compensationAmount;
+                var primaryDepositId = lockedDeposits.First().Id;
 
                 var forfeitJournal = await ledgerService.PostAuctionDepositForfeitedWithCompensationAsync(
                     winnerWallet.Id,
                     sellerWallet.Id,
-                    deposit.DepositAmount,
-                    deposit.Id,
+                    totalDepositAmount,
+                    primaryDepositId,
                     auction.Id,
                     cancellationToken);
 
-                var forfeitureTx = new AuctionTransaction
+                foreach (var dep in lockedDeposits)
                 {
-                    Id = Guid.NewGuid(),
-                    WalletId = winnerWallet.Id,
-                    AuctionId = result.AuctionId,
-                    AuctionDeposit = deposit,
-                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED,
-                    TransactionStatus = TransactionStatus.COMPLETED,
-                    Amount = deposit.DepositAmount,
-                    BalanceBefore = winnerWallet.AvailableBalance,
-                    BalanceAfter = winnerWallet.AvailableBalance,
-                    LedgerJournalId = forfeitJournal.Id,
-                    JournalCode = forfeitJournal.JournalCode,
-                    CreatedAt = now,
-                    CompletedAt = now
-                };
-                await context.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
+                    dep.DepositStatus = DepositStatus.FORFEITED;
+                    dep.ForfeitedAt = now;
+                    dep.ForfeitedReason = "Quá hạn thanh toán tiền mua SIM đấu giá (Bùng cọc).";
+
+                    var forfeitureTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = winnerWallet.Id,
+                        AuctionId = result.AuctionId,
+                        AuctionDeposit = dep,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = dep.DepositAmount,
+                        BalanceBefore = winnerWallet.AvailableBalance,
+                        BalanceAfter = winnerWallet.AvailableBalance,
+                        LedgerJournalId = forfeitJournal.Id,
+                        JournalCode = forfeitJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
+                }
+
+                _logger.LogInformation(
+                    "[AuctionDelayDispatcher] ⚠️ Tịch thu toàn bộ cọc {Total:N0} VNĐ ({Count} khoản cọc) của Winner {User}. Đền bù Seller {Comp:N0} VNĐ",
+                    totalDepositAmount, lockedDeposits.Count, result.Winner?.UserAccount?.UserName, compensationAmount);
             }
 
             // Cập nhật Bid của Winner cũ sang REJECTED
@@ -1042,10 +1192,10 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             if (notificationService != null)
             {
                 await notificationService.SendNotificationAsync(
-                    userId: result.Winner.UserAccountId,
+                    userId: result.Winner!.UserAccountId,
                     type: NotificationType.AUCTION_DEPOSIT_FORFEITED,
                     title: $"⚠️ Tịch thu tiền cọc phiên {auction.AuctionCode}",
-                    content: $"Bạn đã quá hạn thanh toán tiền mua SIM {auction.SimNumber?.PhoneNumber}. Tiền cọc {deposit?.DepositAmount:N0} VNĐ đã bị tịch thu theo quy chế.",
+                    content: $"Bạn đã quá hạn thanh toán tiền mua SIM {auction.SimNumber?.PhoneNumber}. Tổng tiền cọc {totalDepositAmount:N0} VNĐ đã bị tịch thu theo quy chế.",
                     referenceType: "Auction",
                     referenceId: auction.Id,
                     sendEmail: true,
@@ -1099,6 +1249,23 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             if (auction.SimNumber != null)
             {
                 auction.SimNumber.SimStatus = SimStatus.AVAILABLE;
+            }
+
+            // Hoàn cọc cam kết bán cho Người bán khi Winner bùng kèo và không có Á quân hợp lệ
+            if (auction.AuctionRule?.SellerDepositAmount > 0)
+            {
+                var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == auction.AuthorId, cancellationToken);
+                if (sellerWallet != null)
+                {
+                    var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                        sellerWallet.Id,
+                        sellerDeposit,
+                        auction.Id,
+                        cancellationToken);
+                    sellerWallet.AvailableBalance += sellerDeposit;
+                    sellerWallet.LockedBalance -= sellerDeposit;
+                }
             }
 
             await context.SaveChangesAsync(cancellationToken);
@@ -1378,6 +1545,23 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             }
         }
 
+        // Hoàn cọc cam kết bán cho Người bán khi hết hạn phản hồi quyết định bán cho Á quân
+        if (result.Auction?.AuctionRule?.SellerDepositAmount > 0)
+        {
+            var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == result.Auction.AuthorId, cancellationToken);
+            if (sellerWallet != null)
+            {
+                var sellerDeposit = result.Auction.AuctionRule.SellerDepositAmount;
+                await ledgerService.PostSellerListingDepositReleaseAsync(
+                    sellerWallet.Id,
+                    sellerDeposit,
+                    result.AuctionId,
+                    cancellationToken);
+                sellerWallet.AvailableBalance += sellerDeposit;
+                sellerWallet.LockedBalance -= sellerDeposit;
+            }
+        }
+
         await context.SaveChangesAsync(cancellationToken);
 
         // Gửi thông báo cho Seller
@@ -1395,5 +1579,102 @@ public class AuctionDelayQueueDispatcher : BackgroundService
         }
 
         await realtimeNotifier.NotifyAuctionFailedAsync(result.AuctionId, result.CancelledReason, cancellationToken);
+    }
+
+    private async Task HandleSigningDeadlineAsync(
+        AuctionDelayJob job,
+        TrustSimDbContext context,
+        IAuctionRealtimeNotifier realtimeNotifier,
+        ILedgerService ledgerService,
+        INotificationService? notificationService,
+        CancellationToken cancellationToken)
+    {
+        Guid.TryParse(job.ExtraData, out var tradeId);
+        var trade = await context.TradeTransactions
+            .Include(t => t.TransferContract)
+                .ThenInclude(c => c!.DigitalSignatures)
+            .Include(t => t.SimNumber)
+            .Include(t => t.Escrow)
+            .Include(t => t.Buyer)
+                .ThenInclude(b => b!.Wallet)
+            .Include(t => t.Seller)
+                .ThenInclude(s => s!.Wallet)
+            .Include(t => t.Auction)
+                .ThenInclude(a => a!.AuctionRule)
+            .FirstOrDefaultAsync(t => (tradeId != Guid.Empty && t.Id == tradeId) || (tradeId == Guid.Empty && t.AuctionId == job.AuctionId), cancellationToken);
+
+        if (trade == null || trade.TransferContract == null)
+            return;
+
+        if (trade.TransferContract.ContractStatus == ContractStatus.FULLY_SIGNED)
+            return;
+
+        var buyerSig = trade.TransferContract.DigitalSignatures.FirstOrDefault(s => s.SignatureRole == SignatureRole.BUYER);
+        var sellerSig = trade.TransferContract.DigitalSignatures.FirstOrDefault(s => s.SignatureRole == SignatureRole.SELLER);
+
+        var redis = _scopeFactory.CreateScope().ServiceProvider.GetService<IConnectionMultiplexer>();
+
+        // Kịch bản 1: Người mua ĐÃ ký, Người bán KHÔNG ký trong thời hạn 24h -> Kích hoạt Cưỡng chế Ủy quyền
+        if (buyerSig != null && sellerSig == null)
+        {
+            _logger.LogWarning("[AuctionDelayDispatcher] ⚖️ Hết hạn 24h: Seller {SellerId} không ký hợp đồng. Kích hoạt Cưỡng chế Ủy quyền!", trade.SellerId);
+
+            if (redis != null)
+            {
+                var db = redis.GetDatabase();
+                await db.StreamAddAsync("stream:contracts:sign", new NameValueEntry[]
+                {
+                    new("tradeId", trade.Id.ToString()),
+                    new("isAutoEnforced", "true")
+                });
+            }
+
+            if (notificationService != null)
+            {
+                await notificationService.SendNotificationAsync(
+                    userId: trade.SellerId,
+                    type: NotificationType.SELLER_SIGNING_TIMEOUT_AUTO_ENFORCED,
+                    title: "⚠️ Quá hạn ký hợp đồng bán SIM",
+                    content: $"Thời hạn 24h ký hợp đồng SIM {trade.SimNumber?.PhoneNumber} đã hết. Hệ thống đã kích hoạt niêm phong cưỡng chế đại diện. Vui lòng tiến hành sang tên đúng hạn.",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
+            }
+        }
+        // Kịch bản 2: Người mua KHÔNG ký sau 24h -> Hủy giao dịch, phạt cọc Người mua
+        else if (buyerSig == null)
+        {
+            _logger.LogWarning("[AuctionDelayDispatcher] ❌ Hết hạn 24h: Buyer {BuyerId} không ký hợp đồng. Hủy giao dịch & Phạt cọc!", trade.BuyerId);
+
+            trade.TradeTransactionStatus = TradeTransactionStatus.Cancelled_SigningTimeout;
+            trade.CancelledAt = DateTime.UtcNow;
+            trade.CancelledReason = "Người mua không hoàn tất ký hợp đồng điện tử trong thời hạn quy định.";
+
+            if (trade.TransferContract != null)
+            {
+                trade.TransferContract.ContractStatus = ContractStatus.DRAFT;
+            }
+
+            if (trade.SimNumber != null)
+            {
+                trade.SimNumber.SimStatus = SimStatus.AVAILABLE;
+            }
+
+            if (trade.Seller?.Wallet != null && trade.Auction?.AuctionRule != null)
+            {
+                var sellerDeposit = trade.Auction.AuctionRule.SellerDepositAmount;
+                if (sellerDeposit > 0)
+                {
+                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                        trade.Seller.Wallet.Id,
+                        sellerDeposit,
+                        trade.AuctionId,
+                        cancellationToken);
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
     }
 }

@@ -1289,7 +1289,9 @@ async function confirmWinnerPayment() {
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.message || 'Lỗi thanh toán');
 
-    alert('Thanh toán thành công! SIM đã chính thức thuộc về bạn.');
+    if (confirm('🎉 THANH TOÁN ESCROW THÀNH CÔNG!\n\nSố tiền đã được bảo đảm trong quỹ Escrow an toàn. Giao dịch đã chuyển sang trạng thái CHỜ KÝ HỢP ĐỒNG ĐIỆN TỬ (PendingSignature).\n\nBạn có muốn mở ngay Studio Hợp Đồng để xem trước và ký xác nhận OTP không?')) {
+      window.open('contract_studio.html', '_blank');
+    }
     await selectAuction(auctionId);
     await fetchUserWallet();
   } catch (err) {
@@ -1347,7 +1349,9 @@ async function acceptRunnerUpOffer() {
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.message || 'Lỗi chấp nhận mua');
 
-    alert('Đã chấp nhận mua SIM (Á Quân)! Vui lòng thanh toán.');
+    if (confirm('🎉 ĐÃ MUA SIM THÀNH CÔNG (Á QUÂN)!\n\nTiền đã được ký quỹ Escrow bảo đảm. Giao dịch đã chuyển sang trạng thái CHỜ KÝ HỢP ĐỒNG ĐIỆN TỬ (PendingSignature).\n\nBạn có muốn mở ngay Studio Hợp Đồng để xem trước và ký xác nhận OTP không?')) {
+      window.open('contract_studio.html', '_blank');
+    }
     await selectAuction(auctionId);
   } catch (err) {
     alert(`Lỗi: ${err.message}`);
@@ -1509,9 +1513,147 @@ async function loadBids(auctionId) {
 }
 
 // ─── 9. Create Auction Modal ───
+function parseNumberInput(val) {
+  if (val === undefined || val === null) return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const str = val.toString().trim();
+  if (!str) return 0;
+  const digitsOnly = str.replace(/[^\d]/g, '');
+  return digitsOnly ? Number(digitsOnly) : 0;
+}
+
+function formatVietnameseCurrencyText(amount) {
+  if (!amount || amount <= 0) return '0 ₫';
+  if (amount >= 1e12) return (amount / 1e12).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' nghìn tỷ đồng';
+  if (amount >= 1e9) return (amount / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' tỷ đồng';
+  if (amount >= 1e6) return (amount / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' triệu đồng';
+  if (amount >= 1e3) return (amount / 1e3).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' nghìn đồng';
+  return amount.toLocaleString('vi-VN') + ' đồng';
+}
+
+let cachedSellerDepositCalculation = null;
+
+async function fetchCalculatedSellerDeposit(startPrice) {
+  const parsedPrice = typeof startPrice === 'number' ? startPrice : parseNumberInput(startPrice);
+  const amountEl = document.getElementById('sellerDepositAmountText');
+  const formulaEl = document.getElementById('sellerDepositFormulaText');
+  const breakdownEl = document.getElementById('sellerDepositBreakdownText');
+  const badgeEl = document.getElementById('sellerDepositBadge');
+  const checkTextEl = document.getElementById('sellerBalanceCheckText');
+  const availEl = document.getElementById('sellerAvailableBalanceText');
+  const available = state.currentUser?.available || 0;
+
+  if (availEl) availEl.textContent = formatVND(available);
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auctions/calculate-seller-deposit?startingPrice=${parsedPrice}`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+    if (!json.success || !json.data) {
+      throw new Error(json.message || 'Lỗi tính toán từ server');
+    }
+
+    const data = json.data;
+    cachedSellerDepositCalculation = data;
+
+    const deposit = data.sellerDepositAmount;
+    if (amountEl) {
+      amountEl.textContent = formatVND(deposit);
+      amountEl.style.color = '#0284c7';
+    }
+
+    if (formulaEl && data.formulaText) {
+      formulaEl.textContent = data.formulaText;
+    }
+
+    if (breakdownEl && data.breakdownText) {
+      breakdownEl.innerHTML = data.breakdownText;
+    }
+
+    if (available >= deposit) {
+      if (badgeEl) {
+        badgeEl.textContent = '✅ Đủ số dư ký quỹ';
+        badgeEl.style.background = '#22c55e22';
+        badgeEl.style.color = '#16a34a';
+      }
+      if (checkTextEl) {
+        checkTextEl.innerHTML = `Số dư khả dụng: <strong style="color:#0f172a;">${formatVND(available)}</strong> (Đủ điều kiện ký quỹ)`;
+      }
+    } else {
+      const deficit = deposit - available;
+      if (badgeEl) {
+        badgeEl.textContent = '❌ Thiếu số dư cọc';
+        badgeEl.style.background = '#ef444422';
+        badgeEl.style.color = '#dc2626';
+      }
+      if (checkTextEl) {
+        checkTextEl.innerHTML = `Số dư khả dụng: <strong style="color:#0f172a;">${formatVND(available)}</strong> (Thiếu <span style="color:#dc2626;font-weight:600;">${formatVND(deficit)}</span> - <a href="javascript:void(0)" onclick="openSmartTopup(${deficit})" style="color:#0284c7;font-weight:600;text-decoration:underline;">Nạp ngay</a>)`;
+      }
+    }
+    return deposit;
+  } catch (err) {
+    console.warn('[SellerDeposit] Lỗi fetch tính cọc từ server:', err);
+    // Fallback nếu mất mạng
+    const fallbackDeposit = Math.round(parsedPrice * 0.10);
+    if (amountEl) amountEl.textContent = formatVND(fallbackDeposit);
+    return fallbackDeposit;
+  }
+}
+
+let startingPriceDebounceTimer = null;
+
+function onStartingPriceChanged() {
+  const rawInput = document.getElementById('modalStartingPrice')?.value;
+  const startPrice = parseNumberInput(rawInput);
+
+  // Cập nhật ngay dòng nhận diện số tiền bên dưới ô nhập
+  const hintEl = document.getElementById('startingPriceReadableHint');
+  if (hintEl) {
+    if (startPrice > 0) {
+      hintEl.textContent = `💵 Nhận diện: ${formatVND(startPrice)} (${formatVietnameseCurrencyText(startPrice)})`;
+      hintEl.style.display = 'block';
+    } else {
+      hintEl.textContent = '💵 Vui lòng nhập số tiền hợp lệ';
+      hintEl.style.display = 'block';
+    }
+  }
+
+  const breakdownEl = document.getElementById('sellerDepositBreakdownText');
+  if (breakdownEl) {
+    breakdownEl.innerHTML = `<span style="opacity:0.7; color: #0284c7;">⏳ Đang gửi yêu cầu tính cọc lên server...</span>`;
+  }
+
+  // Debounce 300ms chống spam HTTP request khi gõ phím
+  if (startingPriceDebounceTimer) {
+    clearTimeout(startingPriceDebounceTimer);
+  }
+  startingPriceDebounceTimer = setTimeout(async () => {
+    await fetchCalculatedSellerDeposit(startPrice);
+    updateDutchPreview();
+  }, 300);
+}
+
+function onStartingPriceBlur() {
+  if (startingPriceDebounceTimer) {
+    clearTimeout(startingPriceDebounceTimer);
+  }
+  const rawInput = document.getElementById('modalStartingPrice')?.value;
+  const startPrice = parseNumberInput(rawInput);
+  fetchCalculatedSellerDeposit(startPrice);
+  updateDutchPreview();
+}
+
 async function openCreateAuctionModal() {
   const modal = document.getElementById('createAuctionModal');
   modal.style.display = 'flex';
+
+  const startingPriceVal = parseNumberInput(document.getElementById('modalStartingPrice')?.value) || 50000000;
+  await fetchUserWallet();
+  toggleAuctionTypeFields();
+  await fetchCalculatedSellerDeposit(startingPriceVal);
 
   // Load user's owned SIMs
   const select = document.getElementById('modalSimSelect');
@@ -1562,7 +1704,26 @@ function toggleAuctionTypeFields() {
   const advDetails = document.getElementById('advancedRulesDetails');
   if (advDetails) advDetails.style.display = isEnglish ? 'block' : 'none';
   document.getElementById('dutchFieldsRow').style.display = isEnglish ? 'none' : 'flex';
+
+  // Reserve Price: Hidden for English, shown for Dutch
+  const reserveGroup = document.getElementById('reservePriceGroup');
+  if (reserveGroup) {
+    reserveGroup.style.display = isEnglish ? 'none' : 'block';
+  }
+  if (isEnglish) {
+    const reserveInput = document.getElementById('modalReservePrice');
+    if (reserveInput) reserveInput.value = '0';
+  } else {
+    const reserveInput = document.getElementById('modalReservePrice');
+    const startPrice = parseNumberInput(document.getElementById('modalStartingPrice')?.value) || 50000000;
+    if (reserveInput && (!reserveInput.value || parseNumberInput(reserveInput.value) <= 0)) {
+      reserveInput.value = formatVND(Math.round(startPrice * 0.8)).replace('₫', '').trim();
+    }
+  }
+
   updateDutchPreview();
+  const startPrice = parseNumberInput(document.getElementById('modalStartingPrice')?.value) || 50000000;
+  fetchCalculatedSellerDeposit(startPrice);
 }
 
 function updateDutchPreview() {
@@ -1573,10 +1734,21 @@ function updateDutchPreview() {
     return;
   }
 
-  const startPrice = Number(document.getElementById('modalStartingPrice').value) || 0;
-  const reservePrice = Number(document.getElementById('modalReservePrice').value) || 0;
-  const dropAmount = Number(document.getElementById('modalDutchDecreaseAmount').value) || 0;
-  const interval = Number(document.getElementById('modalDutchInterval').value) || 0;
+  const startPrice = parseNumberInput(document.getElementById('modalStartingPrice')?.value);
+  const reservePrice = parseNumberInput(document.getElementById('modalReservePrice')?.value);
+  const dropAmount = parseNumberInput(document.getElementById('modalDutchDecreaseAmount')?.value);
+  const interval = parseNumberInput(document.getElementById('modalDutchInterval')?.value);
+
+  // Update readable hint for Reserve Price
+  const reserveHintEl = document.getElementById('reservePriceReadableHint');
+  if (reserveHintEl) {
+    if (reservePrice > 0) {
+      reserveHintEl.textContent = `💵 Nhận diện: ${formatVND(reservePrice)} (${formatVietnameseCurrencyText(reservePrice)})`;
+      reserveHintEl.style.display = 'block';
+    } else {
+      reserveHintEl.style.display = 'none';
+    }
+  }
 
   if (startPrice > 0 && reservePrice > 0 && dropAmount > 0 && interval > 0 && startPrice >= reservePrice) {
     const gap = startPrice - reservePrice;
@@ -1625,23 +1797,47 @@ async function submitCreateAuction(event) {
   const minUniqueBidders = Number(document.getElementById('modalMinUniqueBidders')?.value || 2);
   const reqSellerApprove = document.getElementById('modalRequireSellerApproval')?.checked !== false;
 
+  const startingPrice = parseNumberInput(document.getElementById('modalStartingPrice').value);
+  const isEnglish = auctionType === 'ENGLISH';
+  const reservePrice = isEnglish ? 0 : parseNumberInput(document.getElementById('modalReservePrice').value);
+
+  if (!isEnglish && reservePrice >= startingPrice) {
+    alert('Trong đấu giá Hà Lan, Giá Sàn / Dự Trữ phải nhỏ hơn Giá Khởi Điểm!');
+    return;
+  }
+
+  let sellerDeposit = cachedSellerDepositCalculation?.sellerDepositAmount;
+  if (!sellerDeposit) {
+    sellerDeposit = await fetchCalculatedSellerDeposit(startingPrice);
+  }
+  const userAvailable = state.currentUser?.available || 0;
+  if (userAvailable < sellerDeposit) {
+    const deficit = sellerDeposit - userAvailable;
+    if (confirm(`Số dư khả dụng của bạn (${formatVND(userAvailable)}) không đủ để ký quỹ niêm yết SIM (${formatVND(sellerDeposit)}). Thiếu ${formatVND(deficit)}.\n\nBạn có muốn mở cửa sổ Nạp Tiền ngay không?`)) {
+      openSmartTopup(deficit);
+    }
+    return;
+  }
+
   const body = {
     simNumberId: simNumberId,
     auctionType: auctionType,
-    startingPrice: Number(document.getElementById('modalStartingPrice').value),
-    reservePrice: Number(document.getElementById('modalReservePrice').value),
+    startingPrice: startingPrice,
+    reservePrice: reservePrice,
     startAt: startAt,
     endAt: endAt,
     registrationStartAt: new Date(Date.now() - 60000).toISOString(),
     registrationEndAt: startAt,
-    depositAmount: Number(document.getElementById('modalDepositAmount').value),
+    depositAmount: parseNumberInput(document.getElementById('modalDepositAmount').value),
+    sellerDepositAmount: sellerDeposit,
+    sellerDepositRate: cachedSellerDepositCalculation?.depositRate || 0.10,
     maxStepMultiplier: Number(document.getElementById('modalMaxStepMultiplier')?.value || 10),
     maxSnipeExtensionsPerParticipant: maxSnipe,
     maximumExtensionCount: maxExt,
     paymentGracePeriodMinutes: graceMinutes,
     paymentGracePeriodHours: Math.max(1, Math.ceil(graceMinutes / 60)),
-    minimumBidIncrement: Number(document.getElementById('modalMinIncrement')?.value || 5000000),
-    dutchDecreaseAmount: Number(document.getElementById('modalDutchDecreaseAmount')?.value || 2000000),
+    minimumBidIncrement: parseNumberInput(document.getElementById('modalMinIncrement')?.value || 5000000),
+    dutchDecreaseAmount: parseNumberInput(document.getElementById('modalDutchDecreaseAmount')?.value || 2000000),
     dutchDecreaseIntervalSeconds: Number(document.getElementById('modalDutchInterval')?.value || 60),
     extensionThresholdSeconds: extThreshold,
     extensionDurationSeconds: extDuration,
@@ -1652,7 +1848,7 @@ async function submitCreateAuction(event) {
   };
 
   try {
-    addLog('SYSTEM', `Đang tạo phiên đấu giá mới...`);
+    addLog('SYSTEM', `Đang tạo phiên đấu giá mới... (Cọc người bán: ${formatVND(sellerDeposit)})`);
     const res = await fetch(`${API_BASE_URL}/api/auctions`, {
       method: 'POST',
       headers: {
@@ -1667,9 +1863,10 @@ async function submitCreateAuction(event) {
       throw new Error(data.message || 'Lỗi tạo phiên');
     }
 
-    addLog('SYSTEM', `🎉 ĐÃ TẠO PHIÊN ${data.data.auctionCode}! Đã đẩy vào Redis Delay Queue.`);
-    alert(`Tạo phiên thành công! Mã: ${data.data.auctionCode}`);
+    addLog('SYSTEM', `🎉 ĐÃ TẠO PHIÊN ${data.data.auctionCode}! Đã ký quỹ cọc người bán ${formatVND(sellerDeposit)} & đẩy vào Delay Queue.`);
+    alert(`Tạo phiên thành công! Mã: ${data.data.auctionCode}\nTiền cọc người bán đã khóa: ${formatVND(sellerDeposit)}`);
     closeCreateAuctionModal();
+    await fetchUserWallet();
     await loadAuctions();
     await selectAuction(data.data.id);
   } catch (err) {

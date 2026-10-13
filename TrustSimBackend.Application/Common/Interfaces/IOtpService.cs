@@ -27,4 +27,9 @@ public interface IOtpService
     /// Kiểm tra xác thực mã OTP do người dùng nhập vào (qua Email).
     /// </summary>
     Task<VerifyOtpResponseDto> VerifyEmailOtpAsync(string email, string otpCode, string purpose, bool consumeOnSuccess = true);
+
+    /// <summary>
+    /// Chủ động hủy/tiêu thụ mã OTP sau khi giao dịch hoặc lưu trữ CSDL thành công.
+    /// </summary>
+    Task ConsumeEmailOtpAsync(string email, string purpose);
 }

@@ -24,6 +24,18 @@ public interface ITradeTransactionRepository
     // Thêm mới một giao dịch vào DB
     Task AddAsync(TradeTransaction tradeTransaction, CancellationToken cancellationToken = default);
     
+    // Thêm mới một hợp đồng chuyển nhượng tường minh vào DbContext
+    Task AddTransferContractAsync(TransferContract contract, CancellationToken cancellationToken = default);
+
+    // Thêm mới một chữ ký số tường minh vào DbContext
+    Task AddDigitalSignatureAsync(DigitalSignature signature, CancellationToken cancellationToken = default);
+
+    // Thêm mới một tiến trình bàn giao SIM tường minh vào DbContext
+    Task AddSimTransferAsync(SimTransfer simTransfer, CancellationToken cancellationToken = default);
+
+    // Thêm mới một bằng chứng chuyển nhượng SIM tường minh vào DbContext
+    Task AddTransferProofAsync(TransferProof transferProof, CancellationToken cancellationToken = default);
+
     // Cập nhật giao dịch
     void Update(TradeTransaction tradeTransaction);
     

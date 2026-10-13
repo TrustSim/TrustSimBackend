@@ -23,6 +23,11 @@ public class AuctionRuleConfiguration : IEntityTypeConfiguration<AuctionRule>
         builder.Property(x => x.MinimumUniqueBiddersForRunnerUp).HasDefaultValue(2).IsRequired();
         builder.Property(x => x.RequireSellerApprovalForRunnerUp).HasDefaultValue(true).IsRequired();
 
+        builder.Property(x => x.SellerDepositAmount).HasPrecision(18, 2).HasDefaultValue(0m).IsRequired();
+        builder.Property(x => x.SellerDepositRate).HasPrecision(5, 4).HasDefaultValue(0.05m).IsRequired();
+        builder.Property(x => x.SigningGracePeriodHours).HasDefaultValue(24).IsRequired();
+        builder.Property(x => x.SigningGracePeriodMinutes).HasDefaultValue(1440).IsRequired();
+
         builder.HasOne(x => x.Auction)
                .WithOne(a => a.AuctionRule)
                .HasForeignKey<AuctionRule>(x => x.AuctionId)

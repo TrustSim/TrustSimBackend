@@ -64,6 +64,17 @@ public class AuctionsController : BaseApiController
     }
 
     /// <summary>
+    /// Tính toán tiền cọc Người Bán (Seller Deposit) từ server dựa trên Giá khởi điểm và cấu hình appsettings.json
+    /// </summary>
+    [HttpGet("calculate-seller-deposit")]
+    [ProducesResponseType(typeof(ApiResponse<CalculateSellerDepositResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> CalculateSellerDeposit([FromQuery] decimal startingPrice)
+    {
+        var result = await Mediator.Send(new CalculateSellerDepositQuery(startingPrice));
+        return Ok(ApiResponse<CalculateSellerDepositResultDto>.SuccessResult(result, "Tính toán tiền cọc thành công."));
+    }
+
+    /// <summary>
     /// Tạo phiên đấu giá mới cho số SIM
     /// </summary>
     [HttpPost]

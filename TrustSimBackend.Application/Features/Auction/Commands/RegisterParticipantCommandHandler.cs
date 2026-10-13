@@ -134,6 +134,7 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
                 ParticipantId = participant.Id,
                 DepositCode = $"DEP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
                 DepositAmount = depositRequired,
+                DepositType = DepositType.INITIAL,
                 DepositStatus = DepositStatus.LOCKED,
                 AuctionTransactionId = auctionTransaction.Id,
                 AuctionTransaction = auctionTransaction

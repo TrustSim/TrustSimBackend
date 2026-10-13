@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Configurations.Auction;
 
@@ -12,6 +13,12 @@ public class AuctionDepositConfiguration : IEntityTypeConfiguration<AuctionDepos
 
         builder.Property(x => x.DepositCode).IsRequired().HasMaxLength(50);
         builder.Property(x => x.DepositAmount).HasPrecision(18, 2);
+
+        builder.Property(x => x.DepositType)
+               .IsRequired()
+               .HasConversion<string>()
+               .HasMaxLength(30)
+               .HasDefaultValue(DepositType.INITIAL);
 
         builder.Property(x => x.DepositStatus)
                .IsRequired()
@@ -34,5 +41,6 @@ public class AuctionDepositConfiguration : IEntityTypeConfiguration<AuctionDepos
         builder.HasIndex(x => x.ParticipantId);
         builder.HasIndex(x => x.AuctionTransactionId);
         builder.HasIndex(x => x.DepositStatus);
+        builder.HasIndex(x => x.DepositType);
     }
 }

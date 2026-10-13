@@ -382,6 +382,15 @@ public class OtpService : IOtpService
         return Task.FromResult(new VerifyOtpResponseDto { IsValid = true, Message = "Xác thực email thành công.", Email = normalizedEmail });
     }
 
+    public Task ConsumeEmailOtpAsync(string email, string purpose)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var cacheKey = GetEmailOtpCacheKey(normalizedEmail, purpose);
+        _cache.Remove(cacheKey);
+        _logger.LogInformation("[OtpService] Đã chủ động hủy mã OTP email cho {Email} mục đích {Purpose}", normalizedEmail, purpose);
+        return Task.CompletedTask;
+    }
+
     private string HashEmailOtp(string otpCode, string email)
     {
         var rawKey = $"{email}:{otpCode}:{_settings.OtpHashingSecret}";

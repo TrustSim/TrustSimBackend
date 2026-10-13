@@ -38,6 +38,20 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// <summary>Thời hạn tính bằng phút: Cho phép cấu hình linh hoạt (hỗ trợ test nhanh timeout 1-2 phút). Mặc định 1440 phút = 24 giờ.</summary>
         public int PaymentGracePeriodMinutes { get; set; } = 1440;
 
+        // --- Cấu hình Ký Quỹ Người Bán (Seller Listing Deposit) ---
+        /// <summary>Số tiền cọc cố định Người bán phải tạm khóa khi tạo phiên (VNĐ) (Nếu cấu hình số tiền cụ thể).</summary>
+        public decimal SellerDepositAmount { get; set; } = 0m;
+
+        /// <summary>Tỷ lệ cọc Người bán tính theo Giá khởi điểm (Mặc định 5% = 0.05). S_Deposit = StartingPrice * SellerDepositRate.</summary>
+        public decimal SellerDepositRate { get; set; } = 0.05m;
+
+        // --- Cấu hình Hạn Ký Hợp Đồng (Signing Grace Period) ---
+        /// <summary>Thời hạn X giờ: Thời gian cho phép 2 bên duyệt OTP ký hợp đồng trước khi kích hoạt Cưỡng chế hoặc Hủy (Mặc định 24h).</summary>
+        public int SigningGracePeriodHours { get; set; } = 24;
+
+        /// <summary>Thời hạn tính bằng phút: Hỗ trợ cấu hình test nhanh timeout (Mặc định 1440 phút = 24 giờ).</summary>
+        public int SigningGracePeriodMinutes { get; set; } = 1440;
+
         // --- Cấu hình Ký Quỹ Lũy Tiến & Chống Bơm Giá / Lá Chắn Giá (Anti-Shill & Bid Shielding) ---
         /// <summary>Tỷ lệ ký quỹ lũy tiến n% (Mặc định 10% = 0.10). A = X * MarginPercentage.</summary>
         public decimal MarginPercentage { get; set; } = 0.10m;

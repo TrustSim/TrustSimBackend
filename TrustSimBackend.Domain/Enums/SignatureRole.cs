@@ -3,6 +3,7 @@ namespace TrustSimBackend.Domain.Enums
     public enum SignatureRole
     {
         SELLER,
-        BUYER
+        BUYER,
+        PLATFORM_ARBITRATOR
     }
 }

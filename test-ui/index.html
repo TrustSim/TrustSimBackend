@@ -53,6 +53,10 @@
         <span id="themeIcon">☀️</span> <span id="themeText">Giao diện sáng</span>
       </button>
 
+      <a href="contract_studio.html" class="btn-topup-header" style="text-decoration: none; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Mở Studio Ký Hợp Đồng & Kiểm Định PAdES">
+        <span>📜 Hợp Đồng Số Studio</span>
+      </a>
+
       <button class="btn-topup-header" onclick="openDepositModal()" title="Nạp tiền vào ví qua VietQR SePay">
         <span>💳 Nạp Tiền Ví</span>
       </button>
@@ -388,11 +392,31 @@
         <div class="form-row">
           <div class="form-group">
             <label>Giá Khởi Điểm (VNĐ):</label>
-            <input type="number" id="modalStartingPrice" value="50000000" required step="1000000">
+            <input type="text" inputmode="numeric" id="modalStartingPrice" value="50.000.000" required placeholder="Ví dụ: 20.000.000 hoặc 50000000" oninput="onStartingPriceChanged()" onblur="onStartingPriceBlur()" onchange="onStartingPriceBlur()">
+            <div id="startingPriceReadableHint" style="font-size: 11px; color: #0284c7; margin-top: 4px; font-weight: 600;">💵 Nhận diện: 50.000.000 ₫ (50 triệu đồng)</div>
           </div>
-          <div class="form-group">
-            <label>Giá Dự Trữ / Sàn (VNĐ):</label>
-            <input type="number" id="modalReservePrice" value="40000000" step="1000000">
+          <div class="form-group" id="reservePriceGroup" style="display: none;">
+            <label>Giá Dự Trữ / Sàn (VNĐ) <span style="font-size: 11px; opacity: 0.7;">(Chỉ áp dụng Hà Lan)</span>:</label>
+            <input type="text" inputmode="numeric" id="modalReservePrice" value="40.000.000" placeholder="Ví dụ: 40.000.000" oninput="updateDutchPreview()">
+            <div id="reservePriceReadableHint" style="font-size: 11px; color: #0284c7; margin-top: 4px; font-weight: 600; display: none;">💵 Nhận diện: 40.000.000 ₫ (40 triệu đồng)</div>
+          </div>
+        </div>
+
+        <!-- Dynamic Seller Listing Deposit Preview Card -->
+        <div id="sellerDepositPreviewCard" class="seller-deposit-card" style="margin-bottom: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-weight: 600; font-size: 13px; color: #0284c7;">🛡️ Tiền Cọc Niêm Yết Người Bán (Seller Deposit)</span>
+            <span id="sellerDepositBadge" style="font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; background: #22c55e22; color: #16a34a;">✅ Đủ số dư ký quỹ</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <div style="font-size: 20px; font-weight: 800; color: #0284c7;" id="sellerDepositAmountText">5.000.000 ₫</div>
+            <div style="font-size: 12px; color: #64748b;" id="sellerDepositFormulaText">Đang tải công thức từ server...</div>
+          </div>
+          <div id="sellerDepositBreakdownText" style="font-size: 11px; color: #475569; margin-top: 4px;">
+            Đang tính toán cọc theo cấu hình Server...
+          </div>
+          <div style="font-size: 11px; color: #475569; margin-top: 4px;" id="sellerBalanceCheckText">
+            Số dư ví khả dụng: <strong id="sellerAvailableBalanceText" style="color: #0f172a;">0 ₫</strong>
           </div>
         </div>
 
@@ -476,7 +500,7 @@
 
         <div class="form-row">
           <div class="form-group">
-            <label>Tiền Đặt Cọc (VNĐ):</label>
+            <label>Tiền Đặt Cọc Người Mua (VNĐ):</label>
             <input type="number" id="modalDepositAmount" value="10000000" required step="1000000">
           </div>
           <div class="form-group" id="durationGroup">
