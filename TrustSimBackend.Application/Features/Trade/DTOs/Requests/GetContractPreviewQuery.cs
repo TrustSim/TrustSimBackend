@@ -10,5 +10,6 @@ namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 /// <param name="CurrentUserId">ID người dùng đang xem.</param>
 public record GetContractPreviewQuery(
     Guid TradeId,
-    Guid CurrentUserId
+    Guid CurrentUserId,
+    bool IsAdmin = false
 ) : IRequest<ContractPreviewDto>;

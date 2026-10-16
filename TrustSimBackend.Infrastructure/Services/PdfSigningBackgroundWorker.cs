@@ -73,7 +73,7 @@ public class PdfSigningBackgroundWorker : BackgroundService
         // Tạo Consumer Group nếu chưa tồn tại
         try
         {
-            await db.StreamCreateConsumerGroupAsync(StreamKey, GroupName, StreamPosition.NewMessages);
+            await db.StreamCreateConsumerGroupAsync(StreamKey, GroupName, StreamPosition.Beginning, createStream: true);
         }
         catch { /* Group đã tồn tại */ }
 
@@ -83,7 +83,13 @@ public class PdfSigningBackgroundWorker : BackgroundService
         {
             try
             {
-                var entries = await db.StreamReadGroupAsync(StreamKey, GroupName, ConsumerName, ">", count: 5);
+                // Ưu tiên xử lý các message pending (chưa hoàn tất), sau đó đọc message mới (">")
+                var entries = await db.StreamReadGroupAsync(StreamKey, GroupName, ConsumerName, "0", count: 5);
+                if (entries == null || entries.Length == 0)
+                {
+                    entries = await db.StreamReadGroupAsync(StreamKey, GroupName, ConsumerName, ">", count: 5);
+                }
+
                 if (entries == null || entries.Length == 0)
                 {
                     await Task.Delay(1000, stoppingToken);
@@ -98,7 +104,14 @@ public class PdfSigningBackgroundWorker : BackgroundService
 
                     if (Guid.TryParse(tradeIdStr, out var tradeId))
                     {
-                        await ProcessContractSigningAsync(tradeId, isAutoEnforced, stoppingToken);
+                        try
+                        {
+                            await ProcessContractSigningAsync(tradeId, isAutoEnforced, stoppingToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "[PdfSigningWorker] Lỗi khi xử lý ký số cho Trade {TradeId}", tradeId);
+                        }
                     }
 
                     // Acknowledge (XACK) thông điệp
@@ -108,6 +121,11 @@ public class PdfSigningBackgroundWorker : BackgroundService
             catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 _logger.LogError(ex, "[PdfSigningWorker] Lỗi tiêu thụ task từ Redis Stream.");
+                try
+                {
+                    await db.StreamCreateConsumerGroupAsync(StreamKey, GroupName, StreamPosition.Beginning, createStream: true);
+                }
+                catch { }
                 await Task.Delay(2000, stoppingToken);
             }
         }
@@ -154,8 +172,9 @@ public class PdfSigningBackgroundWorker : BackgroundService
             stampBoxes, 
             ct);
 
-        // 4. Upload lên S3 / MinIO
-        var fileName = $"{trade.TradeTransactionCode}_Signed.pdf";
+        // 4. Upload lên Cloud Storage (Supabase / Local)
+        var simPhone = trade.SimNumber?.PhoneNumber?.Replace("+", "") ?? "SIM";
+        var fileName = $"HopDong_{trade.TradeTransactionCode}_{simPhone}_Signed.pdf";
         var fileUrl = await cloudStorage.UploadImageBytesAsync(signResult.SignedPdfBytes, fileName, "contracts", "application/pdf", ct);
 
         // 5. Cập nhật Database
@@ -175,21 +194,27 @@ public class PdfSigningBackgroundWorker : BackgroundService
         await unitOfWork.SaveChangesAsync(ct);
         _logger.LogInformation("[PdfSigningWorker] ✅ Niêm phong PAdES thành công: {Url} (Hash: {Hash})", fileUrl, signResult.Sha256Hash);
 
-        // Bắn thông báo cho cả 2 bên
+        // Bắn thông báo và gửi email cho cả 2 bên (Action URL trỏ trực tiếp tới File PDF PAdES trên Supabase CDN)
         await notificationService.SendNotificationAsync(
             trade.BuyerId,
             NotificationType.CONTRACT_FULLY_SIGNED,
             "Hợp đồng đã được ký số niêm phong",
-            $"Hợp đồng chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã được hoàn tất ký số. Vui lòng theo dõi tiến trình sang tên.",
-            $"/trade/{trade.Id}",
+            $"Hợp đồng chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã được hoàn tất ký số niêm phong PAdES X.509. Vui lòng bấm để xem và tải tệp tin PDF chính thức.",
+            actionUrl: fileUrl,
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
             cancellationToken: ct);
 
         await notificationService.SendNotificationAsync(
             trade.SellerId,
             NotificationType.CONTRACT_FULLY_SIGNED,
             "Hợp đồng đã được ký số niêm phong",
-            $"Hợp đồng chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã được niêm phong. Vui lòng tiến hành sang tên chính chủ cho người mua.",
-            $"/trade/{trade.Id}",
+            $"Hợp đồng chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã được niêm phong PAdES X.509. Vui lòng tiến hành sang tên chính chủ cho người mua.",
+            actionUrl: fileUrl,
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
             cancellationToken: ct);
     }
 }

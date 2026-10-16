@@ -645,7 +645,7 @@ public static class DbSeeder
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000002"), Phone = "0909999999", Price = 550000000m,  Status = SimStatus.TRANSFERRED, Prefix = pr090, Rhythm = f46, Seller = sellerPhuQuy, Categories = new[] { caLucQuy, caKhongThatBat } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000003"), Phone = "0912345678", Price = 105000000m,  Status = SimStatus.IN_AUCTION, Prefix = pr091, Rhythm = f28, Seller = sellerDaiPhat, Categories = new[] { caSanhTien } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000004"), Phone = "0888686868", Price = 72000000m,   Status = SimStatus.IN_AUCTION, Prefix = pr088, Rhythm = f22222, Seller = sellerDaiPhat, Categories = new[] { caLocPhatKep, caKhongThatBat } },
-            new { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), Phone = "0797979799", Price = 35000000m,   Status = SimStatus.AVAILABLE,  Prefix = pr079, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caThanTaiLon } },
+            new { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), Phone = "0797979799", Price = 35000000m,   Status = SimStatus.TRANSFERRED,  Prefix = pr079, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caThanTaiLon } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), Phone = "0966668888", Price = 120000000m,  Status = SimStatus.TRANSFERRED, Prefix = pr097, Rhythm = f244, Seller = sellerPhuQuy, Categories = new[] { caTuQuy, caKhongThatBat } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000007"), Phone = "0986868686", Price = 2200000000m, Status = SimStatus.IN_AUCTION, Prefix = pr098, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caDaiTaxi86, caLocPhat86, caKhongThatBat } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000008"), Phone = "0869192776", Price = 450000m,       Status = SimStatus.AVAILABLE,  Prefix = pr086, Rhythm = f334, Seller = sellerDaiPhat, Categories = new[] { caGanhDao } },
@@ -1136,6 +1136,31 @@ public static class DbSeeder
             await context.Auctions.AddAsync(auc6);
         }
 
+        // 7. AUC7: English - END (Phiên đấu giá đã xong và thanh lý thành công 100% liên kết trade3)
+        var sim05 = Guid.Parse("21000000-0000-0000-0000-000000000005"); // 0797979799
+        var auc7 = await context.Auctions.FirstOrDefaultAsync(a => a.Id == Guid.Parse("31000000-0000-0000-0000-000000000007"));
+        if (auc7 == null)
+        {
+            auc7 = new Auction
+            {
+                Id = Guid.Parse("31000000-0000-0000-0000-000000000007"),
+                AuctionCode = "AUC-20260815-007",
+                AuctionType = AuctionType.ENGLISH,
+                AuctionStatus = AuctionStatus.END,
+                StartingPrice = 25000000m,
+                CurrentPrice = 35000000m,
+                ReservePrice = 30000000m,
+                StartAt = DateTime.UtcNow.AddDays(-15),
+                EndAt = DateTime.UtcNow.AddDays(-12),
+                RegistrationStartAt = DateTime.UtcNow.AddDays(-20),
+                RegistrationEndAt = DateTime.UtcNow.AddDays(-15),
+                LockVersion = 3,
+                AuthorId = sellerPhuQuy,
+                SimNumberId = sim05
+            };
+            await context.Auctions.AddAsync(auc7);
+        }
+
         await context.SaveChangesAsync();
 
         // 2. Auction Rules (32000000-...)
@@ -1287,10 +1312,12 @@ public static class DbSeeder
 
         var auc5Id = Guid.Parse("31000000-0000-0000-0000-000000000005");
         var auc6Id = Guid.Parse("31000000-0000-0000-0000-000000000006");
+        var auc7Id = Guid.Parse("31000000-0000-0000-0000-000000000007");
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
         var bidderDaiGia = Guid.Parse("11000000-0000-0000-0000-000000000005");
         var bidderKinhDoanh = Guid.Parse("11000000-0000-0000-0000-000000000006");
         var sim02 = Guid.Parse("21000000-0000-0000-0000-000000000002"); // 0909999999
+        var sim05 = Guid.Parse("21000000-0000-0000-0000-000000000005"); // 0797979799
         var sim06 = Guid.Parse("21000000-0000-0000-0000-000000000006"); // 0966668888
 
         // ══════════════════════════════════════════════════════════════
@@ -1305,6 +1332,7 @@ public static class DbSeeder
             EscrowDeadline = DateTime.UtcNow.AddDays(1),
             SigningDeadline = DateTime.UtcNow.AddDays(2),
             TransferDeadline = DateTime.UtcNow.AddDays(5),
+            LiquidationDeadline = DateTime.UtcNow.AddDays(3),
             CompletedAt = DateTime.UtcNow,
             AuctionId = auc5Id,
             BuyerId = bidderKinhDoanh,
@@ -1327,8 +1355,13 @@ public static class DbSeeder
         var contract1 = new TransferContract
         {
             Id = Guid.Parse("43000000-0000-0000-0000-000000000001"),
+            WinningNoticeUrl = "https://storage.trustsim.vn/contracts/PhieuChotGia_TRD-20260830-001_0909999999.pdf",
+            WinningNoticeHash = "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
             DocumentUrl = "https://storage.trustsim.vn/contracts/TRD-20260830-001.pdf",
             DocumentHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            LiquidationDocumentUrl = "https://storage.trustsim.vn/contracts/BienBanThanhLy_TRD-20260830-001_0909999999_Signed.pdf",
+            LiquidationDocumentHash = "f0e1d2c3b4a5968778695a4b3c2d1e0f0123456789abcdef0123456789abcdef",
+            LiquidationSealedAt = DateTime.UtcNow.AddHours(-2),
             BlockchainTxHash = "0x7f9fad1c0e5a83b275c4e976ec4e0626a23531b79f83526d11f71a938c0f5f84",
             ContractStatus = ContractStatus.FULLY_SIGNED,
             PadesSignatureSerial = "4A8F9C1288B1",
@@ -1409,6 +1442,7 @@ public static class DbSeeder
             EscrowDeadline = DateTime.UtcNow.AddDays(1),
             SigningDeadline = DateTime.UtcNow.AddHours(24),
             TransferDeadline = DateTime.UtcNow.AddDays(4),
+            LiquidationDeadline = DateTime.UtcNow.AddDays(7),
             CompletedAt = DateTime.UtcNow,
             AuctionId = auc6Id,
             BuyerId = bidderDaiGia,
@@ -1431,6 +1465,8 @@ public static class DbSeeder
         var contract2 = new TransferContract
         {
             Id = Guid.Parse("43000000-0000-0000-0000-000000000002"),
+            WinningNoticeUrl = "https://storage.trustsim.vn/contracts/PhieuChotGia_TRD-20261010-002_0966668888.pdf",
+            WinningNoticeHash = "c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0a1b2",
             DocumentUrl = string.Empty,
             DocumentHash = string.Empty,
             BlockchainTxHash = string.Empty,
@@ -1438,6 +1474,70 @@ public static class DbSeeder
             TradeTransactionId = trade2.Id
         };
         await context.TransferContracts.AddAsync(contract2);
+
+        // ══════════════════════════════════════════════════════════════
+        // GIAO DỊCH 3: TRD-20260820-003 (ĐÃ HOÀN TẤT THANH LÝ 100% - Completed)
+        // Dùng test xem trước và tải cả 3 văn bản điện tử hoàn tất từ A-Z
+        // ══════════════════════════════════════════════════════════════
+        var trade3 = new TradeTransaction
+        {
+            Id = Guid.Parse("41000000-0000-0000-0000-000000000003"),
+            TradeTransactionCode = "TRD-20260820-003",
+            TradeTransactionStatus = TradeTransactionStatus.Completed,
+            EscrowDeadline = DateTime.UtcNow.AddDays(-10),
+            SigningDeadline = DateTime.UtcNow.AddDays(-8),
+            TransferDeadline = DateTime.UtcNow.AddDays(-3),
+            LiquidationDeadline = DateTime.UtcNow.AddDays(-1),
+            CompletedAt = DateTime.UtcNow.AddDays(-1),
+            AuctionId = auc7Id,
+            BuyerId = bidderDaiGia,
+            SellerId = sellerPhuQuy,
+            SimNumberId = sim05
+        };
+        await context.TradeTransactions.AddAsync(trade3);
+
+        var escrow3 = new Escrow
+        {
+            Id = Guid.Parse("42000000-0000-0000-0000-000000000003"),
+            EscrowAmount = 35000000m,
+            EscrowStatus = EscrowStatus.RELEASED,
+            HeldAt = DateTime.UtcNow.AddDays(-10),
+            AuctionDepositId = null,
+            TradeTransactionId = trade3.Id
+        };
+        await context.Escrows.AddAsync(escrow3);
+
+        var contract3 = new TransferContract
+        {
+            Id = Guid.Parse("43000000-0000-0000-0000-000000000003"),
+            WinningNoticeUrl = "https://storage.trustsim.vn/contracts/PhieuChotGia_TRD-20260820-003_0797979799.pdf",
+            WinningNoticeHash = "789abcdef0123456789abcdef0a1b2c3d4e5f60718293a4b5c6d7e8f90123456",
+            DocumentUrl = "https://storage.trustsim.vn/contracts/TRD-20260820-003.pdf",
+            DocumentHash = "7f9fad1c0e5a83b275c4e976ec4e0626a23531b79f83526d11f71a938c0f5f84",
+            LiquidationDocumentUrl = "https://storage.trustsim.vn/contracts/BienBanThanhLy_TRD-20260820-003_0797979799_Signed.pdf",
+            LiquidationDocumentHash = "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
+            LiquidationSealedAt = DateTime.UtcNow.AddDays(-1),
+            BlockchainTxHash = "0x8e1a7b4f3c2d1e0f0123456789abcdef0123456789abcdef0123456789abcdef",
+            ContractStatus = ContractStatus.FULLY_SIGNED,
+            PadesSignatureSerial = "5B9E0D2399C2",
+            PadesSignatureHash = "8e1a7b4f3c2d1e0f0123456789abcdef0123456789abcdef0123456789abcdef",
+            TsaTimestamp = DateTime.UtcNow.AddDays(-2),
+            TsaAuthority = "freetsa.org",
+            SealedAt = DateTime.UtcNow.AddDays(-2),
+            IsAutoEnforced = false,
+            TradeTransactionId = trade3.Id
+        };
+        await context.TransferContracts.AddAsync(contract3);
+
+        var transfer3 = new SimTransfer
+        {
+            Id = Guid.Parse("45000000-0000-0000-0000-000000000003"),
+            StartAt = DateTime.UtcNow.AddDays(-3),
+            Deadline = DateTime.UtcNow.AddDays(-1),
+            SimTransferStatus = SimTransferStatus.COMPLETED,
+            TradeTransactionId = trade3.Id
+        };
+        await context.SimTransfers.AddAsync(transfer3);
 
         await context.SaveChangesAsync();
     }

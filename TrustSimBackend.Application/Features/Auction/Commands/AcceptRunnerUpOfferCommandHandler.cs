@@ -19,19 +19,22 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
     private readonly INotificationService _notificationService;
+    private readonly IPdfContractService _pdfContractService;
 
     public AcceptRunnerUpOfferCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
         IAuctionDelayQueueService delayQueue,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IPdfContractService pdfContractService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
         _notificationService = notificationService;
+        _pdfContractService = pdfContractService;
     }
 
     public async Task<AuctionResultDto> Handle(AcceptRunnerUpOfferCommand request, CancellationToken cancellationToken)
@@ -204,6 +207,17 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Tự động sinh Văn bản 1 (Phiếu chốt giá trúng) và tải lên Supabase Storage CDN ngay lập tức
+        string? winningNoticeUrl = null;
+        try
+        {
+            winningNoticeUrl = await _pdfContractService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
+        }
+        catch
+        {
+            // fallback nếu lỗi
+        }
+
         // Gửi thông báo cho Á quân và Seller
         var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
 
@@ -211,8 +225,8 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             userId: participant.UserAccountId,
             type: NotificationType.CONTRACT_SIGNING_REQUIRED,
             title: $"📝 Yêu cầu ký hợp đồng SIM {sim?.PhoneNumber}!",
-            content: $"Bạn đã mua thành công SIM theo đề nghị Á quân phiên {auction.AuctionCode}. Tiền đã được ký quỹ Escrow an toàn. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-            actionUrl: $"/trades/{trade.Id}",
+            content: $"Bạn đã mua thành công SIM theo đề nghị Á quân phiên {auction.AuctionCode}. Tiền đã được ký quỹ Escrow an toàn. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
+            actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
             sendEmail: true,
@@ -222,8 +236,8 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             userId: auction.AuthorId,
             type: NotificationType.CONTRACT_SIGNING_REQUIRED,
             title: $"📝 Á quân đã mua SIM {sim?.PhoneNumber}! Vui lòng ký hợp đồng",
-            content: $"Á quân phiên {auction.AuctionCode} đã thanh toán đủ {priceToPay:N0} VNĐ vào quỹ Escrow. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-            actionUrl: $"/trades/{trade.Id}",
+            content: $"Á quân phiên {auction.AuctionCode} đã thanh toán đủ {priceToPay:N0} VNĐ vào quỹ Escrow. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
+            actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
             sendEmail: true,

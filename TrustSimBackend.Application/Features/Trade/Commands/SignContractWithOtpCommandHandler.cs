@@ -3,8 +3,10 @@ using System.Text;
 using System.Text.Json;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
@@ -23,6 +25,7 @@ public class SignContractWithOtpCommandHandler : IRequestHandler<SignContractWit
     private readonly IOtpService _otpService;
     private readonly IContractSigningQueueService _signingQueue;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly TradeDeadlineSettings _deadlineSettings;
     private readonly ILogger<SignContractWithOtpCommandHandler> _logger;
 
     public SignContractWithOtpCommandHandler(
@@ -30,12 +33,14 @@ public class SignContractWithOtpCommandHandler : IRequestHandler<SignContractWit
         IOtpService otpService,
         IContractSigningQueueService signingQueue,
         IAuctionDelayQueueService delayQueue,
+        IOptions<TradeDeadlineSettings> deadlineSettingsOptions,
         ILogger<SignContractWithOtpCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _otpService = otpService;
         _signingQueue = signingQueue;
         _delayQueue = delayQueue;
+        _deadlineSettings = deadlineSettingsOptions.Value;
         _logger = logger;
     }
 
@@ -144,6 +149,9 @@ public class SignContractWithOtpCommandHandler : IRequestHandler<SignContractWit
             trade.TransferContract.ContractStatus = ContractStatus.FULLY_SIGNED;
             trade.TradeTransactionStatus = TradeTransactionStatus.PendingTransfer;
 
+            var transferDeadline = now.AddHours(_deadlineSettings.TransferDeadlineHours);
+            trade.TransferDeadline = transferDeadline;
+
             if (trade.SimTransfer == null)
             {
                 var simTransfer = new SimTransfer
@@ -151,15 +159,28 @@ public class SignContractWithOtpCommandHandler : IRequestHandler<SignContractWit
                     Id = Guid.NewGuid(),
                     TradeTransactionId = trade.Id,
                     StartAt = now,
-                    Deadline = now.AddDays(7),
+                    Deadline = transferDeadline,
                     SimTransferStatus = SimTransferStatus.PENDING_SELLER_ACTION
                 };
                 await _unitOfWork.TradeTransactions.AddSimTransferAsync(simTransfer, cancellationToken);
                 trade.SimTransfer = simTransfer;
             }
+            else
+            {
+                trade.SimTransfer.Deadline = transferDeadline;
+            }
 
             // Hủy tác vụ hẹn giờ SIGNING_DEADLINE trong Redis ZSET
             await _delayQueue.CancelJobAsync(trade.AuctionId, AuctionDelayJobTypes.SIGNING_DEADLINE, cancellationToken);
+
+            // Nạp tác vụ hẹn giờ TRANSFER_DEADLINE vào Redis ZSET
+            await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+            {
+                AuctionId = trade.AuctionId,
+                JobType = AuctionDelayJobTypes.TRANSFER_DEADLINE,
+                ExecuteAt = transferDeadline,
+                ExtraData = trade.Id.ToString()
+            }, cancellationToken);
 
             // Đẩy task vào Redis Stream cho Background Worker niêm phong PAdES
             await _signingQueue.EnqueueContractSigningTaskAsync(trade.Id, isAutoEnforced: false, cancellationToken);

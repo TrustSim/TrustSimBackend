@@ -144,16 +144,18 @@ public class AuthController : BaseApiController
     }
 
     /// <summary>
-    /// Cập nhật ảnh đại diện Avatar (Yêu cầu xác thực qua Middleware)
+    /// Cập nhật ảnh đại diện Avatar bằng tệp hình ảnh tải lên (Yêu cầu xác thực qua Middleware)
     /// </summary>
     [HttpPut("avatar")]
     [Authorize]
+    [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateAvatar([FromBody] UpdateAvatarCommand command)
+    public async Task<IActionResult> UpdateAvatar([FromForm] UpdateAvatarRequest request)
     {
-        var result = await Mediator.Send(command with { UserId = CurrentUserId });
+        var command = new UpdateAvatarCommand(request.File, CurrentUserId);
+        var result = await Mediator.Send(command);
         return Ok(ApiResponse<string>.SuccessResult(result, "Cập nhật ảnh đại diện thành công."));
     }
 

@@ -25,5 +25,17 @@ public record ContractPreviewDto(
     string? BuyerIp = null,
     string? BuyerAuthMethod = null,
     string? SellerIp = null,
-    string? SellerAuthMethod = null
+    string? SellerAuthMethod = null,
+    string? SimPhoneNumber = null,
+    decimal? EscrowAmount = null,
+    string? BuyerName = null,
+    string? SellerName = null,
+    string? WinningNoticeUrl = null,
+    string? WinningNoticeHash = null,
+    string? LiquidationDocumentUrl = null,
+    string? LiquidationDocumentHash = null,
+    DateTime? LiquidationSealedAt = null,
+    DateTime? TransferDeadline = null,
+    DateTime? LiquidationDeadline = null
 );
+

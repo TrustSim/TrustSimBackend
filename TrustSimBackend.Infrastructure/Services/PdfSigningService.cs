@@ -36,7 +36,8 @@ public class PdfSigningService : IPdfSigningService
         CancellationToken cancellationToken = default)
     {
         // 1. Lấy đường dẫn file chứng thư .pfx
-        var pfxPath = _configuration["DigitalSignature:CertPath"] ?? "keys/trustsim_platform.pfx";
+        var rawPfxPath = _configuration["DigitalSignature:CertPath"] ?? "keys/trustsim_platform.pfx";
+        var pfxPath = ResolveCertPath(rawPfxPath);
         var pfxPassword = _configuration["DigitalSignature:CertPassword"] ?? "TrustSim2026@Pass";
 
         // Tự động sinh chứng thư nếu chưa tồn tại (Hỗ trợ chạy ngay trong môi trường Dev/Test)
@@ -122,6 +123,38 @@ public class PdfSigningService : IPdfSigningService
     /// <summary>
     /// Kiểm tra và tự động sinh chứng thư X.509 RSA 2048-bit nếu file .pfx chưa tồn tại trên ổ đĩa.
     /// </summary>
+    private static string ResolveCertPath(string configuredPath)
+    {
+        if (Path.IsPathRooted(configuredPath) && File.Exists(configuredPath))
+        {
+            return configuredPath;
+        }
+
+        var candidateBases = new[]
+        {
+            Directory.GetCurrentDirectory(),
+            AppContext.BaseDirectory,
+            Path.Combine(Directory.GetCurrentDirectory(), ".."),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..")
+        };
+
+        foreach (var b in candidateBases)
+        {
+            try
+            {
+                var candidate = Path.GetFullPath(Path.Combine(b, configuredPath));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+            catch { }
+        }
+
+        return Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), configuredPath));
+    }
+
     private void EnsureCertificateExists(string pfxPath, string pfxPassword)
     {
         if (File.Exists(pfxPath)) return;
@@ -148,8 +181,7 @@ public class PdfSigningService : IPdfSigningService
                 critical: true));
 
             var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(5));
-            var certWithKey = cert.CopyWithPrivateKey(rsa);
-            var pfxBytes = certWithKey.Export(X509ContentType.Pfx, pfxPassword);
+            var pfxBytes = cert.Export(X509ContentType.Pfx, pfxPassword);
 
             File.WriteAllBytes(pfxPath, pfxBytes);
             _logger.LogInformation("[PdfSigner] ✅ Đã tự động tạo và lưu trữ chứng thư số tại '{Path}'.", pfxPath);
@@ -157,6 +189,7 @@ public class PdfSigningService : IPdfSigningService
         catch (Exception ex)
         {
             _logger.LogError(ex, "[PdfSigner] ❌ Lỗi khi tự động sinh chứng thư số: {Msg}", ex.Message);
+            throw;
         }
     }
 }

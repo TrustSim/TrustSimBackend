@@ -21,19 +21,22 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
     private readonly INotificationService _notificationService;
+    private readonly IPdfContractService _pdfContractService;
 
     public AcceptDutchBuyCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
         IAuctionDelayQueueService delayQueue,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IPdfContractService pdfContractService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
         _notificationService = notificationService;
+        _pdfContractService = pdfContractService;
     }
 
     public async Task<AuctionResultDto> Handle(AcceptDutchBuyCommand request, CancellationToken cancellationToken)
@@ -280,6 +283,18 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                 await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);
                 await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
                 await _unitOfWork.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Tự động sinh Văn bản 1 (Phiếu chốt giá trúng) và upload Supabase Storage CDN ngay lập tức
+                string? winningNoticeUrl = null;
+                try
+                {
+                    winningNoticeUrl = await _pdfContractService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
+                }
+                catch
+                {
+                    // fallback nếu lỗi
+                }
 
                 // Thông báo cho Người mua và Người bán
                 await _notificationService.SendNotificationAsync(
@@ -287,7 +302,7 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     type: NotificationType.AUCTION_WON,
                     title: $"🎉 Chúc mừng bạn đã mua thành công SIM {sim?.PhoneNumber}!",
                     content: $"Bạn đã mua thành công SIM {sim?.PhoneNumber} trong phiên đấu giá Hà Lan {auction.AuctionCode} với mức giá {currentPrice:N0} VNĐ. Toàn bộ số tiền đã được chuyển vào quỹ Escrow bảo đảm.",
-                    actionUrl: $"/trades/{trade.Id}",
+                    actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
                     referenceType: "TradeTransaction",
                     referenceId: trade.Id,
                     sendEmail: true,
@@ -298,7 +313,7 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                     type: NotificationType.TRADE_TRANSFERRING_SIM,
                     title: $"🎉 Phiên đấu giá Hà Lan SIM {auction.SimNumber?.PhoneNumber} đã có người mua!",
                     content: $"Phiên đấu giá {auction.AuctionCode} đã kết thúc. Người mua là {buyerName} với mức giá {currentPrice:N0} VNĐ (Đã thanh toán đủ vào quỹ Escrow). Vui lòng tiến hành thủ tục chuyển nhượng.",
-                    actionUrl: $"/trades/{trade.Id}",
+                    actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
                     referenceType: "TradeTransaction",
                     referenceId: trade.Id,
                     sendEmail: true,

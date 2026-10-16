@@ -19,19 +19,22 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
     private readonly INotificationService _notificationService;
+    private readonly IPdfContractService _pdfContractService;
 
     public ConfirmWinnerPaymentCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
         IAuctionDelayQueueService delayQueue,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IPdfContractService pdfContractService)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
         _notificationService = notificationService;
+        _pdfContractService = pdfContractService;
     }
 
     public async Task<AuctionResultDto> Handle(ConfirmWinnerPaymentCommand request, CancellationToken cancellationToken)
@@ -198,6 +201,17 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Tự động sinh Văn bản 1 (Phiếu chốt giá trúng) và tải lên Supabase Storage CDN ngay lập tức
+        string? winningNoticeUrl = null;
+        try
+        {
+            winningNoticeUrl = await _pdfContractService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
+        }
+        catch
+        {
+            // fallback nếu có lỗi bất ngờ
+        }
+
         // Gửi thông báo cho Người thắng và Người bán
         var buyerName = participant.UserAccount?.UserName ?? "Người thắng cuộc";
         var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
@@ -206,8 +220,8 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
             userId: participant.UserAccountId,
             type: NotificationType.CONTRACT_SIGNING_REQUIRED,
             title: $"📝 Yêu cầu ký hợp đồng SIM {sim?.PhoneNumber}!",
-            content: $"Bạn đã thanh toán thành công {remainingRequired:N0} VNĐ cho phiên {auction.AuctionCode}. Tiền đã vào quỹ Escrow bảo đảm an toàn. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-            actionUrl: $"/trades/{trade.Id}",
+            content: $"Bạn đã thanh toán thành công {remainingRequired:N0} VNĐ cho phiên {auction.AuctionCode}. Tiền đã vào quỹ Escrow bảo đảm an toàn. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
+            actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
             sendEmail: true,
@@ -217,8 +231,8 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
             userId: auction.AuthorId,
             type: NotificationType.CONTRACT_SIGNING_REQUIRED,
             title: $"📝 Người mua {buyerName} đã thanh toán SIM {sim?.PhoneNumber}! Vui lòng ký hợp đồng",
-            content: $"Người thắng ({buyerName}) phiên {auction.AuctionCode} đã thanh toán đủ {totalEscrowAmount:N0} VNĐ vào quỹ Escrow. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-            actionUrl: $"/trades/{trade.Id}",
+            content: $"Người thắng ({buyerName}) phiên {auction.AuctionCode} đã thanh toán đủ {totalEscrowAmount:N0} VNĐ vào quỹ Escrow. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
+            actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
             sendEmail: true,

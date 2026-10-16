@@ -18,6 +18,31 @@ namespace TrustSimBackend.Domain.Entities.Trade
         /// Mã hash SHA-256 của tài liệu hợp đồng đã niêm phong (null khi đang DRAFT chờ ký).
         /// </summary>
         public string? DocumentHash { get; set; }
+
+        /// <summary>
+        /// [Văn bản 1] Đường dẫn tới Phiếu xác nhận kết quả đấu giá / Phiếu chốt giá trúng điện tử (PDF Supabase).
+        /// </summary>
+        public string? WinningNoticeUrl { get; set; }
+
+        /// <summary>
+        /// [Văn bản 1] Mã hash SHA-256 của Phiếu chốt giá trúng điện tử.
+        /// </summary>
+        public string? WinningNoticeHash { get; set; }
+
+        /// <summary>
+        /// [Văn bản 3] Đường dẫn tới Biên bản nghiệm thu & thanh lý hợp đồng chuyển nhượng SIM (PDF Supabase).
+        /// </summary>
+        public string? LiquidationDocumentUrl { get; set; }
+
+        /// <summary>
+        /// [Văn bản 3] Mã hash SHA-256 của Biên bản nghiệm thu & thanh lý đã niêm phong.
+        /// </summary>
+        public string? LiquidationDocumentHash { get; set; }
+
+        /// <summary>
+        /// [Văn bản 3] Thời điểm niêm phong chữ ký số Biên bản nghiệm thu & thanh lý.
+        /// </summary>
+        public DateTime? LiquidationSealedAt { get; set; }
         
         /// <summary>
         /// Mã giao dịch trên blockchain.

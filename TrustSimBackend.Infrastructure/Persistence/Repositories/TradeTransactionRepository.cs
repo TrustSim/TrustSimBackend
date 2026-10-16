@@ -47,6 +47,8 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .Include(t => t.Seller)
                 .ThenInclude(u => u!.UserProfile)
             .Include(t => t.SimNumber)
+                .ThenInclude(s => s!.PhonePrefix)
+                    .ThenInclude(p => p!.SimCarrier)
             .Include(t => t.Escrow)
             .Include(t => t.Auction)
                 .ThenInclude(a => a!.AuctionRule)

@@ -67,6 +67,14 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         await request.SelfieImage.CopyToAsync(selfieMs, cancellationToken);
         var selfieBytes = selfieMs.ToArray();
 
+        byte[]? backBytes = null;
+        if (request.BackCardImage != null)
+        {
+            using var backMs = new MemoryStream();
+            await request.BackCardImage.CopyToAsync(backMs, cancellationToken);
+            backBytes = backMs.ToArray();
+        }
+
         // 3. Gọi AWS Rekognition DetectFaces để kiểm định ảnh Selfie
         var selfieValidation = await _rekognitionService.ValidateSelfieFaceAsync(selfieBytes, cancellationToken);
         if (!selfieValidation.IsValid)
@@ -109,14 +117,35 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         var faceMatch = await _rekognitionService.CompareFacesAsync(
             frontBytes, selfieBytes, _settings.ManualReviewSimilarityThreshold, cancellationToken);
 
-        // 9. Upload ảnh lên Cloud Storage để lưu trữ bằng chứng
-        var frontUrl = await _storageService.UploadImageAsync(request.FrontCardImage, "kyc/front", cancellationToken);
-        var selfieUrl = await _storageService.UploadImageAsync(request.SelfieImage, "kyc/selfie", cancellationToken);
-        string backUrl = string.Empty;
-        if (request.BackCardImage != null)
+        // 9. Tối ưu: Upload song song (Parallel Task.WhenAll) cả 3 ảnh lên Supabase Storage qua connection pool
+        var frontExt = Path.GetExtension(request.FrontCardImage.FileName);
+        if (string.IsNullOrWhiteSpace(frontExt)) frontExt = ".jpg";
+        var frontUploadTask = _storageService.UploadImageBytesAsync(
+            frontBytes, $"{Guid.NewGuid():N}{frontExt}", "kyc/front", request.FrontCardImage.ContentType ?? "image/jpeg", cancellationToken);
+
+        var selfieExt = Path.GetExtension(request.SelfieImage.FileName);
+        if (string.IsNullOrWhiteSpace(selfieExt)) selfieExt = ".jpg";
+        var selfieUploadTask = _storageService.UploadImageBytesAsync(
+            selfieBytes, $"{Guid.NewGuid():N}{selfieExt}", "kyc/selfie", request.SelfieImage.ContentType ?? "image/jpeg", cancellationToken);
+
+        Task<string> backUploadTask;
+        if (backBytes != null && request.BackCardImage != null)
         {
-            backUrl = await _storageService.UploadImageAsync(request.BackCardImage, "kyc/back", cancellationToken);
+            var backExt = Path.GetExtension(request.BackCardImage.FileName);
+            if (string.IsNullOrWhiteSpace(backExt)) backExt = ".jpg";
+            backUploadTask = _storageService.UploadImageBytesAsync(
+                backBytes, $"{Guid.NewGuid():N}{backExt}", "kyc/back", request.BackCardImage.ContentType ?? "image/jpeg", cancellationToken);
         }
+        else
+        {
+            backUploadTask = Task.FromResult(string.Empty);
+        }
+
+        await Task.WhenAll(frontUploadTask, selfieUploadTask, backUploadTask);
+
+        var frontUrl = await frontUploadTask;
+        var selfieUrl = await selfieUploadTask;
+        var backUrl = await backUploadTask;
 
         // 10. Động cơ Phân luồng Quyết định Hybrid
         var verification = new IdentityVerification
@@ -157,7 +186,6 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             {
                 user.UserProfile.Address = ocrResult.Address;
             }
-            user.UserProfile.AvatarImg = selfieUrl;
             user.UserProfile.UpdatedDate = DateTime.UtcNow;
 
             // Khởi tạo/Kích hoạt cặp khóa ký số PKI RSA-2048 trong UserSecurityProfile
@@ -211,7 +239,6 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             {
                 user.UserProfile.Address = ocrResult.Address;
             }
-            user.UserProfile.AvatarImg = selfieUrl;
             user.UserProfile.UpdatedDate = DateTime.UtcNow;
 
             user.UpdatedDate = DateTime.UtcNow;
@@ -244,8 +271,7 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
         await _unitOfWork.IdentityVerifications.AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // 11. Tự động dọn dẹp các tệp ảnh tạm trên web server (wwwroot/uploads) sau khi lưu DB thành công
-        await CleanupTempUploadsAsync(frontUrl, backUrl, selfieUrl);
+        // Lưu ý: Các tệp ảnh eKYC (CCCD, Selfie) được bảo lưu vĩnh viễn trên Cloud Supabase Storage để làm bằng chứng pháp lý và đối soát.
 
         _logger.LogInformation("[eKYC] Xử lý hoàn tất cho User {UserId}: Trạng thái={Status}, AutoApproved={Auto}, Similarity={Sim}%",
             user.Id, verification.VerificationStatus, isAutoApproved, faceMatch.SimilarityScore);

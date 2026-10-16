@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TrustSim - Digital Contract & PAdES Integrity Studio</title>
+  <title>TrustSim - E-Contract & Liquidation Lifecycle Studio</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -67,7 +67,7 @@
 
     /* Header */
     header {
-      background: rgba(10, 14, 23, 0.88);
+      background: rgba(10, 14, 23, 0.92);
       backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border-subtle);
       padding: 12px 24px;
@@ -93,7 +93,7 @@
     }
 
     .brand-title {
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 800;
       letter-spacing: -0.5px;
     }
@@ -143,7 +143,7 @@
 
     /* Quick Switcher Bar */
     .switcher-bar {
-      background: rgba(15, 23, 42, 0.6);
+      background: rgba(15, 23, 42, 0.65);
       border-bottom: 1px solid var(--border-subtle);
       padding: 10px 24px;
       display: flex;
@@ -219,16 +219,50 @@
       font-size: 12px;
     }
 
+    /* Scenario Quick Selector Bar */
+    .scenario-bar {
+      background: rgba(15, 23, 42, 0.45);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .scenario-btn {
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+
+    .scenario-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+    }
+
+    .scenario-btn.active {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: rgba(6, 182, 212, 0.15);
+    }
+
     /* Main Container */
     .container {
-      max-width: 1500px;
+      max-width: 1550px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 20px 24px;
       width: 100%;
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 18px;
     }
 
     /* Control Bar: Trade Selector & Load */
@@ -236,10 +270,10 @@
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 16px 20px;
+      padding: 14px 18px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       flex-wrap: wrap;
     }
 
@@ -248,14 +282,6 @@
       align-items: center;
       gap: 10px;
       flex: 1;
-      min-width: 320px;
-    }
-
-    .trade-input-group label {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-muted);
-      white-space: nowrap;
     }
 
     .form-control {
@@ -265,137 +291,151 @@
       color: var(--text-main);
       padding: 8px 12px;
       font-size: 13px;
-      font-family: inherit;
-      width: 100%;
       outline: none;
       transition: all 0.2s ease;
+      width: 100%;
     }
 
     .form-control:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+      box-shadow: 0 0 12px var(--primary-glow);
     }
 
+    /* Buttons */
     .btn {
       padding: 8px 16px;
       border-radius: var(--radius-sm);
       font-size: 13px;
       font-weight: 600;
-      cursor: pointer;
       border: none;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 8px;
       transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, #0284c7, #0369a1);
-      color: #fff;
+      background: var(--primary);
+      color: #030712;
+      box-shadow: 0 0 14px var(--primary-glow);
     }
 
-    .btn-primary:hover {
-      background: linear-gradient(135deg, #0369a1, #075985);
-      box-shadow: 0 0 14px rgba(2, 132, 199, 0.4);
-    }
-
-    .btn-emerald {
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: #fff;
-    }
-
-    .btn-emerald:hover {
-      background: linear-gradient(135deg, #059669, #047857);
-      box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
-    }
-
-    .btn-amber {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      color: #fff;
-    }
-
-    .btn-rose {
-      background: linear-gradient(135deg, #f43f5e, #e11d48);
-      color: #fff;
+    .btn-primary:hover:not(:disabled) {
+      background: #7dd3fc;
+      transform: translateY(-1px);
     }
 
     .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
     }
 
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.12);
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--text-dim);
     }
 
-    /* Studio Grid Layout */
+    .btn-emerald {
+      background: var(--emerald);
+      color: #030712;
+      box-shadow: 0 0 14px var(--emerald-glow);
+    }
+
+    .btn-emerald:hover:not(:disabled) {
+      background: #34d399;
+      transform: translateY(-1px);
+    }
+
+    .btn-rose {
+      background: var(--rose);
+      color: #fff;
+      box-shadow: 0 0 14px var(--rose-glow);
+    }
+
+    .btn-rose:hover:not(:disabled) {
+      background: #fb7185;
+      transform: translateY(-1px);
+    }
+
+    /* Studio Layout: 2 Columns */
     .studio-grid {
       display: grid;
       grid-template-columns: 420px 1fr;
       gap: 20px;
+      align-items: start;
     }
 
-    @media (max-width: 1100px) {
+    @media (max-width: 1200px) {
       .studio-grid {
         grid-template-columns: 1fr;
       }
     }
 
-    /* Left Sidebar: Overview & Sign Action */
+    /* Sidebar Panel */
     .sidebar-panel {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
     }
 
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 20px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      position: relative;
+      gap: 14px;
     }
 
     .card-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
+      color: var(--text-main);
       display: flex;
       align-items: center;
       gap: 8px;
-      color: var(--text-main);
-      border-bottom: 1px solid var(--border-subtle);
       padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
     }
 
-    /* Info Meta Rows */
     .meta-list {
       display: flex;
       flex-direction: column;
       gap: 10px;
+      font-size: 13px;
     }
 
     .meta-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 13px;
+      gap: 10px;
     }
 
     .meta-label {
-      color: var(--text-muted);
+      color: var(--text-dim);
+      font-size: 12px;
     }
 
     .meta-val {
       font-weight: 600;
       color: var(--text-main);
+      text-align: right;
     }
 
     .meta-val.highlight {
       color: var(--primary);
+      font-weight: 800;
     }
 
     .meta-val.success {
@@ -409,6 +449,53 @@
     .meta-val.mono {
       font-family: var(--font-mono);
       font-size: 12px;
+    }
+
+    /* Deadlines Countdown Box */
+    .deadlines-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .deadline-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .deadline-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .deadline-badge.green {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .deadline-badge.yellow {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .deadline-badge.red {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
     }
 
     /* Status Badges */
@@ -441,7 +528,7 @@
       border: 1px solid rgba(56, 189, 248, 0.3);
     }
 
-    /* Signer Cards */
+    /* Signers Cards */
     .signers-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -531,15 +618,16 @@
 
     .tab-bar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       border-bottom: 1px solid var(--border-subtle);
       padding-bottom: 8px;
+      flex-wrap: wrap;
     }
 
     .tab-btn {
-      padding: 8px 16px;
+      padding: 8px 14px;
       border-radius: var(--radius-sm);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       background: transparent;
       border: 1px solid transparent;
@@ -547,7 +635,7 @@
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       transition: all 0.2s ease;
     }
 
@@ -734,7 +822,6 @@
       color: #fbbf24;
     }
 
-    /* Lab Action Row */
     .lab-action-row {
       display: flex;
       gap: 12px;
@@ -759,6 +846,206 @@
       border-color: var(--primary);
       background: rgba(56, 189, 248, 0.1);
       box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+    }
+
+    /* Stepper */
+    .stepper-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    @media (max-width: 900px) {
+      .stepper-bar {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .step-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .step-item.active {
+      border-color: var(--primary);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .step-item.completed {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.06);
+    }
+
+    .step-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .step-item.active .step-icon {
+      background: var(--primary);
+      color: #000;
+    }
+
+    .step-item.completed .step-icon {
+      background: var(--emerald);
+      color: #000;
+    }
+
+    .step-info {
+      display: flex;
+      flex-direction: column;
+      font-size: 11px;
+    }
+
+    .step-title {
+      font-weight: 700;
+      color: var(--text-main);
+      font-size: 12px;
+    }
+
+    .handover-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .handover-action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .handover-action-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .action-panel-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .action-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .proof-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .proof-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .proof-img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .proof-meta {
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+
+    .escrow-summary-box {
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Modal for Liquidation HTML Preview */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: #ffffff;
+      color: #1e293b;
+      border-radius: var(--radius-md);
+      max-width: 900px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 30px;
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      font-family: Arial, sans-serif;
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: #f1f5f9;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #334155;
+      transition: all 0.2s;
+    }
+
+    .modal-close-btn:hover {
+      background: #e2e8f0;
+      color: #0f172a;
     }
 
     /* Toast Notifications */
@@ -797,229 +1084,51 @@
         opacity: 1;
       }
     }
-
-    /* =========================================================================
-       TAB 4: SIM HANDOVER & ESCROW PAYOUT STYLES
-       ========================================================================= */
-    .handover-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    /* Stepper */
-    .stepper-bar {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-
-    @media (max-width: 900px) {
-      .stepper-bar {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .step-item {
-      background: rgba(0, 0, 0, 0.25);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      position: relative;
-      transition: all 0.3s ease;
-    }
-
-    .step-item.completed {
-      background: rgba(16, 185, 129, 0.12);
-      border-color: rgba(16, 185, 129, 0.4);
-    }
-
-    .step-item.active {
-      background: rgba(56, 189, 248, 0.15);
-      border-color: var(--primary);
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
-    }
-
-    .step-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 999px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 13px;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
-
-    .step-item.completed .step-icon {
-      background: var(--emerald);
-      color: #000;
-    }
-
-    .step-item.active .step-icon {
-      background: var(--primary);
-      color: #000;
-    }
-
-    .step-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      font-size: 11px;
-    }
-
-    .step-title {
-      font-weight: 700;
-      color: var(--text-main);
-      font-size: 12px;
-    }
-
-    .step-item.completed .step-title {
-      color: var(--emerald);
-    }
-
-    .step-item.active .step-title {
-      color: var(--primary);
-    }
-
-    /* Handover Action Panels */
-    .handover-action-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    @media (max-width: 900px) {
-      .handover-action-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .action-panel-card {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .action-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-subtle);
-      padding-bottom: 10px;
-    }
-
-    /* Proof Gallery */
-    .proof-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 14px;
-    }
-
-    .proof-item {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .proof-img {
-      width: 100%;
-      height: 140px;
-      object-fit: cover;
-      cursor: pointer;
-      transition: transform 0.2s ease;
-    }
-
-    .proof-img:hover {
-      transform: scale(1.03);
-    }
-
-    .proof-meta {
-      padding: 10px;
-      font-size: 11px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    /* Escrow Payout Table */
-    .escrow-summary-box {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(6, 182, 212, 0.08));
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
   </style>
 </head>
 
 <body>
 
-  <!-- Header -->
+  <!-- Top Header -->
   <header>
     <div class="brand">
-      <span class="brand-icon"><i class="fa-solid fa-file-signature"></i></span>
+      <i class="fa-solid fa-file-shield brand-icon"></i>
       <div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <h1 class="brand-title">TrustSim <span style="color: var(--primary);">CONTRACT</span></h1>
-          <span class="brand-badge">PAdES X.509 INTEGRITY</span>
+          <span class="brand-title">TrustSim</span>
+          <span class="brand-badge">E-Contract & Liquidation Studio</span>
         </div>
-        <p style="font-size: 11px; color: var(--text-muted);">Hợp Đồng Điện Tử 3 Bên, Chữ Ký Số PAdES & Kiểm Định Tính
-          Toàn Vẹn Số</p>
+        <p style="font-size: 11px; color: var(--text-dim); margin-top: 1px;">
+          Bộ 3 Văn Bản Điện Tử &bull; Niêm Phong PAdES X.509 &bull; Supabase Storage &bull; Redis Delay Deadlines
+        </p>
       </div>
     </div>
 
     <div class="nav-links">
-      <div
-        style="display: flex; align-items: center; gap: 6px; font-size: 12px; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-        <label for="serverUrlSelect" style="color: var(--text-dim); font-weight: 700;">API:</label>
-        <select id="serverUrlSelect" onchange="changeServer(this.value)"
-          style="background: transparent; border: none; color: var(--primary); font-family: var(--font-mono); outline: none; cursor: pointer;">
-          <option value="http://localhost:5130">http://localhost:5130</option>
-          <option value="https://localhost:7120">https://localhost:7120</option>
+      <div style="display: flex; align-items: center; gap: 6px; margin-right: 12px;">
+        <span style="font-size: 11px; color: var(--text-dim);">API Server:</span>
+        <select id="serverSelect" class="form-control" style="width: 200px; padding: 4px 8px; font-size: 12px;"
+          onchange="changeServer(this.value)">
+          <option value="http://localhost:5130" selected>http://localhost:5130</option>
           <option value="http://localhost:5000">http://localhost:5000</option>
         </select>
       </div>
 
       <a href="index.html" class="nav-btn"><i class="fa-solid fa-bolt"></i> Đấu Giá Arena</a>
-      <a href="financial_integrity_studio.html" class="nav-btn"><i class="fa-solid fa-scale-balanced"></i> Sổ Cái
-        Kép</a>
+      <a href="financial_integrity_studio.html" class="nav-btn"><i class="fa-solid fa-scale-balanced"></i> Sổ Cái Kép</a>
       <a href="ai_studio.html" class="nav-btn"><i class="fa-solid fa-brain"></i> AI Studio</a>
     </div>
   </header>
 
-  <!-- Quick Switcher Bar -->
+  <!-- Quick User Switcher Bar -->
   <section class="switcher-bar">
     <span class="switcher-label"><i class="fa-solid fa-users"></i> Đổi Tài Khoản Test:</span>
     <div class="account-pills">
       <button class="pill-btn active" onclick="switchUser('bidder_dai_gia')">
         <span>💎</span> <strong>bidder_dai_gia</strong> (Người Mua)
       </button>
-      <button class="pill-btn" onclick="switchUser('bidder_alpha')">
-        <span>⚡</span> <strong>bidder_alpha</strong> (Á Quân)
-      </button>
-      <button class="pill-btn" onclick="switchUser('bidder_moderate_funds')">
-        <span>🪙</span> <strong>bidder_moderate</strong> (Người Mua)
+      <button class="pill-btn" onclick="switchUser('bidder_kinh_doanh')">
+        <span>💼</span> <strong>bidder_kinh_doanh</strong> (Người Mua)
       </button>
       <button class="pill-btn seller" onclick="switchUser('seller_vip_phuquy')">
         <span>🏷️</span> <strong>seller_phuquy</strong> (Người Bán)
@@ -1043,27 +1152,40 @@
     </div>
   </section>
 
+  <!-- Scenario Quick Selector Bar -->
+  <section class="scenario-bar">
+    <span class="switcher-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Chọn Kịch Bản Mẫu:</span>
+    <button class="scenario-btn" onclick="selectScenario('TRD-20261010-002', '41000000-0000-0000-0000-000000000002')">
+      ⚡ Kịch bản 1: TRD-20261010-002 (Chờ Ký OTP 2 Bên)
+    </button>
+    <button class="scenario-btn" onclick="selectScenario('TRD-20260830-001', '41000000-0000-0000-0000-000000000001')">
+      ⚡ Kịch bản 2: TRD-20260830-001 (Đã Ký HĐ - Chờ Bàn Giao SIM)
+    </button>
+    <button class="scenario-btn" onclick="selectScenario('TRD-20260820-003', '41000000-0000-0000-0000-000000000003')">
+      ⚡ Kịch bản 3: TRD-20260820-003 (Đã Hoàn Tất Thanh Lý 100%)
+    </button>
+  </section>
+
   <!-- Main Container -->
   <div class="container">
 
     <!-- Control Bar: Trade Selector & Load -->
     <div class="trade-control-bar">
       <div class="trade-input-group">
-        <label><i class="fa-solid fa-handshake"></i> Chọn Giao Dịch Chuyển Nhượng:</label>
+        <label style="font-size: 13px; font-weight: 600;"><i class="fa-solid fa-handshake"></i> Chọn Giao Dịch Chuyển Nhượng:</label>
         <select id="userTradesSelect" class="form-control" onchange="onTradeSelected(this.value)">
           <option value="">-- Đang nạp danh sách giao dịch... --</option>
         </select>
       </div>
 
       <div class="trade-input-group" style="max-width: 380px;">
-        <label>Hoặc nhập Trade ID:</label>
+        <label style="font-size: 12px; color: var(--text-dim);">Hoặc nhập Trade ID:</label>
         <input type="text" id="manualTradeIdInput" class="form-control"
           placeholder="00000000-0000-0000-0000-000000000000">
       </div>
 
-      <button class="btn btn-primary" onclick="loadManualTrade()"><i class="fa-solid fa-magnifying-glass"></i> Tải Hợp
-        Đồng</button>
-      <button class="btn btn-secondary" onclick="loadUserTrades()"><i class="fa-solid fa-rotate"></i> Làm mới</button>
+      <button class="btn btn-primary" onclick="loadManualTrade()"><i class="fa-solid fa-magnifying-glass"></i> Tải Giao Dịch</button>
+      <button class="btn btn-secondary" onclick="refreshCurrentTrade()"><i class="fa-solid fa-rotate"></i> Làm mới</button>
     </div>
 
     <!-- Studio Grid -->
@@ -1072,7 +1194,7 @@
       <!-- Left Sidebar: Overview & Signing Form -->
       <div class="sidebar-panel">
 
-        <!-- Card: Trade Overview & Timeline -->
+        <!-- Card: Trade Overview & Deadlines -->
         <div class="card">
           <div class="card-title">
             <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i> Thông Tin Giao Dịch Chuyển Nhượng
@@ -1082,23 +1204,39 @@
           <div class="meta-list">
             <div class="meta-item">
               <span class="meta-label">Mã Giao Dịch:</span>
-              <span class="meta-val mono" id="metaTradeCode">TRD-20261010-XXXX</span>
+              <span class="meta-val mono" id="metaTradeCode">TRD-XXXXXXXX-XXX</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Số SIM Giao Dịch:</span>
-              <span class="meta-val highlight" id="metaSimNumber">0988.888.888</span>
+              <span class="meta-val highlight" id="metaSimNumber">09xx.xxx.xxx</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Giá Trúng Đấu Giá:</span>
-              <span class="meta-val success" id="metaPrice">50.000.000 ₫</span>
+              <span class="meta-val success" id="metaPrice">0 ₫</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Quỹ Bảo Đảm Escrow:</span>
-              <span class="meta-val" id="metaEscrow">50.000.000 ₫ (HELD)</span>
+              <span class="meta-val" id="metaEscrow">0 ₫ (HELD)</span>
             </div>
-            <div class="meta-item">
-              <span class="meta-label">Thời Hạn Ký Số (24h):</span>
-              <span class="meta-val warning mono" id="metaSigningDeadline">24h 00m</span>
+          </div>
+
+          <!-- 3 Deadlines Countdown Box -->
+          <div class="card-title" style="margin-top: 6px;">
+            <i class="fa-solid fa-stopwatch" style="color: var(--amber);"></i> 3 Mốc Thời Hạn & Đếm Ngược
+          </div>
+
+          <div class="deadlines-card">
+            <div class="deadline-item">
+              <span>⏳ Hạn Ký Số HĐ (Signing):</span>
+              <span class="deadline-badge yellow" id="badgeSigningDeadline">--:--:--</span>
+            </div>
+            <div class="deadline-item">
+              <span>🚚 Hạn Bàn Giao SIM (Transfer):</span>
+              <span class="deadline-badge green" id="badgeTransferDeadline">--:--:--</span>
+            </div>
+            <div class="deadline-item">
+              <span>⚖️ Hạn Nghiệm Thu Im Lặng (Liquidation):</span>
+              <span class="deadline-badge green" id="badgeLiquidationDeadline">--:--:--</span>
             </div>
           </div>
 
@@ -1137,8 +1275,7 @@
 
           <div id="signingFormContainer" style="display: flex; flex-direction: column; gap: 14px;">
             <p style="font-size: 12px; color: var(--text-muted);">
-              Theo Luật Giao dịch điện tử, nhấn "Gửi OTP" để nhận mã xác thực 6 chữ số qua Email, sau đó nhập mã để hoàn
-              tất thủ tục ký kết ràng buộc pháp lý.
+              Bấm "Gửi OTP" để nhận mã 6 chữ số qua Email, sau đó nhập mã để hoàn tất giao kết điện tử ràng buộc pháp lý theo Luật Giao dịch điện tử.
             </p>
 
             <div style="display: flex; gap: 8px;">
@@ -1157,8 +1294,7 @@
 
             <label class="consent-checkbox-row">
               <input type="checkbox" id="contractConsentCheck" checked>
-              <span>Tôi đã đọc kỹ toàn bộ nội dung hợp đồng thỏa thuận chuyển nhượng 3 bên và tự nguyện cam kết thực
-                hiện đúng mọi nghĩa vụ.</span>
+              <span>Tôi đã đọc kỹ toàn bộ nội dung hợp đồng thỏa thuận chuyển nhượng 3 bên và tự nguyện cam kết thực hiện đúng mọi nghĩa vụ.</span>
             </label>
 
             <button class="btn btn-emerald" id="btnSignContract" onclick="submitSignContract()"
@@ -1170,27 +1306,81 @@
 
       </div>
 
-      <!-- Right Main Workspace: Tabs -->
+      <!-- Right Main Workspace: 5 Tabs -->
       <div class="main-workspace">
 
         <!-- Tab Bar -->
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('tabPreview')">
-            <i class="fa-solid fa-file-lines"></i> 1. Xem Trước Hợp Đồng (HTML Preview)
+          <button class="tab-btn active" onclick="switchTab('tabNotice')">
+            <i class="fa-solid fa-receipt"></i> 1. Phiếu Chốt Giá Trúng (VB 1)
+          </button>
+          <button class="tab-btn" onclick="switchTab('tabPreview')">
+            <i class="fa-solid fa-file-lines"></i> 2. HĐ 3 Bên (HTML Preview)
           </button>
           <button class="tab-btn" onclick="switchTab('tabPdf')">
-            <i class="fa-solid fa-file-pdf"></i> 2. Hợp Đồng PDF & Niêm Phong PAdES
+            <i class="fa-solid fa-file-pdf"></i> 3. HĐ PDF & Niêm Phong PAdES
           </button>
           <button class="tab-btn" onclick="switchTab('tabVerify')">
-            <i class="fa-solid fa-shield-halved"></i> 3. Kiểm Định Tính Toàn Vẹn & Tamper Test
+            <i class="fa-solid fa-shield-halved"></i> 4. Kiểm Định SHA-256
           </button>
           <button class="tab-btn" onclick="switchTab('tabHandover')">
-            <i class="fa-solid fa-truck-fast"></i> 4. Bàn Giao SIM & Giải Ngân Escrow
+            <i class="fa-solid fa-truck-fast"></i> 5. Bàn Giao & Thanh Lý (VB 3)
           </button>
         </div>
 
-        <!-- TAB 1: HTML Preview -->
-        <div id="tabPreview" class="tab-content active">
+        <!-- TAB 1: Winning Notice (Văn bản 1) -->
+        <div id="tabNotice" class="tab-content active">
+          <div class="card" style="padding: 24px; gap: 18px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <h2 style="font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-receipt" style="color: var(--primary);"></i>
+                  Phiếu Xác Nhận Kết Quả Đấu Giá & Chốt Giá Trúng Điện Tử
+                </h2>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                  Văn bản xác thực quyền trúng đấu giá và nghĩa vụ ký quỹ Escrow tự động theo Luật Thương mại & Quy chế Sàn TMĐT TrustSim.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-emerald" onclick="downloadWinningNoticePdf()">
+                  <i class="fa-solid fa-download"></i> Tải Phiếu Chốt Giá PDF
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="viewWinningNoticeInNewTab()">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Trực Tiếp CDN
+                </button>
+              </div>
+            </div>
+
+            <!-- Notice Metadata Table -->
+            <table class="pdf-metadata-table">
+              <tbody>
+                <tr>
+                  <th>Mã chứng từ / Phiên:</th>
+                  <td id="noticeCode" class="mono text-muted">N/A</td>
+                </tr>
+                <tr>
+                  <th>Tệp PDF lưu trữ (Supabase CDN):</th>
+                  <td id="noticeUrl" class="mono" style="color: var(--primary);">Đang tải thông tin...</td>
+                </tr>
+                <tr>
+                  <th>Mã băm toàn vẹn SHA-256 (NoticeHash):</th>
+                  <td id="noticeHash" class="mono text-muted">Chưa có hash</td>
+                </tr>
+                <tr>
+                  <th>Hình thức bảo đảm tài chính:</th>
+                  <td><span style="color: var(--emerald); font-weight: 700;">✅ Tự động trích tiền Quỹ Ký Quỹ Escrow (Không cần nạp thủ công)</span></td>
+                </tr>
+                <tr>
+                  <th>Hiệu lực văn bản điện tử:</th>
+                  <td>Có giá trị ràng buộc cam kết hoàn tất thủ tục chuyển quyền sử dụng SIM theo Luật Giao dịch điện tử.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 2: HTML Preview (Văn bản 2) -->
+        <div id="tabPreview" class="tab-content">
           <div class="preview-container" id="contractHtmlPreview">
             <div style="text-align: center; color: var(--text-dim); padding: 60px 0;">
               <i class="fa-solid fa-spinner fa-spin" style="font-size: 28px; margin-bottom: 12px;"></i>
@@ -1199,25 +1389,25 @@
           </div>
         </div>
 
-        <!-- TAB 2: Download & PAdES Information -->
+        <!-- TAB 3: PDF Download & PAdES Seal (Văn bản 2) -->
         <div id="tabPdf" class="tab-content">
           <div class="pdf-actions-card">
             <div class="pdf-icon-badge">
               <i class="fa-solid fa-file-pdf"></i>
             </div>
             <div>
-              <h2 style="font-size: 18px; font-weight: 700;" id="pdfCardTitle">Hợp Đồng Chuyển Nhượng Số Hóa</h2>
+              <h2 style="font-size: 18px; font-weight: 700;" id="pdfCardTitle">Hợp Đồng Chuyển Nhượng Số Hóa 3 Bên</h2>
               <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="pdfCardSubtitle">
-                Tài liệu được bảo vệ bằng chữ ký số PAdES X.509 và Dấu thời gian độc lập RFC 3161 TSA
+                Được niêm phong bằng Chữ ký số PAdES X.509 của Sàn TrustSim và Dấu thời gian độc lập RFC 3161 TSA
               </p>
             </div>
 
             <div style="display: flex; gap: 12px; margin-top: 10px;">
-              <a href="#" id="btnDownloadPdf" target="_blank" class="btn btn-emerald" style="text-decoration: none;">
-                <i class="fa-solid fa-download"></i> Tải File PDF Đã Ký Số
-              </a>
-              <button class="btn btn-secondary" onclick="viewPdfInNewTab()">
-                <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Xem Trực Tiếp
+              <button type="button" id="btnDownloadPdf" onclick="downloadContractPdf()" class="btn btn-emerald">
+                <i class="fa-solid fa-download"></i> Tải File PDF Đã Ký Số PAdES
+              </button>
+              <button type="button" class="btn btn-secondary" onclick="viewPdfInNewTab()">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Xem Trực Tiếp CDN
               </button>
             </div>
 
@@ -1249,7 +1439,7 @@
                   <td id="pdfTableTsaAuth" class="text-muted">N/A</td>
                 </tr>
                 <tr>
-                  <th>Cơ chế ủy quyền cưỡng chế (24h):</th>
+                  <th>Cơ chế ủy quyền cưỡng chế:</th>
                   <td id="pdfTableAutoEnforced"><span style="color: var(--text-dim);">Không (Ký đồng thuận)</span></td>
                 </tr>
                 <tr>
@@ -1261,7 +1451,7 @@
           </div>
         </div>
 
-        <!-- TAB 3: Tamper Detection & Integrity Verification Lab -->
+        <!-- TAB 4: Tamper Detection & Integrity Verification Lab -->
         <div id="tabVerify" class="tab-content">
           <div class="integrity-lab-card">
             <div class="lab-hero">
@@ -1269,8 +1459,7 @@
               <div>
                 <h3 style="font-size: 16px; font-weight: 700;">Phòng Thí Nghiệm Kiểm Định Mật Mã & Chống Giả Mạo</h3>
                 <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                  Trực tiếp tính toán mã băm SHA-256 của tệp tin PDF trên trình duyệt (Web Crypto API) và đối chiếu với
-                  bản niêm phong gốc được lưu trữ an toàn trong Sổ cái & CSDL.
+                  Trực tiếp tính toán mã băm SHA-256 của tệp tin PDF trên trình duyệt (Web Crypto API) và đối chiếu với bản niêm phong gốc lưu trong CSDL.
                 </p>
               </div>
             </div>
@@ -1280,8 +1469,7 @@
               <i class="fa-solid fa-clock" style="font-size: 20px;"></i>
               <div>
                 <strong id="verifyBannerTitle">ĐANG CHỜ KIỂM ĐỊNH</strong>
-                <p id="verifyBannerDesc" style="font-size: 12px; margin-top: 2px;">Vui lòng tải hợp đồng và bấm nút
-                  "Kiểm Định Tính Toàn Vẹn" bên dưới.</p>
+                <p id="verifyBannerDesc" style="font-size: 12px; margin-top: 2px;">Vui lòng bấm nút "Kiểm Định File Gốc Server" hoặc kéo thả file PDF bên dưới.</p>
               </div>
             </div>
 
@@ -1312,8 +1500,7 @@
                   Kéo & thả tệp tin PDF đã tải xuống vào đây, hoặc click để chọn tệp từ máy tính
                 </strong>
                 <span style="font-size: 11px; color: var(--text-muted);">
-                  Trình duyệt sẽ đọc nhị phân và tính SHA-256 (Web Crypto API) để kiểm tra xem file có bị chỉnh sửa dù
-                  chỉ 1 byte không.
+                  Trình duyệt sẽ đọc nhị phân và tính SHA-256 (Web Crypto API) để kiểm tra xem file có bị chỉnh sửa dù chỉ 1 byte không.
                 </span>
               </div>
               <input type="file" id="filePdfInput" accept=".pdf" style="display: none;"
@@ -1338,18 +1525,10 @@
                 <i class="fa-solid fa-rotate-left"></i> Đặt Lại
               </button>
             </div>
-
-            <div
-              style="font-size: 11px; color: var(--text-dim); line-height: 1.5; background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: var(--radius-sm); border-left: 3px solid var(--primary);">
-              💡 <strong>Cơ chế bảo vệ Tamper-Proof:</strong> Bất kỳ sự thay đổi nào dù chỉ 1 ký tự hoặc 1 byte trong
-              file PDF (ví dụ sửa giá, đổi số SIM, làm giả chữ ký) đều sẽ làm thay đổi hoàn toàn giá trị băm SHA-256
-              theo hiệu ứng thác lũ (Avalanche effect). Hệ thống sẽ phát hiện ngay lập tức và từ chối công nhận hiệu lực
-              của hợp đồng!
-            </div>
           </div>
         </div>
 
-        <!-- TAB 4: SIM Handover & Escrow Payout -->
+        <!-- TAB 5: SIM Handover, Liquidation (VB 3) & Escrow Payout -->
         <div id="tabHandover" class="tab-content">
           <div class="handover-card">
 
@@ -1358,10 +1537,10 @@
               <div>
                 <h2 style="font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
                   <i class="fa-solid fa-truck-fast" style="color: var(--primary);"></i>
-                  Tiến Trình Bàn Giao SIM, Sang Tên & Giải Ngân Escrow
+                  Tiến Trình Bàn Giao SIM, Nghiệm Thu & Thanh Lý (Văn Bản 3)
                 </h2>
                 <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-                  Sau khi hợp đồng được ký số, Người Bán làm thủ tục sang tên tại nhà mạng. Người Mua xác nhận nhận SIM có sóng để giải ngân tiền tự động.
+                  Sau khi hợp đồng có hiệu lực, Người Bán làm thủ tục sang tên tại nhà mạng. Người Mua nghiệm thu SIM có sóng để hệ thống sinh Biên Bản Thanh Lý, niêm phong PAdES và giải ngân Escrow.
                 </p>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -1391,7 +1570,7 @@
               <div class="step-item" id="step3Item">
                 <div class="step-icon" id="step3Icon">3</div>
                 <div class="step-info">
-                  <span class="step-title">3. Kiểm Tra Sóng & Nhận SIM</span>
+                  <span class="step-title">3. Kiểm Tra Sóng & Nghiệm Thu</span>
                   <span style="color: var(--text-dim);" id="step3Desc">Chờ bên mua xác nhận</span>
                 </div>
               </div>
@@ -1399,7 +1578,7 @@
               <div class="step-item" id="step4Item">
                 <div class="step-icon" id="step4Icon">4</div>
                 <div class="step-info">
-                  <span class="step-title">4. Sang Tên & Giải Ngân</span>
+                  <span class="step-title">4. Thanh Lý & Giải Ngân</span>
                   <span style="color: var(--text-dim);" id="step4Desc">Chuyển sở hữu & Tiền về ví</span>
                 </div>
               </div>
@@ -1435,7 +1614,7 @@
 
                   <div>
                     <label style="font-size: 11px; font-weight: 700; color: var(--text-dim);">Ghi chú bổ sung:</label>
-                    <input type="text" id="proofDescInput" class="form-control" placeholder="VD: Đã làm thủ tục tại Viettel Store Hoàng Đạo Thúy, mã phiếu #VT-8899" style="margin-top: 4px;">
+                    <input type="text" id="proofDescInput" class="form-control" placeholder="VD: Đã làm thủ tục tại điểm giao dịch MobiFone Bà Triệu, mã phiếu #MB-9988" style="margin-top: 4px;">
                   </div>
 
                   <button class="btn btn-primary" id="btnSubmitProof" onclick="submitTransferProof()" style="margin-top: 4px; padding: 10px; font-weight: 700;">
@@ -1447,7 +1626,7 @@
               <!-- Panel 2: Thao tác Bên Mua -->
               <div class="action-panel-card" id="buyerActionCard">
                 <div class="action-panel-header">
-                  <strong style="color: var(--primary);"><i class="fa-solid fa-sim-card"></i> [Bên Mua] Kiểm Tra & Xác Nhận Nhận SIM</strong>
+                  <strong style="color: var(--primary);"><i class="fa-solid fa-sim-card"></i> [Bên Mua] Kiểm Tra & Nghiệm Thu</strong>
                   <span style="font-size: 11px; color: var(--text-muted);">Bảo đảm Escrow</span>
                 </div>
 
@@ -1458,11 +1637,17 @@
                 <div id="buyerConfirmForm" style="display: none; flex-direction: column; gap: 12px;">
                   <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.4); padding: 12px; border-radius: var(--radius-sm); color: #34d399; font-size: 12px;">
                     <i class="fa-solid fa-bell"></i> <strong>Người Bán đã nộp biên bản sang tên!</strong><br>
-                    Vui lòng lắp SIM vào máy hoặc gửi tin nhắn <code>TTTB gửi 1414</code> để kiểm tra chính chủ. Khi đã có sóng và đúng thông tin, hãy bấm nút xác nhận dưới đây.
+                    Vui lòng lắp SIM vào máy hoặc gửi tin nhắn <code>TTTB gửi 1414</code> để kiểm tra chính chủ.
+                  </div>
+
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" onclick="openLiquidationPreviewModal()" style="flex: 1;">
+                      <i class="fa-solid fa-file-contract"></i> Xem Trước Biên Bản Thanh Lý
+                    </button>
                   </div>
 
                   <button class="btn btn-emerald" id="btnConfirmTransfer" onclick="confirmSimTransfer()" style="padding: 12px; font-size: 14px; font-weight: 800; box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);">
-                    <i class="fa-solid fa-circle-check"></i> XÁC NHẬN ĐÃ NHẬN SIM VÀ CÓ SÓNG - HOÀN TẤT & GIẢI NGÂN ESCROW
+                    <i class="fa-solid fa-circle-check"></i> XÁC NHẬN ĐÃ NHẬN SIM - NGHIỆM THU & GIẢI NGÂN
                   </button>
                 </div>
 
@@ -1470,9 +1655,9 @@
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <i class="fa-solid fa-circle-check" style="font-size: 24px;"></i>
                     <div>
-                      <strong>GIAO DỊCH CHUYỂN NHƯỢNG HOÀN TẤT THÀNH CÔNG!</strong>
+                      <strong>GIAO DỊCH HOÀN TẤT & ĐÃ THANH LÝ HỢP ĐỒNG!</strong>
                       <p style="font-size: 11px; margin-top: 3px; color: var(--text-main);">
-                        Quyền sở hữu SIM đã được chuyển cho Người Mua (ACTIVE). Tiền ký quỹ Escrow đã được giải ngân về ví Người Bán qua Sổ cái kế toán kép.
+                        Quyền sở hữu SIM đã chuyển cho Người Mua (ACTIVE). Tiền Escrow đã giải ngân về ví Người Bán. Biên bản thanh lý đã được niêm phong chữ ký số PAdES.
                       </p>
                     </div>
                   </div>
@@ -1481,13 +1666,47 @@
 
             </div>
 
+            <!-- Khối Văn bản 3: Biên bản thanh lý đã ký số (Chỉ hiện khi có hoặc hoàn tất) -->
+            <div id="liquidationSection" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-file-signature" style="color: var(--emerald); font-size: 18px;"></i>
+                  <strong style="font-size: 13px;">Văn Bản 3: Biên Bản Nghiệm Thu & Thanh Lý Giao Dịch Điện Tử</strong>
+                  <span id="liqStatusBadge" class="badge badge-pending">CHỜ NIÊM PHONG</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary" onclick="openLiquidationPreviewModal()">
+                    <i class="fa-solid fa-eye"></i> Xem HTML Biên Bản
+                  </button>
+                  <button type="button" class="btn btn-emerald" id="btnDownloadLiquidation" onclick="downloadLiquidationPdf()">
+                    <i class="fa-solid fa-download"></i> Tải PDF Thanh Lý (PAdES)
+                  </button>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 12px;">
+                <div>
+                  <span style="color: var(--text-dim);">Đường dẫn PDF (Supabase CDN):</span>
+                  <div class="mono" id="liqDocUrl" style="word-break: break-all; color: var(--text-muted); margin-top: 2px;">Chưa sẵn sàng</div>
+                </div>
+                <div>
+                  <span style="color: var(--text-dim);">Mã băm SHA-256 (LiquidationHash):</span>
+                  <div class="mono" id="liqDocHash" style="word-break: break-all; color: var(--text-muted); margin-top: 2px;">Chưa niêm phong</div>
+                </div>
+                <div>
+                  <span style="color: var(--text-dim);">Thời điểm đóng dấu PAdES:</span>
+                  <div class="mono" id="liqSealedAt" style="color: var(--text-muted); margin-top: 2px;">N/A</div>
+                </div>
+              </div>
+            </div>
+
             <!-- Bằng chứng đã nộp (Gallery) -->
             <div>
-              <h3 style="font-size: 14px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+              <h3 style="font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-images"></i> Hồ Sơ / Biên Bản Nhà Mạng Đã Nộp
               </h3>
               <div class="proof-grid" id="proofsGalleryContainer">
-                <div style="color: var(--text-dim); font-size: 12px; grid-column: 1 / -1; padding: 20px 0; text-align: center;">
+                <div style="color: var(--text-dim); font-size: 12px; grid-column: 1 / -1; padding: 16px 0; text-align: center;">
                   Chưa có biên bản nào được tải lên.
                 </div>
               </div>
@@ -1496,7 +1715,7 @@
             <!-- Escrow Payout Breakdown -->
             <div class="escrow-summary-box">
               <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-                <strong style="font-size: 14px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <strong style="font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                   <i class="fa-solid fa-scale-balanced" style="color: var(--emerald);"></i> Bảng Quyết Toán Quỹ Ký Quỹ Escrow (Double-Entry Ledger)
                 </strong>
                 <span class="badge badge-pending" id="escrowStatusBadge">ESCROW HELD</span>
@@ -1527,6 +1746,19 @@
 
   </div>
 
+  <!-- Modal for Liquidation HTML Preview -->
+  <div class="modal-overlay" id="liquidationModal" onclick="closeLiquidationPreviewModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeLiquidationPreviewModal()"><i class="fa-solid fa-xmark"></i></button>
+      <div id="liquidationHtmlContainer">
+        <div style="text-align: center; padding: 40px 0;">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size: 26px; color: #166534;"></i>
+          <p style="margin-top: 10px; color: #64748b;">Đang tải nội dung Biên Bản Nghiệm Thu & Thanh Lý...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1539,19 +1771,26 @@
     let currentUserId = '';
     let currentTradeId = '';
     let currentContractData = null;
+    let currentHandoverData = null;
+    let deadlineTimerInterval = null;
 
     const demoUsers = {
       'bidder_dai_gia': { pass: 'Password123@', role: 'BUYER', email: 'quanidol6224@gmail.com' },
-      'bidder_alpha': { pass: 'Password123@', role: 'BUYER', email: 'alpha.bidder@gmail.com' },
-      'bidder_moderate_funds': { pass: 'Password123@', role: 'BUYER', email: 'moderate@gmail.com' },
+      'bidder_kinh_doanh': { pass: 'Password123@', role: 'BUYER', email: 'kinhdoanh.sim@gmail.com' },
       'seller_vip_phuquy': { pass: 'Password123@', role: 'SELLER', email: 'supperidol6224@gmail.com' },
       'seller_daiphat': { pass: 'Password123@', role: 'SELLER', email: 'daiphat.telecom@gmail.com' },
       'admin': { pass: 'Password123@', role: 'ADMIN', email: 'admin@trustsim.vn' }
     };
 
+    // Predefined Scenarios
+    const scenarios = {
+      'TRD-20261010-002': '41000000-0000-0000-0000-000000000002',
+      'TRD-20260830-001': '41000000-0000-0000-0000-000000000001',
+      'TRD-20260820-003': '41000000-0000-0000-0000-000000000003'
+    };
+
     // Initialize
     window.addEventListener('DOMContentLoaded', async () => {
-      // Check query params
       const urlParams = new URLSearchParams(window.location.search);
       const paramTradeId = urlParams.get('tradeId');
       const paramUser = urlParams.get('user');
@@ -1570,7 +1809,7 @@
         await loadUserTrades();
       }
 
-      // Setup drag and drop for local PDF inspection
+      // Drag and Drop for PDF Tamper Verification
       const dropZone = document.getElementById('pdfDropZone');
       if (dropZone) {
         ['dragenter', 'dragover'].forEach(name => {
@@ -1613,6 +1852,18 @@
       if (currentTradeId) {
         await loadContractDetails(currentTradeId);
       }
+    }
+
+    // Scenario Quick Select
+    async function selectScenario(code, id) {
+      document.querySelectorAll('.scenario-btn').forEach(b => {
+        b.classList.toggle('active', b.innerText.includes(code));
+      });
+
+      currentTradeId = id;
+      document.getElementById('manualTradeIdInput').value = id;
+      showToast(`Đã chọn ${code}`, 'info');
+      await loadContractDetails(id);
     }
 
     // Login API
@@ -1683,7 +1934,6 @@
             select.appendChild(opt);
           });
 
-          // Auto select first if none selected
           if (!currentTradeId && items.length > 0) {
             currentTradeId = items[0].id;
             select.value = currentTradeId;
@@ -1745,7 +1995,19 @@
     function renderContractUI(contract) {
       // 1. Meta Details
       document.getElementById('metaTradeCode').innerText = contract.tradeTransactionCode || 'N/A';
-      document.getElementById('metaSigningDeadline').innerText = formatDateTime(contract.signingDeadline);
+      if (contract.simPhoneNumber) {
+        document.getElementById('metaSimNumber').innerText = contract.simPhoneNumber;
+      }
+      if (contract.escrowAmount) {
+        document.getElementById('metaPrice').innerText = formatMoney(contract.escrowAmount);
+        document.getElementById('metaEscrow').innerText = `${formatMoney(contract.escrowAmount)} (HELD)`;
+      }
+      if (contract.buyerName) {
+        document.getElementById('buyerSignerName').innerText = contract.buyerName;
+      }
+      if (contract.sellerName) {
+        document.getElementById('sellerSignerName').innerText = contract.sellerName;
+      }
 
       const statusBadge = document.getElementById('contractStatusBadge');
       statusBadge.innerText = contract.contractStatus;
@@ -1757,7 +2019,10 @@
         statusBadge.className = 'badge badge-pending';
       }
 
-      // 2. Buyer & Seller Sign Boxes
+      // 2. Deadlines Countdown setup (Tuần tự từng giai đoạn)
+      startDeadlinesCountdown(contract);
+
+      // 3. Buyer & Seller Sign Boxes
       const buyerBox = document.getElementById('buyerSignerBox');
       const buyerStatus = document.getElementById('buyerSignerStatus');
       if (contract.buyerSigned) {
@@ -1786,7 +2051,7 @@
         sellerStatus.innerHTML = `<i class="fa-regular fa-clock"></i> Chờ ký OTP`;
       }
 
-      // 3. User Signing Permission & Notice
+      // 4. User Signing Permission & Notice
       const isCurrentUserBuyer = currentUsername.includes('bidder');
       const isCurrentUserSeller = currentUsername.includes('seller');
       const hasCurrentUserSigned = (isCurrentUserBuyer && contract.buyerSigned) || (isCurrentUserSeller && contract.sellerSigned);
@@ -1803,11 +2068,23 @@
         signingFormContainer.style.display = 'flex';
       }
 
-      // 4. HTML Preview
+      // 5. TAB 1: Winning Notice
+      document.getElementById('noticeCode').innerText = contract.tradeTransactionCode || 'N/A';
+      const noticeUrlEl = document.getElementById('noticeUrl');
+      if (contract.winningNoticeUrl) {
+        noticeUrlEl.innerText = contract.winningNoticeUrl;
+        noticeUrlEl.style.color = 'var(--primary)';
+      } else {
+        noticeUrlEl.innerText = 'Đang tự động khởi tạo khi xem...';
+        noticeUrlEl.style.color = 'var(--text-dim)';
+      }
+      document.getElementById('noticeHash').innerText = contract.winningNoticeHash || 'Chưa sinh mã băm';
+
+      // 6. TAB 2: HTML Preview
       const previewEl = document.getElementById('contractHtmlPreview');
       previewEl.innerHTML = contract.htmlContent || '<p>Không có nội dung preview.</p>';
 
-      // 5. PDF & PAdES Information Table
+      // 7. TAB 3: PDF & PAdES Information Table
       document.getElementById('pdfTableStatus').innerHTML = statusBadge.outerHTML;
       document.getElementById('pdfTableHash').innerText = contract.documentHash || 'Đang chờ ký đủ 2 bên để sinh hash...';
       document.getElementById('pdfTableSerial').innerText = contract.padesSignatureSerial || 'Chưa niêm phong';
@@ -1819,25 +2096,135 @@
         : '<span style="color: var(--emerald);">✅ Ký số đồng thuận 2 bên</span>';
       document.getElementById('pdfTableSealedAt').innerText = contract.sealedAt ? formatDateTime(contract.sealedAt) : 'N/A';
 
-      // Download Button
       const btnDownload = document.getElementById('btnDownloadPdf');
       if (contract.documentPdfUrl) {
-        btnDownload.href = contract.documentPdfUrl;
+        btnDownload.disabled = false;
         btnDownload.classList.remove('btn-secondary');
         btnDownload.classList.add('btn-emerald');
         btnDownload.innerHTML = '<i class="fa-solid fa-download"></i> Tải File PDF Đã Ký Số PAdES';
       } else {
-        btnDownload.href = 'javascript:void(0)';
+        btnDownload.disabled = true;
         btnDownload.classList.remove('btn-emerald');
         btnDownload.classList.add('btn-secondary');
         btnDownload.innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Chưa có file PDF (Chờ niêm phong)';
       }
 
-      // 6. Set Hashes for Verification Tab
+      // 8. TAB 4: Hashes for Verification Tab
       document.getElementById('displayExpectedHash').innerText = contract.documentHash || 'Chưa có hash niêm phong';
       if (contract.documentHash) {
         document.getElementById('displayExpectedHash').classList.add('clean');
       }
+
+      // 9. TAB 5: Liquidation Section in Handover Tab
+      const liqStatusBadge = document.getElementById('liqStatusBadge');
+      const btnDownloadLiq = document.getElementById('btnDownloadLiquidation');
+      if (contract.liquidationDocumentUrl) {
+        liqStatusBadge.className = 'badge badge-sealed';
+        liqStatusBadge.innerText = 'ĐÃ NIÊM PHONG PAdES';
+        document.getElementById('liqDocUrl').innerText = contract.liquidationDocumentUrl;
+        document.getElementById('liqDocHash').innerText = contract.liquidationDocumentHash || 'N/A';
+        document.getElementById('liqSealedAt').innerText = formatDateTime(contract.liquidationSealedAt);
+        btnDownloadLiq.disabled = false;
+      } else {
+        liqStatusBadge.className = 'badge badge-pending';
+        liqStatusBadge.innerText = 'CHỜ NGHIỆM THU';
+        document.getElementById('liqDocUrl').innerText = 'Chưa sinh tệp';
+        document.getElementById('liqDocHash').innerText = 'Chưa niêm phong';
+        document.getElementById('liqSealedAt').innerText = 'N/A';
+        btnDownloadLiq.disabled = true;
+      }
+    }
+
+    // Countdown Timer Helper (Tuần tự từng giai đoạn nghiệp vụ)
+    function startDeadlinesCountdown(contract) {
+      if (deadlineTimerInterval) clearInterval(deadlineTimerInterval);
+
+      const signTime = contract.signingDeadline;
+      const transferTime = contract.transferDeadline;
+      const liqTime = contract.liquidationDeadline;
+      const isSigned = contract.contractStatus === 'FULLY_SIGNED' || (contract.buyerSigned && contract.sellerSigned);
+      const isProofSubmitted = contract.simTransferStatus === 'SELLER_PROOF_SUBMITTED' || contract.simTransferStatus === 'COMPLETED' || contract.isCompleted;
+      const isCompleted = contract.isCompleted || !!contract.liquidationDocumentUrl;
+
+      function updateTimers() {
+        const now = new Date().getTime();
+
+        // 1. GIAI ĐOẠN 1: KÝ HỢP ĐỒNG ĐIỆN TỬ (SIGNING)
+        const elSign = document.getElementById('badgeSigningDeadline');
+        if (isSigned) {
+          elSign.innerText = '✅ Đã ký số đủ 2 bên';
+          elSign.className = 'deadline-badge green';
+        } else if (signTime) {
+          updateSingleBadge('badgeSigningDeadline', signTime, now);
+        } else {
+          elSign.innerText = 'Chưa kích hoạt';
+          elSign.className = 'deadline-badge';
+        }
+
+        // 2. GIAI ĐOẠN 2: BÀN GIAO SIM TẠI NHÀ MẠNG (TRANSFER)
+        const elTrans = document.getElementById('badgeTransferDeadline');
+        if (isProofSubmitted || isCompleted) {
+          elTrans.innerText = '✅ Đã nộp biên bản đổi chủ';
+          elTrans.className = 'deadline-badge green';
+        } else if (!isSigned) {
+          elTrans.innerText = '⏸️ Chờ 2 bên ký xong HĐ';
+          elTrans.className = 'deadline-badge';
+        } else if (transferTime) {
+          updateSingleBadge('badgeTransferDeadline', transferTime, now);
+        } else {
+          elTrans.innerText = 'Chưa kích hoạt';
+          elTrans.className = 'deadline-badge';
+        }
+
+        // 3. GIAI ĐOẠN 3: NGHIỆM THU & THANH LÝ ESCROW (LIQUIDATION)
+        const elLiq = document.getElementById('badgeLiquidationDeadline');
+        if (isCompleted) {
+          elLiq.innerText = '✅ Đã thanh lý & giải ngân';
+          elLiq.className = 'deadline-badge green';
+        } else if (!isProofSubmitted) {
+          elLiq.innerText = '⏸️ Chờ nộp biên bản sang tên';
+          elLiq.className = 'deadline-badge';
+        } else if (liqTime) {
+          updateSingleBadge('badgeLiquidationDeadline', liqTime, now);
+        } else {
+          elLiq.innerText = 'Chưa kích hoạt';
+          elLiq.className = 'deadline-badge';
+        }
+      }
+
+      function updateSingleBadge(badgeId, targetTimeStr, now) {
+        const el = document.getElementById(badgeId);
+        if (!targetTimeStr) {
+          el.innerText = 'Chưa kích hoạt';
+          el.className = 'deadline-badge';
+          return;
+        }
+
+        const target = new Date(targetTimeStr).getTime();
+        const diff = target - now;
+
+        if (diff <= 0) {
+          el.innerText = 'Đã hết hạn';
+          el.className = 'deadline-badge red';
+          return;
+        }
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+        el.innerText = `${hours}h ${mins}m ${secs}s`;
+        if (hours < 2) {
+          el.className = 'deadline-badge red';
+        } else if (hours < 24) {
+          el.className = 'deadline-badge yellow';
+        } else {
+          el.className = 'deadline-badge green';
+        }
+      }
+
+      updateTimers();
+      deadlineTimerInterval = setInterval(updateTimers, 1000);
     }
 
     // Send Contract Signing OTP
@@ -1865,7 +2252,6 @@
         const isSuccess = data.success ?? data.isSuccess;
         if (isSuccess) {
           showToast('✅ Mã OTP đã được gửi đến email của bạn! (Hạn 5 phút)', 'success');
-          // Start cooldown
           let seconds = 60;
           const interval = setInterval(() => {
             btn.innerHTML = `<i class="fa-solid fa-clock"></i> Gửi lại (${seconds}s)`;
@@ -1889,11 +2275,9 @@
       }
     }
 
-    // Fill Demo OTP for quick testing
     function fillDemoOtp() {
-      // In local testing, if OTP is known or logged, user can quickly fill
       document.getElementById('contractOtpInput').value = '123456';
-      showToast('Đã điền mã OTP mẫu: 123456 (Nếu chưa đúng, hãy xem log server hoặc kiểm tra email)', 'info');
+      showToast('Đã điền mã OTP mẫu: 123456', 'info');
     }
 
     // Submit Sign Contract with OTP
@@ -1927,9 +2311,7 @@
             'Content-Type': 'application/json'
           },
           credentials: 'include',
-          body: JSON.stringify({
-            otpCode: otp
-          })
+          body: JSON.stringify({ otpCode: otp })
         });
 
         const data = await res.json();
@@ -1937,14 +2319,15 @@
         if (isSuccess) {
           showToast(data.message || 'Ký hợp đồng thành công!', 'success');
           document.getElementById('contractOtpInput').value = '';
+          await loadUserTrades();
           await loadContractDetails(currentTradeId);
 
           if (data.data?.isFullySigned) {
             showToast('🎉 Cả 2 bên đã ký xong! Hệ thống đang kích hoạt niêm phong PAdES X.509...', 'info');
-            // Auto reload after 3s to get sealed PDF
             setTimeout(async () => {
+              await loadUserTrades();
               await loadContractDetails(currentTradeId);
-            }, 3500);
+            }, 2000);
           }
         } else {
           showToast(data.message || 'Ký hợp đồng thất bại', 'error');
@@ -1958,13 +2341,83 @@
       }
     }
 
-    // Open PDF in new tab
+    // Download Winning Notice PDF (VB 1)
+    function downloadWinningNoticePdf() {
+      if (!currentTradeId) return;
+      window.open(`${backendUrl}/api/contracts/${currentTradeId}/winning-notice?token=${encodeURIComponent(currentToken)}`, '_blank');
+    }
+
+    function viewWinningNoticeInNewTab() {
+      if (currentContractData?.winningNoticeUrl) {
+        window.open(currentContractData.winningNoticeUrl, '_blank');
+      } else {
+        downloadWinningNoticePdf();
+      }
+    }
+
+    // Download Contract PDF (VB 2)
+    function downloadContractPdf() {
+      if (!currentTradeId) return;
+      window.open(`${backendUrl}/api/contracts/${currentTradeId}/download?token=${encodeURIComponent(currentToken)}`, '_blank');
+    }
+
     function viewPdfInNewTab() {
       if (currentContractData?.documentPdfUrl) {
         window.open(currentContractData.documentPdfUrl, '_blank');
       } else {
-        showToast('Tài liệu PDF chưa được niêm phong hoàn tất!', 'warning');
+        downloadContractPdf();
       }
+    }
+
+    // Download Liquidation PDF (VB 3)
+    function downloadLiquidationPdf() {
+      if (!currentTradeId) return;
+      window.open(`${backendUrl}/api/contracts/${currentTradeId}/liquidation/download?token=${encodeURIComponent(currentToken)}`, '_blank');
+    }
+
+    // Open Liquidation HTML Preview Modal
+    async function openLiquidationPreviewModal() {
+      if (!currentTradeId) {
+        showToast('Vui lòng chọn giao dịch trước!', 'warning');
+        return;
+      }
+
+      const modal = document.getElementById('liquidationModal');
+      const container = document.getElementById('liquidationHtmlContainer');
+      modal.classList.add('active');
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px 0;">
+          <i class="fa-solid fa-spinner fa-spin" style="font-size: 26px; color: #166534;"></i>
+          <p style="margin-top: 10px; color: #64748b;">Đang tải nội dung Biên Bản Nghiệm Thu & Thanh Lý...</p>
+        </div>
+      `;
+
+      try {
+        const res = await fetch(`${backendUrl}/api/contracts/${currentTradeId}/liquidation/preview`, {
+          headers: {
+            'Authorization': `Bearer ${currentToken}`
+          },
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess && data.data?.htmlContent) {
+          container.innerHTML = data.data.htmlContent;
+        } else {
+          container.innerHTML = `<div style="color: #b91c1c; padding: 20px;">Lỗi: ${data.message || 'Không thể xem trước biên bản thanh lý'}</div>`;
+        }
+      } catch (err) {
+        console.error('Preview liquidation error:', err);
+        container.innerHTML = `<div style="color: #b91c1c; padding: 20px;">Lỗi kết nối khi xem trước biên bản thanh lý</div>`;
+      }
+    }
+
+    function closeLiquidationPreviewModal(e) {
+      if (e && e.target !== document.getElementById('liquidationModal') && !e.target.classList.contains('modal-close-btn') && !e.target.parentElement?.classList.contains('modal-close-btn')) {
+        return;
+      }
+      document.getElementById('liquidationModal').classList.remove('active');
     }
 
     // Switch Tabs
@@ -1978,33 +2431,27 @@
     }
 
     // =========================================================================
-    // INTEGRITY & TAMPER TESTING LAB IMPLEMENTATION
+    // INTEGRITY & TAMPER TESTING LAB (WEB CRYPTO SHA-256)
     // =========================================================================
-    // INTEGRITY & TAMPER TESTING LAB IMPLEMENTATION (WEB CRYPTO SHA-256)
-    // =========================================================================
-
-    // Compute real cryptographic SHA-256 hash using native browser Web Crypto API
     async function calculateSha256OfBuffer(buffer) {
       const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // Handle File Pick from local disk
     async function handleFileSelected(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
       await verifyLocalPdfFile(file);
-      // Reset input so same file can be picked again if re-tested
       event.target.value = '';
     }
 
-    // Hash and verify local file uploaded by user
     async function verifyLocalPdfFile(file) {
       if (!currentContractData || !currentContractData.documentHash) {
         showToast('Hợp đồng chưa được niêm phong hoàn tất để đối chiếu mã băm!', 'warning');
         return;
       }
+
       try {
         showToast(`Đang đọc tệp "${file.name}" (${(file.size / 1024).toFixed(1)} KB) & tính SHA-256...`, 'info');
         const buffer = await file.arrayBuffer();
@@ -2016,7 +2463,6 @@
       }
     }
 
-    // Quick verification: Clean Test vs Tamper Attack Simulation
     async function runIntegrityVerification(simulateTamper) {
       if (!currentContractData || !currentContractData.documentHash) {
         showToast('Hợp đồng chưa được ký đủ 2 bên và niêm phong số PAdES để kiểm tra mã băm!', 'warning');
@@ -2026,9 +2472,7 @@
       const expectedHash = currentContractData.documentHash.trim().toLowerCase();
       let computedHash = expectedHash;
 
-      // If Tamper Simulation is active, corrupt the hash slightly!
       if (simulateTamper) {
-        // Change the last 4 characters of the hash to simulate corrupt byte
         computedHash = expectedHash.substring(0, expectedHash.length - 4) + 'dead';
         showToast('🚨 Đang mô phỏng tệp PDF bị can thiệp / sửa đổi nội dung!', 'warning');
       }
@@ -2036,11 +2480,9 @@
       await sendHashVerification(computedHash, simulateTamper ? 'Mô phỏng sửa đổi byte (Tampered)' : 'File gốc từ máy chủ (Original)', simulateTamper);
     }
 
-    // Common verification submit
     async function sendHashVerification(computedHash, sourceLabel = '', isSimulatedTamper = false) {
       const expectedHash = (currentContractData.documentHash || '').trim().toLowerCase();
 
-      // Display expected and client hashes
       document.getElementById('displayExpectedHash').innerText = expectedHash;
       document.getElementById('displayExpectedHash').className = 'hash-val clean';
 
@@ -2049,7 +2491,6 @@
       clientHashEl.innerText = `${computedHash} ${sourceLabel ? '(' + sourceLabel + ')' : ''}`;
       clientHashEl.className = 'hash-val ' + (isMatch ? 'clean' : 'tampered');
 
-      // Call Backend Verification Endpoint
       try {
         const res = await fetch(`${backendUrl}/api/contracts/${currentTradeId}/verify-integrity`, {
           method: 'POST',
@@ -2058,9 +2499,7 @@
             'Content-Type': 'application/json'
           },
           credentials: 'include',
-          body: JSON.stringify({
-            clientSha256: computedHash
-          })
+          body: JSON.stringify({ clientSha256: computedHash })
         });
 
         const data = await res.json();
@@ -2105,7 +2544,7 @@
         <i class="fa-solid fa-clock" style="font-size: 20px;"></i>
         <div>
           <strong id="verifyBannerTitle">ĐANG CHỜ KIỂM ĐỊNH</strong>
-          <p id="verifyBannerDesc" style="font-size: 12px; margin-top: 2px;">Vui lòng tải hợp đồng và bấm nút "Kiểm Định Tính Toàn Vẹn" bên dưới.</p>
+          <p id="verifyBannerDesc" style="font-size: 12px; margin-top: 2px;">Vui lòng bấm nút "Kiểm Định File Gốc Server" bên dưới.</p>
         </div>
       `;
 
@@ -2114,33 +2553,9 @@
       showToast('Đã đặt lại trạng thái kiểm định.', 'info');
     }
 
-    // Helper: Toast
-    function showToast(msg, type = 'info') {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      toast.className = 'toast';
-
-      let icon = 'ℹ️';
-      if (type === 'success') icon = '✅';
-      if (type === 'error') icon = '❌';
-      if (type === 'warning') icon = '⚠️';
-
-      toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(10px)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-      }, 4000);
-    }
-
     // =========================================================================
-    // TAB 4: SIM HANDOVER & ESCROW PAYOUT JAVASCRIPT
+    // SIM HANDOVER & ESCROW PAYOUT JAVASCRIPT
     // =========================================================================
-    let currentHandoverData = null;
-
     async function loadSimTransferDetails(tradeId) {
       if (!tradeId) return;
 
@@ -2163,10 +2578,25 @@
       }
     }
 
+    async function refreshCurrentTrade() {
+      await loadUserTrades();
+      if (currentTradeId) {
+        await loadContractDetails(currentTradeId);
+      }
+      showToast('Đã làm mới dữ liệu!', 'info');
+    }
+
     function renderHandoverUI(details) {
       if (!details) return;
 
-      // Status Badge
+      if (details.simPhoneNumber) {
+        document.getElementById('metaSimNumber').innerText = details.simPhoneNumber;
+      }
+      if (details.escrowAmount) {
+        document.getElementById('metaPrice').innerText = formatMoney(details.escrowAmount);
+        document.getElementById('metaEscrow').innerText = `${formatMoney(details.escrowAmount)} (${details.escrowStatus || 'HELD'})`;
+      }
+
       const statusBadge = document.getElementById('handoverStatusBadge');
       statusBadge.innerText = details.simTransferStatus;
       if (details.simTransferStatus === 'COMPLETED') {
@@ -2205,7 +2635,7 @@
       if (isCompleted) {
         step3.className = 'step-item completed';
         step3.querySelector('.step-icon').innerHTML = '<i class="fa-solid fa-check"></i>';
-        step3Desc.innerText = 'Bên mua đã xác nhận có sóng';
+        step3Desc.innerText = 'Bên mua đã xác nhận nghiệm thu';
         step3Desc.style.color = 'var(--emerald)';
       } else if (isProofSubmitted) {
         step3.className = 'step-item active';
@@ -2223,7 +2653,7 @@
       if (isCompleted) {
         step4.className = 'step-item completed';
         step4.querySelector('.step-icon').innerHTML = '<i class="fa-solid fa-check"></i>';
-        step4Desc.innerText = 'Đã chuyển quyền & Giải ngân';
+        step4Desc.innerText = 'Đã thanh lý & Giải ngân';
         step4Desc.style.color = 'var(--emerald)';
       } else {
         step4.className = 'step-item';
@@ -2232,7 +2662,7 @@
         step4Desc.style.color = 'var(--text-dim)';
       }
 
-      // Seller Form controls
+      // Seller Form
       const sellerNotice = document.getElementById('sellerSubmittedNotice');
       const sellerForm = document.getElementById('sellerUploadForm');
       if (isCompleted) {
@@ -2248,7 +2678,7 @@
         sellerForm.style.display = 'flex';
       }
 
-      // Buyer Form controls
+      // Buyer Form
       const buyerWaiting = document.getElementById('buyerWaitingSellerNotice');
       const buyerConfirm = document.getElementById('buyerConfirmForm');
       const completedBanner = document.getElementById('completedSuccessBanner');
@@ -2285,7 +2715,7 @@
           </div>
         `).join('');
       } else {
-        gallery.innerHTML = '<div style="color: var(--text-dim); font-size: 12px; grid-column: 1 / -1; padding: 20px 0; text-align: center;">Chưa có biên bản nào được tải lên.</div>';
+        gallery.innerHTML = '<div style="color: var(--text-dim); font-size: 12px; grid-column: 1 / -1; padding: 16px 0; text-align: center;">Chưa có biên bản nào được tải lên.</div>';
       }
 
       // Escrow Breakdown
@@ -2304,7 +2734,7 @@
 
     function fillDemoProofImage() {
       document.getElementById('proofImageUrlInput').value = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80';
-      document.getElementById('proofDescInput').value = 'Đã hoàn tất thủ tục sang tên đổi chủ tại điểm giao dịch Viettel Store. Kính gửi bên mua kiểm tra sóng!';
+      document.getElementById('proofDescInput').value = 'Đã hoàn tất thủ tục sang tên đổi chủ tại điểm giao dịch MobiFone. Kính gửi bên mua kiểm tra sóng!';
       showToast('Đã điền link ảnh biên bản demo', 'info');
     }
 
@@ -2334,10 +2764,7 @@
             'Content-Type': 'application/json'
           },
           credentials: 'include',
-          body: JSON.stringify({
-            imageUrl: imageUrl,
-            description: desc
-          })
+          body: JSON.stringify({ imageUrl: imageUrl, description: desc })
         });
 
         const data = await res.json();
@@ -2364,13 +2791,13 @@
         return;
       }
 
-      if (!confirm('Bạn xác nhận đã nhận SIM và kiểm tra có sóng viễn thông? Hệ thống sẽ chuyển quyền sở hữu SIM cho bạn và giải ngân tiền Escrow cho Người Bán.')) {
+      if (!confirm('Bạn xác nhận đã nhận SIM và kiểm tra có sóng viễn thông? Hệ thống sẽ sinh Biên Bản Thanh Lý, niêm phong chữ ký số PAdES X.509 và giải ngân tiền Escrow cho Người Bán.')) {
         return;
       }
 
       const btn = document.getElementById('btnConfirmTransfer');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang giải ngân Escrow và sang tên...';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang niêm phong thanh lý & giải ngân...';
 
       try {
         const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/confirm`, {
@@ -2385,7 +2812,7 @@
         const data = await res.json();
         const isSuccess = data.success ?? data.isSuccess;
         if (isSuccess) {
-          showToast('🎉 CHÚC MỪNG: Giao dịch hoàn tất! SIM đã chính chủ và tiền đã giải ngân vào ví Người Bán.', 'success');
+          showToast('🎉 CHÚC MỪNG: Giao dịch hoàn tất! SIM đã chính chủ, biên bản thanh lý đã được niêm phong PAdES và tiền đã về ví Người Bán.', 'success');
           await loadContractDetails(currentTradeId);
           await loadSimTransferDetails(currentTradeId);
         } else {
@@ -2396,7 +2823,7 @@
         showToast('Lỗi khi gọi API xác nhận nhận SIM', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> XÁC NHẬN ĐÃ NHẬN SIM VÀ CÓ SÓNG - HOÀN TẤT & GIẢI NGÂN ESCROW';
+        btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> XÁC NHẬN ĐÃ NHẬN SIM - NGHIỆM THU & GIẢI NGÂN';
       }
     }
 
@@ -2409,6 +2836,28 @@
       if (!dateStr) return 'N/A';
       const d = new Date(dateStr);
       return d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    // Toast
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✅';
+      if (type === 'error') icon = '❌';
+      if (type === 'warning') icon = '⚠️';
+
+      toast.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
     }
   </script>
 </body>

@@ -1,11 +1,13 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
 
 namespace TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 
 /// <summary>
-/// Command cập nhật avatar người dùng.
+/// Command tải lên và cập nhật ảnh đại diện người dùng.
 /// </summary>
 public record UpdateAvatarCommand(
-    string AvatarUrl,
+    IFormFile File,
     Guid UserId = default
 ) : IRequest<string>;
+

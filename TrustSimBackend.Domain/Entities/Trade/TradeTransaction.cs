@@ -37,9 +37,15 @@ namespace TrustSimBackend.Domain.Entities.Trade
         public DateTime SigningDeadline {get;set;}= DateTime.UtcNow;
 
         /// <summary>
-        /// Thời điểm hết hạn chuyển nhượng SIM.
+        /// Thời điểm hết hạn chuyển nhượng SIM tại nhà mạng.
         /// </summary>
         public DateTime TransferDeadline {get;set;}= DateTime.UtcNow;
+
+        /// <summary>
+        /// Thời điểm hết hạn nghiệm thu và thanh lý hợp đồng sau khi nhận SIM.
+        /// </summary>
+        public DateTime? LiquidationDeadline { get; set; }
+
         /// <summary>
         /// Thời điểm hoàn tất giao dịch.
         /// </summary>

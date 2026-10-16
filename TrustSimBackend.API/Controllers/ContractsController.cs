@@ -23,11 +23,162 @@ public class ContractsController : BaseApiController
     [HttpGet("{tradeId:guid}/preview")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<ContractPreviewDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetContractPreview([FromRoute] Guid tradeId)
     {
-        var result = await Mediator.Send(new GetContractPreviewQuery(tradeId, CurrentUserId));
+        var result = await Mediator.Send(new GetContractPreviewQuery(tradeId, CurrentUserId, IsAdmin));
         return Ok(ApiResponse<ContractPreviewDto>.SuccessResult(result, "Lấy nội dung xem trước hợp đồng thành công."));
+    }
+
+    /// <summary>
+    /// Tải tệp tin hợp đồng PDF chuyển nhượng quyền sử dụng SIM (Chuyển hướng trực tiếp tới CDN Cloud Supabase Storage).
+    /// Yêu cầu xác thực tài khoản có thẩm quyền (Bên Mua, Bên Bán hoặc Quản trị viên sàn) qua Header hoặc Query ?token=...
+    /// </summary>
+    /// <param name="tradeId">ID của giao dịch chuyển nhượng.</param>
+    [HttpGet("{tradeId:guid}/download")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadContractPdf([FromRoute] Guid tradeId)
+    {
+        var unitOfWork = HttpContext.RequestServices.GetRequiredService<IUnitOfWork>();
+        var trade = await unitOfWork.TradeTransactions.GetByIdAsync(tradeId);
+        if (trade == null)
+        {
+            return NotFound(ApiResponse<object>.FailureResult($"Không tìm thấy giao dịch chuyển nhượng có ID '{tradeId}'."));
+        }
+
+        var isBuyer = trade.BuyerId == CurrentUserId;
+        var isSeller = trade.SellerId == CurrentUserId;
+
+        if (!isBuyer && !isSeller && !IsAdmin)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, 
+                ApiResponse<object>.FailureResult("Bạn không có quyền tải hoặc xem hợp đồng của giao dịch này."));
+        }
+
+        var docUrl = trade.TransferContract?.DocumentUrl;
+        if (string.IsNullOrWhiteSpace(docUrl))
+        {
+            return NotFound(ApiResponse<object>.FailureResult("Hợp đồng chưa được niêm phong hoặc tệp PDF chưa sẵn sàng."));
+        }
+
+        if (docUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) 
+            || docUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return Redirect(docUrl);
+        }
+
+        return NotFound(ApiResponse<object>.FailureResult("Đường dẫn tệp hợp đồng không hợp lệ."));
+    }
+
+    /// <summary>
+    /// Tải tệp tin Phiếu xác nhận kết quả đấu giá / Phiếu chốt giá trúng điện tử (Văn bản 1) từ CDN Cloud Supabase Storage.
+    /// Yêu cầu xác thực tài khoản có thẩm quyền (Bên Mua, Bên Bán hoặc Quản trị viên sàn).
+    /// </summary>
+    /// <param name="tradeId">ID của giao dịch chuyển nhượng.</param>
+    [HttpGet("{tradeId:guid}/winning-notice")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadWinningNoticePdf([FromRoute] Guid tradeId)
+    {
+        var unitOfWork = HttpContext.RequestServices.GetRequiredService<IUnitOfWork>();
+        var trade = await unitOfWork.TradeTransactions.GetByIdAsync(tradeId);
+        if (trade == null)
+        {
+            return NotFound(ApiResponse<object>.FailureResult($"Không tìm thấy giao dịch chuyển nhượng có ID '{tradeId}'."));
+        }
+
+        var isBuyer = trade.BuyerId == CurrentUserId;
+        var isSeller = trade.SellerId == CurrentUserId;
+
+        if (!isBuyer && !isSeller && !IsAdmin)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, 
+                ApiResponse<object>.FailureResult("Bạn không có quyền tải hoặc xem phiếu chốt giá trúng của giao dịch này."));
+        }
+
+        var noticeUrl = trade.TransferContract?.WinningNoticeUrl;
+        if (string.IsNullOrWhiteSpace(noticeUrl))
+        {
+            var preview = await Mediator.Send(new GetContractPreviewQuery(tradeId, CurrentUserId, IsAdmin));
+            noticeUrl = preview.WinningNoticeUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(noticeUrl))
+        {
+            return NotFound(ApiResponse<object>.FailureResult("Phiếu chốt giá trúng điện tử chưa sẵn sàng hoặc giao dịch không hợp lệ."));
+        }
+
+        if (noticeUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) 
+            || noticeUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return Redirect(noticeUrl);
+        }
+
+        return NotFound(ApiResponse<object>.FailureResult("Đường dẫn tệp phiếu chốt giá trúng không hợp lệ."));
+    }
+
+    /// <summary>
+    /// Xem trước nội dung Biên bản nghiệm thu và thanh lý giao dịch điện tử (Văn bản 3 dạng HTML).
+    /// </summary>
+    /// <param name="tradeId">ID của giao dịch chuyển nhượng.</param>
+    [HttpGet("{tradeId:guid}/liquidation/preview")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<LiquidationPreviewDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetLiquidationPreview([FromRoute] Guid tradeId)
+    {
+        var result = await Mediator.Send(new GetLiquidationPreviewQuery(tradeId, CurrentUserId, IsAdmin));
+        return Ok(ApiResponse<LiquidationPreviewDto>.SuccessResult(result, "Lấy nội dung xem trước biên bản thanh lý thành công."));
+    }
+
+    /// <summary>
+    /// Tải tệp tin Biên bản nghiệm thu và thanh lý giao dịch điện tử (Văn bản 3) đã niêm phong từ CDN Supabase Storage.
+    /// Yêu cầu xác thực tài khoản có thẩm quyền (Bên Mua, Bên Bán hoặc Quản trị viên sàn).
+    /// </summary>
+    /// <param name="tradeId">ID của giao dịch chuyển nhượng.</param>
+    [HttpGet("{tradeId:guid}/liquidation/download")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadLiquidationPdf([FromRoute] Guid tradeId)
+    {
+        var unitOfWork = HttpContext.RequestServices.GetRequiredService<IUnitOfWork>();
+        var trade = await unitOfWork.TradeTransactions.GetByIdAsync(tradeId);
+        if (trade == null)
+        {
+            return NotFound(ApiResponse<object>.FailureResult($"Không tìm thấy giao dịch chuyển nhượng có ID '{tradeId}'."));
+        }
+
+        var isBuyer = trade.BuyerId == CurrentUserId;
+        var isSeller = trade.SellerId == CurrentUserId;
+
+        if (!isBuyer && !isSeller && !IsAdmin)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, 
+                ApiResponse<object>.FailureResult("Bạn không có quyền tải hoặc xem biên bản thanh lý của giao dịch này."));
+        }
+
+        var liqUrl = trade.TransferContract?.LiquidationDocumentUrl;
+        if (string.IsNullOrWhiteSpace(liqUrl))
+        {
+            return NotFound(ApiResponse<object>.FailureResult("Biên bản nghiệm thu và thanh lý chưa được niêm phong hoặc tệp chưa sẵn sàng."));
+        }
+
+        if (liqUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) 
+            || liqUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return Redirect(liqUrl);
+        }
+
+        return NotFound(ApiResponse<object>.FailureResult("Đường dẫn tệp biên bản thanh lý không hợp lệ."));
     }
 
     /// <summary>
