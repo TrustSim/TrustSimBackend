@@ -869,9 +869,12 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                     BuyerId = winnerParticipant.UserAccountId,
                     SellerId = auction.AuthorId,
                     SimNumberId = auction.SimNumberId,
-                    EscrowDeadline = now.AddDays(2),
+                    EscrowDeadline = null,
                     SigningDeadline = signingDeadline,
-                    TransferDeadline = now.AddDays(7),
+                    TransferDeadline = null,
+                    LiquidationDeadline = null,
+                    CompletedAt = null,
+                    CancelledAt = null,
                     IsActive = true
                 };
 
@@ -948,7 +951,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 {
                     AuctionId = auction.Id,
                     JobType = AuctionDelayJobTypes.SIGNING_DEADLINE,
-                    ExecuteAt = trade.SigningDeadline,
+                    ExecuteAt = trade.SigningDeadline!.Value,
                     ExtraData = trade.Id.ToString()
                 }, cancellationToken);
 
@@ -1880,11 +1883,13 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 trade.Escrow.Id,
                 cancellationToken);
             trade.Escrow.EscrowStatus = EscrowStatus.RELEASED;
+            trade.Escrow.ReleasedAt = now;
         }
 
         if (trade.TransferContract != null)
         {
             trade.TransferContract.LiquidationSealedAt = now;
+            trade.TransferContract.ContractStatus = ContractStatus.COMPLETED;
         }
 
         await context.SaveChangesAsync(cancellationToken);

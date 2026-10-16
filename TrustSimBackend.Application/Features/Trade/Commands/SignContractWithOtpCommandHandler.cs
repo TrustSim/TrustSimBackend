@@ -110,6 +110,18 @@ public class SignContractWithOtpCommandHandler : IRequestHandler<SignContractWit
         var otpHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.OtpCode))).ToLower();
         var now = DateTime.UtcNow;
 
+        var auditJson = JsonSerializer.Serialize(new
+        {
+            TradeCode = trade.TradeTransactionCode,
+            UserId = request.UserId,
+            Email = user.Email,
+            Role = role.ToString(),
+            Timestamp = now
+        });
+
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(otpHash));
+        var authSignature = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(auditJson))).ToLowerInvariant();
+
         var signature = new DigitalSignature
         {
             Id = Guid.NewGuid(),
@@ -122,14 +134,9 @@ public class SignContractWithOtpCommandHandler : IRequestHandler<SignContractWit
             OtpCodeHash = otpHash,
             OtpVerifiedAt = now,
             SignedAt = now,
-            AuditMetadataJson = JsonSerializer.Serialize(new
-            {
-                TradeCode = trade.TradeTransactionCode,
-                UserId = request.UserId,
-                Email = user.Email,
-                Role = role.ToString(),
-                Timestamp = now
-            })
+            AuditMetadataJson = auditJson,
+            PublicKey = $"EMAIL_VERIFIED_IDENTITY:{user.Email}",
+            CryptographicSignature = authSignature
         };
 
         await _unitOfWork.TradeTransactions.AddDigitalSignatureAsync(signature, cancellationToken);

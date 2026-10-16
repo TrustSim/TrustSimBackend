@@ -208,16 +208,29 @@ public class AcceptDutchBuyCommandHandler : IRequestHandler<AcceptDutchBuyComman
                 {
                     Id = tradeId,
                     TradeTransactionCode = $"TRD-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-                    TradeTransactionStatus = TradeTransactionStatus.PendingTransfer,
+                    TradeTransactionStatus = TradeTransactionStatus.PendingSignature,
                     AuctionId = auction.Id,
                     BuyerId = participant.UserAccountId,
                     SellerId = auction.AuthorId,
                     SimNumberId = auction.SimNumberId,
-                    EscrowDeadline = now.AddDays(2),
-                    SigningDeadline = now.AddDays(3),
-                    TransferDeadline = now.AddDays(7),
+                    EscrowDeadline = null,
+                    SigningDeadline = now.AddMinutes(auction.AuctionRule?.SigningGracePeriodMinutes ?? 1440),
+                    TransferDeadline = null,
+                    LiquidationDeadline = null,
+                    CompletedAt = null,
+                    CancelledAt = null,
                     IsActive = true
                 };
+
+                var contract = new TransferContract
+                {
+                    Id = Guid.NewGuid(),
+                    TradeTransactionId = trade.Id,
+                    ContractStatus = ContractStatus.DRAFT,
+                    DocumentUrl = string.Empty,
+                    DocumentHash = string.Empty
+                };
+                trade.TransferContract = contract;
 
                 var escrow = new Escrow
                 {

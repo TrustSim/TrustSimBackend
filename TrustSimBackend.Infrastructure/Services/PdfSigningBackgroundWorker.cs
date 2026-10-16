@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -187,6 +189,7 @@ public class PdfSigningBackgroundWorker : BackgroundService
         trade.TransferContract.IsAutoEnforced = isAutoEnforced;
         trade.TransferContract.SealedAt = signResult.SignedAt;
         trade.TransferContract.ContractStatus = ContractStatus.FULLY_SIGNED;
+        trade.TransferContract.BlockchainTxHash = $"0x{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{trade.TradeTransactionCode}_{signResult.Sha256Hash}_{signResult.SignedAt:O}"))).ToLowerInvariant()}";
         
         // Chuyển TradeTransaction sang PendingTransfer
         trade.TradeTransactionStatus = TradeTransactionStatus.PendingTransfer;

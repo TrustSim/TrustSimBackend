@@ -16,6 +16,10 @@ public class TradeTransactionDto
     public decimal EscrowAmount { get; set; }
     public TradeTransactionStatus Status { get; set; }
     public EscrowStatus EscrowStatus { get; set; }
-    public DateTime EscrowDeadline { get; set; }
+    public DateTime? EscrowDeadline { get; set; }
+    public DateTime? SigningDeadline { get; set; }
+    public DateTime? TransferDeadline { get; set; }
+    public DateTime? LiquidationDeadline { get; set; }
+    public DateTime? CompletedAt { get; set; }
     public DateTime CreatedDate { get; set; }
 }
