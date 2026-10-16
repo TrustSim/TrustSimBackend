@@ -42,8 +42,11 @@ public class CreateTradeTransactionCommandHandler : IRequestHandler<CreateTradeT
             AuctionId = request.AuctionId,
             TradeTransactionStatus = TradeTransactionStatus.PendingEscrow,
             EscrowDeadline = DateTime.UtcNow.AddDays(2),
-            SigningDeadline = DateTime.UtcNow.AddDays(4),
-            TransferDeadline = DateTime.UtcNow.AddDays(7)
+            SigningDeadline = null,
+            TransferDeadline = null,
+            LiquidationDeadline = null,
+            CompletedAt = null,
+            CancelledAt = null
         };
 
         var escrow = new Escrow

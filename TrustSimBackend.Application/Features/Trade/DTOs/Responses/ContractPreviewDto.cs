@@ -14,7 +14,7 @@ public record ContractPreviewDto(
     bool IsFullySigned,
     string ContractStatus,
     string? DocumentPdfUrl,
-    DateTime SigningDeadline,
+    DateTime? SigningDeadline = null,
     string? DocumentHash = null,
     string? PadesSignatureSerial = null,
     string? PadesSignatureHash = null,

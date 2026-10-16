@@ -27,34 +27,34 @@ namespace TrustSimBackend.Domain.Entities.Trade
         public TradeTransactionStatus TradeTransactionStatus {get;set;}
 
         /// <summary>
-        /// Thời điểm hết hạn đóng tiền ký quỹ.
+        /// Thời điểm hết hạn đóng tiền ký quỹ (null nếu đã nạp đủ trước khi tạo giao dịch).
         /// </summary>
-        public DateTime EscrowDeadline {get;set;}= DateTime.UtcNow;
+        public DateTime? EscrowDeadline { get; set; }
 
         /// <summary>
-        /// Thời điểm hết hạn ký hợp đồng số.
+        /// Thời điểm hết hạn ký hợp đồng số (kích hoạt ở giai đoạn PendingSignature).
         /// </summary>
-        public DateTime SigningDeadline {get;set;}= DateTime.UtcNow;
+        public DateTime? SigningDeadline { get; set; }
 
         /// <summary>
-        /// Thời điểm hết hạn chuyển nhượng SIM tại nhà mạng.
+        /// Thời điểm hết hạn chuyển nhượng SIM tại nhà mạng (chỉ kích hoạt sau khi ký xong HĐ số 2).
         /// </summary>
-        public DateTime TransferDeadline {get;set;}= DateTime.UtcNow;
+        public DateTime? TransferDeadline { get; set; }
 
         /// <summary>
-        /// Thời điểm hết hạn nghiệm thu và thanh lý hợp đồng sau khi nhận SIM.
+        /// Thời điểm hết hạn nghiệm thu và thanh lý hợp đồng (chỉ kích hoạt sau khi nộp biên bản sang tên).
         /// </summary>
         public DateTime? LiquidationDeadline { get; set; }
 
         /// <summary>
-        /// Thời điểm hoàn tất giao dịch.
+        /// Thời điểm hoàn tất giao dịch (null khi đang trong tiến trình).
         /// </summary>
-        public DateTime CompletedAt {get;set;}= DateTime.UtcNow;
+        public DateTime? CompletedAt { get; set; }
         
         /// <summary>
-        /// Thời điểm hủy giao dịch.
+        /// Thời điểm hủy giao dịch (null nếu không bị hủy).
         /// </summary>
-        public DateTime? CancelledAt {get;set;}= DateTime.UtcNow;
+        public DateTime? CancelledAt { get; set; }
         
         /// <summary>
         /// Lý do hủy giao dịch.

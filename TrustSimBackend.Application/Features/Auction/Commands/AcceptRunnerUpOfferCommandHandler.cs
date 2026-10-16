@@ -104,9 +104,12 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             BuyerId = participant.UserAccountId,
             SellerId = auction.AuthorId,
             SimNumberId = auction.SimNumberId,
-            EscrowDeadline = now.AddDays(2),
+            EscrowDeadline = null,
             SigningDeadline = signingDeadline,
-            TransferDeadline = now.AddDays(7),
+            TransferDeadline = null,
+            LiquidationDeadline = null,
+            CompletedAt = null,
+            CancelledAt = null,
             IsActive = true
         };
 
@@ -164,7 +167,7 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
         {
             AuctionId = auction.Id,
             JobType = AuctionDelayJobTypes.SIGNING_DEADLINE,
-            ExecuteAt = trade.SigningDeadline,
+            ExecuteAt = trade.SigningDeadline!.Value,
             ExtraData = trade.Id.ToString()
         }, cancellationToken);
 

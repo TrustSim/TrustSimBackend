@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using TrustSimBackend.Application.Common.Exceptions;
@@ -135,6 +137,8 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
                 trade.TransferContract.LiquidationDocumentUrl = liqUrl;
                 trade.TransferContract.LiquidationDocumentHash = signResult.Sha256Hash;
                 trade.TransferContract.LiquidationSealedAt = signResult.SignedAt;
+                trade.TransferContract.ContractStatus = ContractStatus.COMPLETED;
+                trade.TransferContract.BlockchainTxHash = $"0x{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{trade.TradeTransactionCode}_{signResult.Sha256Hash}_{signResult.SignedAt:O}"))).ToLowerInvariant()}";
 
                 _logger.LogInformation("[ConfirmSimTransfer] ✅ Đã lưu Biên bản thanh lý cho {TradeCode}: {Url} (Hash: {Hash})", trade.TradeTransactionCode, liqUrl, signResult.Sha256Hash);
             }
@@ -142,6 +146,11 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             {
                 _logger.LogError(ex, "[ConfirmSimTransfer] ⚠️ Lỗi trong quá trình sinh/ký biên bản thanh lý cho {TradeCode}. Vẫn tiếp tục giải ngân giao dịch.", trade.TradeTransactionCode);
             }
+        }
+
+        if (trade.TransferContract != null)
+        {
+            trade.TransferContract.ContractStatus = ContractStatus.COMPLETED;
         }
 
         // 4. Giải ngân tiền Escrow qua sổ cái kép (Nợ 2030 / Có 2010 Seller + Có 4010 Sàn)
@@ -173,6 +182,7 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
 
             journalCode = journal.JournalCode;
             trade.Escrow.EscrowStatus = EscrowStatus.RELEASED;
+            trade.Escrow.ReleasedAt = now;
         }
 
         // Hủy tác vụ hẹn giờ tự động giải ngân LIQUIDATION_DEADLINE vì Người Mua đã chủ động nghiệm thu
