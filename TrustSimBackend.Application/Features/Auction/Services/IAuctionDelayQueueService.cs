@@ -12,6 +12,8 @@ public static class AuctionDelayJobTypes
     public const string RUNNER_UP_DEADLINE = "RUNNER_UP_DEADLINE";
     public const string SELLER_DECISION_DEADLINE = "SELLER_DECISION_DEADLINE";
     public const string SIGNING_DEADLINE = "SIGNING_DEADLINE";
+    public const string TRANSFER_DEADLINE = "TRANSFER_DEADLINE";
+    public const string LIQUIDATION_DEADLINE = "LIQUIDATION_DEADLINE";
 }
 
 /// <summary>

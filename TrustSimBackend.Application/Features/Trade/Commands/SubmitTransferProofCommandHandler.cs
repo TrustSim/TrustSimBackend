@@ -1,7 +1,10 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
+using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Trade;
@@ -17,15 +20,21 @@ public class SubmitTransferProofCommandHandler : IRequestHandler<SubmitTransferP
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly TradeDeadlineSettings _deadlineSettings;
     private readonly ILogger<SubmitTransferProofCommandHandler> _logger;
 
     public SubmitTransferProofCommandHandler(
         IUnitOfWork unitOfWork,
         INotificationService notificationService,
+        IAuctionDelayQueueService delayQueue,
+        IOptions<TradeDeadlineSettings> deadlineOptions,
         ILogger<SubmitTransferProofCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _delayQueue = delayQueue;
+        _deadlineSettings = deadlineOptions.Value;
         _logger = logger;
     }
 
@@ -87,18 +96,34 @@ public class SubmitTransferProofCommandHandler : IRequestHandler<SubmitTransferP
         trade.SimTransfer.AddTransferProof(proof);
         trade.SimTransfer.SimTransferStatus = SimTransferStatus.SELLER_PROOF_SUBMITTED;
 
+        // Kích hoạt tuần tự mốc thời hạn Nghiệm thu & Thanh lý (LiquidationDeadline) kể từ khi Người Bán nộp biên bản
+        var liqHours = _deadlineSettings.LiquidationSigningDeadlineHours > 0 
+            ? _deadlineSettings.LiquidationSigningDeadlineHours 
+            : 72;
+        var liquidationDeadline = DateTime.UtcNow.AddHours(liqHours);
+        trade.LiquidationDeadline = liquidationDeadline;
+
+        // Nạp tác vụ hẹn giờ LIQUIDATION_DEADLINE vào Redis ZSET để tự động giải ngân nếu Người Mua im lặng
+        await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+        {
+            AuctionId = trade.AuctionId,
+            JobType = AuctionDelayJobTypes.LIQUIDATION_DEADLINE,
+            ExecuteAt = liquidationDeadline,
+            ExtraData = trade.Id.ToString()
+        }, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "[SimTransfer] Người bán {SellerId} đã nộp biên bản sang tên cho SIM {SimNumber} (Giao dịch: {TradeCode})",
-            trade.SellerId, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
+            "[SimTransfer] Người bán {SellerId} đã nộp biên bản sang tên cho SIM {SimNumber} (Giao dịch: {TradeCode}). Kích hoạt LiquidationDeadline: {Deadline}",
+            trade.SellerId, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode, liquidationDeadline);
 
-        // Bắn thông báo cho người mua để kiểm tra và xác nhận
+        // Bắn thông báo cho người mua để kiểm tra và xác nhận trong thời hạn quy định
         await _notificationService.SendNotificationAsync(
             trade.BuyerId,
             NotificationType.TRADE_TRANSFERRING_SIM,
             "Người bán đã nộp biên bản sang tên SIM",
-            $"Người bán đã nộp biên bản sang tên cho SIM {trade.SimNumber?.PhoneNumber}. Vui lòng kiểm tra sóng và xác nhận nhận SIM.",
+            $"Người bán đã nộp biên bản sang tên cho SIM {trade.SimNumber?.PhoneNumber}. Vui lòng kiểm tra sóng và xác nhận nhận SIM trong vòng {liqHours} giờ. Quá thời hạn này, hệ thống sẽ tự động nghiệm thu và giải ngân.",
             $"/trade/{trade.Id}",
             cancellationToken: cancellationToken);
 

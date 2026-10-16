@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Sim;
@@ -19,17 +20,29 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILedgerService _ledgerService;
     private readonly INotificationService _notificationService;
+    private readonly IPdfContractService _pdfContractService;
+    private readonly IPdfSigningService _pdfSigningService;
+    private readonly ICloudStorageService _cloudStorageService;
+    private readonly IAuctionDelayQueueService _delayQueue;
     private readonly ILogger<ConfirmSimTransferCommandHandler> _logger;
 
     public ConfirmSimTransferCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         INotificationService notificationService,
+        IPdfContractService pdfContractService,
+        IPdfSigningService pdfSigningService,
+        ICloudStorageService cloudStorageService,
+        IAuctionDelayQueueService delayQueue,
         ILogger<ConfirmSimTransferCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _notificationService = notificationService;
+        _pdfContractService = pdfContractService;
+        _pdfSigningService = pdfSigningService;
+        _cloudStorageService = cloudStorageService;
+        _delayQueue = delayQueue;
         _logger = logger;
     }
 
@@ -93,7 +106,45 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
         };
         await _unitOfWork.SimOwnerships.AddAsync(newBuyerOwnership, cancellationToken);
 
-        // 3. Giải ngân tiền Escrow qua sổ cái kép (Nợ 2030 / Có 2010 Seller + Có 4010 Sàn)
+        // 3. Khởi tạo, niêm phong chữ ký số PAdES và lưu trữ Văn bản 3: Biên bản nghiệm thu và thanh lý giao dịch điện tử
+        if (trade.TransferContract != null && string.IsNullOrWhiteSpace(trade.TransferContract.LiquidationDocumentUrl))
+        {
+            try
+            {
+                _logger.LogInformation("[ConfirmSimTransfer] 📑 Sinh và niêm phong Biên bản nghiệm thu & thanh lý cho giao dịch {TradeCode}...", trade.TradeTransactionCode);
+                var rawLiqBytes = await _pdfContractService.GenerateLiquidationMinutePdfAsync(trade.Id, cancellationToken);
+                var isAuto = trade.TransferContract.IsAutoEnforced;
+                var stampBoxes = await _pdfContractService.GetStampBoxesAsync(trade.Id, isAuto, cancellationToken);
+
+                var signResult = await _pdfSigningService.SignPdfPadesAsync(
+                    rawLiqBytes,
+                    "Nghiệm thu hoàn tất chuyển quyền sử dụng SIM và thanh lý giao dịch điện tử",
+                    "Hà Nội, Việt Nam",
+                    stampBoxes,
+                    cancellationToken);
+
+                var simPhone = trade.SimNumber?.PhoneNumber?.Replace("+", "") ?? "SIM";
+                var liqFileName = $"BienBanThanhLy_{trade.TradeTransactionCode}_{simPhone}_Signed.pdf";
+                var liqUrl = await _cloudStorageService.UploadImageBytesAsync(
+                    signResult.SignedPdfBytes,
+                    liqFileName,
+                    "contracts",
+                    "application/pdf",
+                    cancellationToken);
+
+                trade.TransferContract.LiquidationDocumentUrl = liqUrl;
+                trade.TransferContract.LiquidationDocumentHash = signResult.Sha256Hash;
+                trade.TransferContract.LiquidationSealedAt = signResult.SignedAt;
+
+                _logger.LogInformation("[ConfirmSimTransfer] ✅ Đã lưu Biên bản thanh lý cho {TradeCode}: {Url} (Hash: {Hash})", trade.TradeTransactionCode, liqUrl, signResult.Sha256Hash);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ConfirmSimTransfer] ⚠️ Lỗi trong quá trình sinh/ký biên bản thanh lý cho {TradeCode}. Vẫn tiếp tục giải ngân giao dịch.", trade.TradeTransactionCode);
+            }
+        }
+
+        // 4. Giải ngân tiền Escrow qua sổ cái kép (Nợ 2030 / Có 2010 Seller + Có 4010 Sàn)
         var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
         var platformFeePercent = 0.05m;
         var platformFeeAmount = Math.Round(escrowAmount * platformFeePercent, 2);
@@ -124,27 +175,37 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             trade.Escrow.EscrowStatus = EscrowStatus.RELEASED;
         }
 
+        // Hủy tác vụ hẹn giờ tự động giải ngân LIQUIDATION_DEADLINE vì Người Mua đã chủ động nghiệm thu
+        await _delayQueue.CancelJobAsync(trade.AuctionId, AuctionDelayJobTypes.LIQUIDATION_DEADLINE, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "[SimTransfer Completed] ✅ Giao dịch {TradeCode} hoàn tất thành công! Sim {SimNumber} đã chuyển cho Người mua {BuyerId}. Escrow {Total:N0} VNĐ đã giải ngân cho Người bán {SellerId} (Thực nhận: {Net:N0} VNĐ, Phí: {Fee:N0} VNĐ, Chứng từ #{JournalCode})",
             trade.TradeTransactionCode, trade.SimNumber?.PhoneNumber, trade.BuyerId, trade.SellerId, escrowAmount, netSellerPayout, platformFeeAmount, journalCode ?? "N/A");
 
-        // 4. Bắn thông báo hoàn tất cho cả 2 bên
+        // 4. Bắn thông báo hoàn tất cho cả 2 bên (Action URL trỏ trực tiếp tới Biên Bản Thanh Lý PDF trên Supabase CDN)
+        var liqPdfUrl = trade.TransferContract?.LiquidationDocumentUrl;
         await _notificationService.SendNotificationAsync(
-            trade.SellerId,
-            NotificationType.WALLET_TOPUP_SUCCESS,
-            "Giao dịch bán SIM thành công - Tiền đã về ví!",
-            $"Người mua đã xác nhận nhận SIM {trade.SimNumber?.PhoneNumber}. Bạn nhận được {netSellerPayout:N0} VNĐ vào ví (sau khi trừ phí sàn).",
-            $"/trade/{trade.Id}",
+            userId: trade.SellerId,
+            type: NotificationType.WALLET_TOPUP_SUCCESS,
+            title: "Giao dịch bán SIM thành công - Tiền đã về ví!",
+            content: $"Người mua đã xác nhận nhận SIM {trade.SimNumber?.PhoneNumber}. Bạn nhận được {netSellerPayout:N0} VNĐ vào ví (sau khi trừ phí sàn). Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
+            actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
             cancellationToken: cancellationToken);
 
         await _notificationService.SendNotificationAsync(
-            trade.BuyerId,
-            NotificationType.SYSTEM_ALERT,
-            "Chúc mừng bạn đã sở hữu SIM chính chủ!",
-            $"Giao dịch chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã hoàn tất. Bạn đã trở thành chủ sở hữu chính thức của số SIM này.",
-            $"/trade/{trade.Id}",
+            userId: trade.BuyerId,
+            type: NotificationType.SYSTEM_ALERT,
+            title: "Chúc mừng bạn đã sở hữu SIM chính chủ!",
+            content: $"Giao dịch chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã hoàn tất. Bạn đã trở thành chủ sở hữu chính thức. Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
+            actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
+            referenceType: "TradeTransaction",
+            referenceId: trade.Id,
+            sendEmail: true,
             cancellationToken: cancellationToken);
 
         var proofs = trade.SimTransfer.TransferProofs

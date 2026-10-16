@@ -1,20 +1,30 @@
+using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 
 namespace TrustSimBackend.Infrastructure.Services;
 
 /// <summary>
-/// Triển khai dịch vụ lưu trữ hình ảnh tài liệu eKYC.
+/// Triển khai dịch vụ lưu trữ hình ảnh tài liệu eKYC và tệp Hợp đồng PDF (hỗ trợ Supabase Storage & Local Fallback).
 /// </summary>
 public class CloudStorageService : ICloudStorageService
 {
     private readonly ILogger<CloudStorageService> _logger;
+    private readonly HttpClient _httpClient;
+    private readonly SupabaseSettings _supabaseSettings;
     private readonly string _baseStoragePath;
 
-    public CloudStorageService(ILogger<CloudStorageService> logger)
+    public CloudStorageService(
+        ILogger<CloudStorageService> logger,
+        HttpClient httpClient,
+        IOptions<SupabaseSettings> supabaseOptions)
     {
         _logger = logger;
+        _httpClient = httpClient;
+        _supabaseSettings = supabaseOptions.Value;
         _baseStoragePath = ResolveBaseStoragePath();
         if (!Directory.Exists(_baseStoragePath))
         {
@@ -64,53 +74,164 @@ public class CloudStorageService : ICloudStorageService
 
     public async Task<string> UploadImageAsync(IFormFile file, string folder, CancellationToken cancellationToken = default)
     {
-        var targetDir = Path.Combine(_baseStoragePath, folder);
-        if (!Directory.Exists(targetDir))
+        if (file == null || file.Length == 0)
         {
-            Directory.CreateDirectory(targetDir);
+            throw new ArgumentException("Tệp tải lên không hợp lệ hoặc rỗng.", nameof(file));
         }
 
         var ext = Path.GetExtension(file.FileName);
-        if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-        var uniqueFileName = $"{Guid.NewGuid():N}{ext}";
-        var fullPath = Path.Combine(targetDir, uniqueFileName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".jpg";
+        var fileName = $"{Guid.NewGuid():N}{ext}";
+        var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType;
 
-        await using var stream = new FileStream(fullPath, FileMode.Create);
-        await file.CopyToAsync(stream, cancellationToken);
-
-        var relativeUrl = $"/uploads/{folder}/{uniqueFileName}".Replace("\\", "/");
-        _logger.LogInformation("[Storage] Đã lưu tệp tạm eKYC: {Url} tại {Path}", relativeUrl, fullPath);
-
-        return relativeUrl;
+        // Tối ưu hóa: Stream trực tiếp từ file thay vì cấp phát MemoryStream gây tốn RAM và GC
+        await using var stream = file.OpenReadStream();
+        return await UploadStreamToSupabaseAsync(stream, fileName, folder, contentType, cancellationToken);
     }
 
     public async Task<string> UploadImageBytesAsync(byte[] imageBytes, string fileName, string folder, string contentType = "image/jpeg", CancellationToken cancellationToken = default)
     {
-        var targetDir = Path.Combine(_baseStoragePath, folder);
-        if (!Directory.Exists(targetDir))
+        var cleanFileName = SanitizeFileName(fileName);
+
+        // Luôn tải trực tiếp 100% lên Cloud Supabase Storage, không lưu ổ cứng BE
+        if (!string.IsNullOrWhiteSpace(_supabaseSettings.Url) && !string.IsNullOrWhiteSpace(_supabaseSettings.AnonKey))
         {
-            Directory.CreateDirectory(targetDir);
+            var supabasePublicUrl = await UploadToSupabaseAsync(imageBytes, cleanFileName, folder, contentType, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(supabasePublicUrl))
+            {
+                _logger.LogInformation("[Storage] ✅ Đã tải tệp lên Supabase Storage thành công: {Url}", supabasePublicUrl);
+                return supabasePublicUrl;
+            }
+        }
+
+        throw new InvalidOperationException("Chưa cấu hình Supabase Storage hoặc thông tin Supabase không hợp lệ. Hệ thống được cấu hình không lưu trữ tệp trên máy chủ nội bộ.");
+    }
+
+    private async Task<string> UploadStreamToSupabaseAsync(
+        Stream stream,
+        string fileName,
+        string folder,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        var cleanFileName = SanitizeFileName(fileName);
+        var baseUrl = _supabaseSettings.Url.TrimEnd('/');
+        var bucket = string.IsNullOrWhiteSpace(_supabaseSettings.Bucket) ? "pdf-files" : _supabaseSettings.Bucket;
+
+        var objectPath = string.IsNullOrWhiteSpace(folder) ? cleanFileName : $"{folder.Trim('/')}/{cleanFileName}";
+        var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+        request.Headers.Add("apikey", _supabaseSettings.AnonKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSettings.AnonKey);
+        request.Headers.Add("x-upsert", "true");
+
+        using var streamContent = new StreamContent(stream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        request.Content = streamContent;
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            var publicUrl = $"{baseUrl}/storage/v1/object/public/{bucket}/{objectPath}";
+            _logger.LogInformation("[Storage] ✅ Đã stream tệp lên Supabase Storage thành công: {Url}", publicUrl);
+            return publicUrl;
+        }
+
+        var errorMsg = await response.Content.ReadAsStringAsync(cancellationToken);
+        _logger.LogError("[Storage] ❌ Supabase Storage phản hồi mã lỗi {StatusCode}: {Error}.", response.StatusCode, errorMsg);
+        throw new InvalidOperationException($"Không thể tải tệp lên Supabase Storage ({response.StatusCode}): {errorMsg}");
+    }
+
+    private async Task<string?> UploadToSupabaseAsync(
+        byte[] fileBytes,
+        string fileName,
+        string folder,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        var baseUrl = _supabaseSettings.Url.TrimEnd('/');
+        var bucket = string.IsNullOrWhiteSpace(_supabaseSettings.Bucket) ? "pdf-files" : _supabaseSettings.Bucket;
+
+        var objectPath = string.IsNullOrWhiteSpace(folder) ? fileName : $"{folder.Trim('/')}/{fileName}";
+        var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
+        request.Headers.Add("apikey", _supabaseSettings.AnonKey);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSettings.AnonKey);
+        request.Headers.Add("x-upsert", "true");
+
+        var byteContent = new ByteArrayContent(fileBytes);
+        byteContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        request.Content = byteContent;
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.IsSuccessStatusCode)
+        {
+            return $"{baseUrl}/storage/v1/object/public/{bucket}/{objectPath}";
+        }
+
+        var errorMsg = await response.Content.ReadAsStringAsync(cancellationToken);
+        _logger.LogError("[Storage] ❌ Supabase Storage phản hồi mã lỗi {StatusCode}: {Error}.", response.StatusCode, errorMsg);
+        throw new InvalidOperationException($"Không thể tải tệp lên Supabase Storage ({response.StatusCode}): {errorMsg}");
+    }
+
+    private static string SanitizeFileName(string fileName, string defaultExt = ".jpg")
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return $"{Guid.NewGuid():N}{defaultExt}";
         }
 
         var ext = Path.GetExtension(fileName);
-        if (string.IsNullOrEmpty(ext)) ext = ".jpg";
-        var uniqueFileName = $"{Guid.NewGuid():N}{ext}";
-        var fullPath = Path.Combine(targetDir, uniqueFileName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = defaultExt;
 
-        await File.WriteAllBytesAsync(fullPath, imageBytes, cancellationToken);
+        var baseName = Path.GetFileNameWithoutExtension(fileName);
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var cleanChars = baseName.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray();
+        var clean = new string(cleanChars).Trim();
 
-        var relativeUrl = $"/uploads/{folder}/{uniqueFileName}".Replace("\\", "/");
-        _logger.LogInformation("[Storage] Đã lưu byte tệp tạm eKYC: {Url} tại {Path}", relativeUrl, fullPath);
-
-        return relativeUrl;
+        return string.IsNullOrWhiteSpace(clean) ? $"{Guid.NewGuid():N}{ext}" : $"{clean}{ext}";
     }
 
-    public Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(fileUrl)) return Task.FromResult(false);
+            if (string.IsNullOrWhiteSpace(fileUrl)) return false;
 
+            // 1. Kiểm tra và xử lý xóa trên Cloud Supabase Storage
+            var baseUrl = _supabaseSettings.Url.TrimEnd('/');
+            var publicPrefix = $"{baseUrl}/storage/v1/object/public/";
+
+            if (fileUrl.StartsWith(publicPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var remaining = fileUrl.Substring(publicPrefix.Length);
+                var slashIndex = remaining.IndexOf('/');
+                if (slashIndex > 0)
+                {
+                    var bucket = remaining.Substring(0, slashIndex);
+                    var objectPath = remaining.Substring(slashIndex + 1);
+
+                    var deleteUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+
+                    using var request = new HttpRequestMessage(HttpMethod.Delete, deleteUrl);
+                    request.Headers.Add("apikey", _supabaseSettings.AnonKey);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSettings.AnonKey);
+
+                    var response = await _httpClient.SendAsync(request, cancellationToken);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation("[Storage] ✅ Đã xóa tệp trên Supabase Storage thành công: {ObjectPath}", objectPath);
+                        return true;
+                    }
+
+                    _logger.LogWarning("[Storage] ⚠️ Supabase Storage phản hồi không thể xóa ({StatusCode}): {Url}", response.StatusCode, fileUrl);
+                    return false;
+                }
+            }
+
+            // 2. Fallback xóa tệp cục bộ nếu là file local cũ
             var normalized = fileUrl.Replace('\\', '/').TrimStart('/');
             if (normalized.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
             {
@@ -147,12 +268,12 @@ public class CloudStorageService : ICloudStorageService
                 }
             }
 
-            return Task.FromResult(deleted);
+            return deleted;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "[Storage] Lỗi khi xử lý xóa tệp eKYC: {Url}", fileUrl);
-            return Task.FromResult(false);
+            return false;
         }
     }
 

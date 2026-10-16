@@ -36,6 +36,9 @@ public static class DependencyInjection
         services.Configure<AwsRekognitionSettings>(configuration.GetSection(AwsRekognitionSettings.SectionName));
         services.Configure<GeminiSettings>(configuration.GetSection(GeminiSettings.SectionName));
         services.Configure<SellerDepositSettings>(configuration.GetSection(SellerDepositSettings.SectionName));
+        services.Configure<TradeDeadlineSettings>(configuration.GetSection(TradeDeadlineSettings.SectionName));
+        services.Configure<SupabaseSettings>(configuration.GetSection("Supabase"));
+        services.AddHttpClient();
 
         // ─── 1.1. Cấu hình Redis ConnectionMultiplexer Singleton ───────────────────
         var redisConn = configuration.GetConnectionString("Redis") ?? configuration["Redis:ConnectionString"];
@@ -184,7 +187,23 @@ public static class DependencyInjection
 
         // ─── 9. AWS Rekognition & Storage Services (eKYC) ────────────
         services.AddScoped<IAwsRekognitionService, AwsRekognitionService>();
-        services.AddScoped<ICloudStorageService, CloudStorageService>();
+        services.AddHttpClient<ICloudStorageService, CloudStorageService>((sp, client) =>
+        {
+            var settings = sp.GetRequiredService<IOptions<SupabaseSettings>>().Value;
+            if (!string.IsNullOrWhiteSpace(settings.Url))
+            {
+                client.BaseAddress = new Uri(settings.Url.TrimEnd('/') + "/");
+            }
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+            KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(5),
+            EnableMultipleHttp2Connections = true
+        });
         services.AddScoped<IPkiKeyService, PkiKeyService>();
 
         // ─── 10. AI & RAG Pipeline Services (Semantic Kernel & Gemini) ───────────

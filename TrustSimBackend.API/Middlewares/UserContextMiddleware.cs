@@ -201,6 +201,16 @@ public class UserContextMiddleware
             return cookieToken.Trim();
         }
 
+        // 3. Fallback: Query parameter 'token' hoặc 'accessToken' (Hỗ trợ mở tải file PDF trực tiếp từ trình duyệt / window.open)
+        if (context.Request.Query.TryGetValue("token", out var queryToken) && !string.IsNullOrWhiteSpace(queryToken))
+        {
+            return queryToken.ToString().Trim();
+        }
+        if (context.Request.Query.TryGetValue("accessToken", out var queryAccess) && !string.IsNullOrWhiteSpace(queryAccess))
+        {
+            return queryAccess.ToString().Trim();
+        }
+
         return null;
     }
 

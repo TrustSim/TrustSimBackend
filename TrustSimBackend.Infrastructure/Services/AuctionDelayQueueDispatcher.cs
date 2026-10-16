@@ -9,6 +9,7 @@ using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 using StackExchange.Redis;
@@ -235,6 +236,14 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
             case AuctionDelayJobTypes.SIGNING_DEADLINE:
                 await HandleSigningDeadlineAsync(job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
+                break;
+
+            case AuctionDelayJobTypes.TRANSFER_DEADLINE:
+                await HandleTransferDeadlineAsync(job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
+                break;
+
+            case AuctionDelayJobTypes.LIQUIDATION_DEADLINE:
+                await HandleLiquidationDeadlineAsync(job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
                 break;
 
             default:
@@ -762,6 +771,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             DeterminedAt = now,
             ConfirmedAt = now
         };
+        await context.AuctionResults.AddAsync(resultEntity, cancellationToken);
 
         // Hoàn cọc và unfreeze ví cho toàn bộ người thua (bao gồm cả Runner-up)
         foreach (var p in auction.Participants)
@@ -931,6 +941,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
                 await context.Escrows.AddAsync(escrow, cancellationToken);
                 await context.TradeTransactions.AddAsync(trade, cancellationToken);
+                await context.SaveChangesAsync(cancellationToken);
 
                 // Nạp deadline ký hợp đồng vào Delay Queue
                 await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
@@ -941,6 +952,23 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                     ExtraData = trade.Id.ToString()
                 }, cancellationToken);
 
+                // Tự động sinh Văn bản 1 (Phiếu xác nhận kết quả đấu giá) và upload Supabase Storage CDN ngay lập tức
+                string? winningNoticeUrl = null;
+                try
+                {
+                    using var pdfScope = _scopeFactory.CreateScope();
+                    var pdfService = pdfScope.ServiceProvider.GetService<IPdfContractService>();
+                    if (pdfService != null)
+                    {
+                        winningNoticeUrl = await pdfService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
+                        _logger.LogInformation("[AuctionDelayDispatcher] 📄 Đã tạo và lưu Phiếu chốt giá trúng trên Supabase CDN: {Url}", winningNoticeUrl);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[AuctionDelayDispatcher] Lỗi khi tạo Phiếu chốt giá trúng cho Trade {TradeCode}", trade.TradeTransactionCode);
+                }
+
                 var winnerName = winnerParticipant.UserAccount?.UserName ?? "Người tham gia";
                 var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
 
@@ -950,8 +978,8 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                         userId: winnerParticipant.UserAccountId,
                         type: NotificationType.CONTRACT_SIGNING_REQUIRED,
                         title: $"📝 Yêu cầu ký hợp đồng SIM {auction.SimNumber?.PhoneNumber}!",
-                        content: $"Chúc mừng bạn đã trúng đấu giá SIM {auction.SimNumber?.PhoneNumber} với mức giá {topBid.BidAmount:N0} VNĐ (Đã thanh toán Escrow). Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-                        actionUrl: $"/trades/{trade.Id}",
+                        content: $"Chúc mừng bạn đã trúng đấu giá SIM {auction.SimNumber?.PhoneNumber} với mức giá {topBid.BidAmount:N0} VNĐ (Đã thanh toán Escrow). Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
+                        actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
                         referenceType: "TradeTransaction",
                         referenceId: trade.Id,
                         sendEmail: true,
@@ -961,8 +989,8 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                         userId: auction.AuthorId,
                         type: NotificationType.CONTRACT_SIGNING_REQUIRED,
                         title: $"📝 Người thắng {winnerName} đã thanh toán! Vui lòng ký hợp đồng",
-                        content: $"Phiên {auction.AuctionCode} đã kết thúc. Người thắng ({winnerName}) đã thanh toán đủ {topBid.BidAmount:N0} VNĐ vào Escrow. Vui lòng ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-                        actionUrl: $"/trades/{trade.Id}",
+                        content: $"Phiên {auction.AuctionCode} đã kết thúc. Người thắng ({winnerName}) đã thanh toán đủ {topBid.BidAmount:N0} VNĐ vào Escrow. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
+                        actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
                         referenceType: "TradeTransaction",
                         referenceId: trade.Id,
                         sendEmail: true,
@@ -1068,7 +1096,6 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             }
         }
 
-        await context.AuctionResults.AddAsync(resultEntity, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
 
         var resultDto = new AuctionResultDto
@@ -1675,6 +1702,216 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             }
 
             await context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task HandleTransferDeadlineAsync(
+        AuctionDelayJob job,
+        TrustSimDbContext context,
+        IAuctionRealtimeNotifier realtimeNotifier,
+        ILedgerService ledgerService,
+        INotificationService? notificationService,
+        CancellationToken cancellationToken)
+    {
+        Guid.TryParse(job.ExtraData, out var tradeId);
+        var trade = await context.TradeTransactions
+            .Include(t => t.TransferContract)
+            .Include(t => t.SimTransfer)
+                .ThenInclude(st => st!.TransferProofs)
+            .Include(t => t.SimNumber)
+            .Include(t => t.Escrow)
+            .Include(t => t.Buyer)
+                .ThenInclude(b => b!.Wallet)
+            .Include(t => t.Seller)
+                .ThenInclude(s => s!.Wallet)
+            .Include(t => t.Auction)
+                .ThenInclude(a => a!.AuctionRule)
+            .FirstOrDefaultAsync(t => (tradeId != Guid.Empty && t.Id == tradeId) || (tradeId == Guid.Empty && t.AuctionId == job.AuctionId), cancellationToken);
+
+        if (trade == null || trade.TradeTransactionStatus != TradeTransactionStatus.PendingTransfer)
+            return;
+
+        var hasProof = trade.SimTransfer?.TransferProofs.Any() ?? false;
+        var now = DateTime.UtcNow;
+
+        if (!hasProof)
+        {
+            _logger.LogWarning("[AuctionDelayDispatcher] 🚨 Hết hạn chuyển nhượng SIM {TradeCode}: Người bán {SellerId} không bàn giao SIM. Hủy giao dịch & Phạt cọc!",
+                trade.TradeTransactionCode, trade.SellerId);
+
+            trade.TradeTransactionStatus = TradeTransactionStatus.Cancelled_TransferTimeout;
+            trade.CancelledAt = now;
+            trade.CancelledReason = "Người bán không thực hiện nghĩa vụ bàn giao và sang tên số thuê bao trong thời hạn quy định.";
+
+            if (trade.SimTransfer != null)
+            {
+                trade.SimTransfer.SimTransferStatus = SimTransferStatus.CANCELLED;
+                trade.SimTransfer.CancelledReason = trade.CancelledReason;
+            }
+
+            if (trade.SimNumber != null)
+            {
+                trade.SimNumber.SimStatus = SimStatus.AVAILABLE;
+            }
+
+            // 1. Hoàn 100% tiền Quỹ Escrow về cho Người Mua
+            if (trade.Escrow != null && trade.Escrow.EscrowStatus == EscrowStatus.HELD && trade.Buyer?.Wallet != null)
+            {
+                await ledgerService.PostEscrowRefundAsync(
+                    trade.Buyer.Wallet.Id,
+                    trade.Escrow.EscrowAmount,
+                    trade.Escrow.Id,
+                    cancellationToken);
+                trade.Escrow.EscrowStatus = EscrowStatus.REFUNDED;
+            }
+
+            // 2. Tịch thu cọc Người bán (bồi thường 50% cho Người Mua và 50% cho Sàn)
+            var sellerDeposit = trade.Auction?.AuctionRule?.SellerDepositAmount ?? 0m;
+            if (sellerDeposit > 0 && trade.Seller?.Wallet != null && trade.Buyer?.Wallet != null)
+            {
+                await ledgerService.PostSellerListingDepositForfeitedWithCompensationAsync(
+                    trade.Seller.Wallet.Id,
+                    trade.Buyer.Wallet.Id,
+                    sellerDeposit,
+                    trade.Id,
+                    cancellationToken);
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+
+            // 3. Thông báo cho Người Mua và Người Bán
+            if (notificationService != null)
+            {
+                await notificationService.SendNotificationAsync(
+                    userId: trade.BuyerId,
+                    type: NotificationType.SYSTEM_ALERT,
+                    title: "⚠️ Giao dịch chuyển nhượng SIM đã bị hủy do Người bán quá hạn",
+                    content: $"Người bán đã quá thời hạn bàn giao SIM {trade.SimNumber?.PhoneNumber}. Hệ thống đã hoàn trả 100% tiền Escrow và bồi thường 50% tiền cọc của Người bán vào ví của bạn.",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
+
+                await notificationService.SendNotificationAsync(
+                    userId: trade.SellerId,
+                    type: NotificationType.SYSTEM_ALERT,
+                    title: "🚨 Vi phạm thời hạn bàn giao SIM",
+                    content: $"Bạn đã quá hạn thực hiện thủ tục sang tên SIM {trade.SimNumber?.PhoneNumber}. Giao dịch đã bị hủy và bạn bị xử lý chế tài tịch thu tiền cọc theo Quy chế Sàn TrustSim.",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    sendEmail: true,
+                    cancellationToken: cancellationToken);
+            }
+        }
+    }
+
+    private async Task HandleLiquidationDeadlineAsync(
+        AuctionDelayJob job,
+        TrustSimDbContext context,
+        IAuctionRealtimeNotifier realtimeNotifier,
+        ILedgerService ledgerService,
+        INotificationService? notificationService,
+        CancellationToken cancellationToken)
+    {
+        Guid.TryParse(job.ExtraData, out var tradeId);
+        var trade = await context.TradeTransactions
+            .Include(t => t.TransferContract)
+            .Include(t => t.SimTransfer)
+                .ThenInclude(st => st!.TransferProofs)
+            .Include(t => t.SimNumber)
+            .Include(t => t.Escrow)
+            .Include(t => t.Buyer)
+                .ThenInclude(b => b!.Wallet)
+            .Include(t => t.Seller)
+                .ThenInclude(s => s!.Wallet)
+            .FirstOrDefaultAsync(t => (tradeId != Guid.Empty && t.Id == tradeId) || (tradeId == Guid.Empty && t.AuctionId == job.AuctionId), cancellationToken);
+
+        if (trade == null || trade.TradeTransactionStatus != TradeTransactionStatus.PendingTransfer)
+            return;
+
+        var hasProof = trade.SimTransfer?.TransferProofs.Any(p => p.ProofStatus == ProofStatus.PENDING || p.ProofStatus == ProofStatus.APPROVED) ?? false;
+        if (!hasProof)
+            return;
+
+        _logger.LogInformation("[AuctionDelayDispatcher] ⏱️ Hết hạn nghiệm thu im lặng cho giao dịch {TradeCode}. Kích hoạt Tự Động Nghiệm Thu & Giải Ngân!", trade.TradeTransactionCode);
+
+        var now = DateTime.UtcNow;
+
+        if (trade.SimTransfer != null)
+        {
+            trade.SimTransfer.SimTransferStatus = SimTransferStatus.COMPLETED;
+            foreach (var p in trade.SimTransfer.TransferProofs)
+            {
+                p.ProofStatus = ProofStatus.APPROVED;
+                p.VerifiedAt = now;
+            }
+        }
+
+        trade.TradeTransactionStatus = TradeTransactionStatus.Completed;
+        trade.CompletedAt = now;
+
+        var oldOwnership = await context.SimOwnerships
+            .FirstOrDefaultAsync(o => o.SimNumberId == trade.SimNumberId && o.OwnershipStatus == OwnershipStatus.ACTIVE, cancellationToken);
+        if (oldOwnership != null)
+        {
+            oldOwnership.OwnershipStatus = OwnershipStatus.ENDED;
+        }
+
+        var newBuyerOwnership = new SimOwnership
+        {
+            Id = Guid.NewGuid(),
+            SimNumberId = trade.SimNumberId,
+            UserAccountId = trade.BuyerId,
+            OwnershipStatus = OwnershipStatus.ACTIVE,
+            AcquistionType = AcquistionType.AUCTION_TRANSFER
+        };
+        await context.SimOwnerships.AddAsync(newBuyerOwnership, cancellationToken);
+
+        var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
+        var platformFeeAmount = Math.Round(escrowAmount * 0.05m, 2);
+        var netSellerPayout = escrowAmount - platformFeeAmount;
+
+        if (trade.Escrow != null && trade.Escrow.EscrowStatus == EscrowStatus.HELD && trade.Seller?.Wallet != null && escrowAmount > 0)
+        {
+            await ledgerService.PostEscrowReleaseAsync(
+                trade.Seller.Wallet.Id,
+                escrowAmount,
+                platformFeeAmount,
+                trade.Escrow.Id,
+                cancellationToken);
+            trade.Escrow.EscrowStatus = EscrowStatus.RELEASED;
+        }
+
+        if (trade.TransferContract != null)
+        {
+            trade.TransferContract.LiquidationSealedAt = now;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        if (notificationService != null)
+        {
+            await notificationService.SendNotificationAsync(
+                userId: trade.SellerId,
+                type: NotificationType.WALLET_TOPUP_SUCCESS,
+                title: "Giao dịch bán SIM tự động hoàn tất - Tiền đã về ví!",
+                content: $"Người mua đã quá thời hạn phản hồi. Hệ thống tự động nghiệm thu và giải ngân {netSellerPayout:N0} VNĐ về ví khả dụng của bạn cho SIM {trade.SimNumber?.PhoneNumber}.",
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+
+            await notificationService.SendNotificationAsync(
+                userId: trade.BuyerId,
+                type: NotificationType.SYSTEM_ALERT,
+                title: "Giao dịch chuyển nhượng SIM đã tự động hoàn tất",
+                content: $"Hệ thống đã tự động nghiệm thu giao dịch SIM {trade.SimNumber?.PhoneNumber} do hết thời hạn phản hồi. Bạn đã là chủ sở hữu chính thức của SIM này.",
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
         }
     }
 }

@@ -90,11 +90,6 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
                     }
                 }
 
-                // 2. Cập nhật ảnh đại diện từ FaceSelfieUrl nếu hồ sơ chưa có ảnh
-                if (string.IsNullOrEmpty(verification.UserProfile.AvatarImg) && !string.IsNullOrEmpty(verification.FaceSelfieUrl))
-                {
-                    verification.UserProfile.AvatarImg = verification.FaceSelfieUrl;
-                }
 
                 var user = await _unitOfWork.Users.GetByIdAsync(verification.UserProfile.UserAccountId, cancellationToken);
                 if (user != null)

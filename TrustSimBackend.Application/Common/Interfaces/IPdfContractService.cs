@@ -31,4 +31,25 @@ public interface IPdfContractService
     /// Lấy danh sách các hộp dấu xác thực điện tử của các bên tham gia để vẽ lên PDF.
     /// </summary>
     Task<IReadOnlyList<SignatureStampBoxDto>> GetStampBoxesAsync(Guid tradeId, bool isAutoEnforced, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sinh chuỗi HTML xem trước Biên bản nghiệm thu và thanh lý hợp đồng (Văn bản 3).
+    /// </summary>
+    Task<string> GetLiquidationPreviewHtmlAsync(Guid tradeId, Guid currentUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sinh file PDF Biên bản nghiệm thu và thanh lý hợp đồng chuyển nhượng SIM (Văn bản 3).
+    /// </summary>
+    Task<byte[]> GenerateLiquidationMinutePdfAsync(Guid tradeId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sinh file PDF Phiếu xác nhận kết quả đấu giá và chốt giá trúng điện tử (Văn bản 1).
+    /// </summary>
+    Task<byte[]> GenerateWinningNoticePdfAsync(Guid tradeId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Đảm bảo Phiếu xác nhận kết quả đấu giá (Văn bản 1) đã được sinh và tải lên Supabase Storage CDN.
+    /// Nếu đã có, trả về ngay URL hiện tại. Nếu chưa, tự động tạo PDF, upload lên Supabase và lưu URL vào database.
+    /// </summary>
+    Task<string> EnsureWinningNoticeUploadedAsync(Guid tradeId, CancellationToken ct = default);
 }
