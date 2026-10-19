@@ -4,6 +4,7 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -60,6 +61,24 @@ public class LockAuctionDepositCommandHandler : IRequestHandler<LockAuctionDepos
             request.AmountToLock,
             depositId,
             cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var lockTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = wallet.Id,
+            AuctionId = request.AuctionId,
+            AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_LOCK,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = request.AmountToLock,
+            BalanceBefore = wallet.AvailableBalance + request.AmountToLock,
+            BalanceAfter = wallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = now,
+            CompletedAt = now
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(lockTx, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -67,6 +67,7 @@ public class AuctionRepository : IAuctionRepository
         Guid? authorId,
         int pageIndex,
         int pageSize,
+        Guid? participantId = null,
         CancellationToken cancellationToken = default)
     {
         var query = _context.Auctions
@@ -99,6 +100,11 @@ public class AuctionRepository : IAuctionRepository
         if (authorId.HasValue)
         {
             query = query.Where(a => a.AuthorId == authorId.Value);
+        }
+
+        if (participantId.HasValue)
+        {
+            query = query.Where(a => a.Participants.Any(p => p.UserAccountId == participantId.Value));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

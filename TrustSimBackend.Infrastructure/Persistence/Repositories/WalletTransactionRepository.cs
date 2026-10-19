@@ -89,6 +89,26 @@ public class WalletTransactionRepository : IWalletTransactionRepository
         return (items, totalCount);
     }
 
+    public async Task<IReadOnlyList<WalletTransaction>> GetListByWalletIdAsync(
+        Guid walletId,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.WalletTransactions
+            .Where(t => t.WalletId == walletId);
+
+        if (fromDate.HasValue)
+            query = query.Where(t => t.CreatedAt >= fromDate.Value);
+
+        if (toDate.HasValue)
+            query = query.Where(t => t.CreatedAt <= toDate.Value);
+
+        return await query
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<WalletTransaction> Items, int TotalCount)> GetPagedAllAsync(
         WalletTransactionType? type,
         TransactionStatus? status,

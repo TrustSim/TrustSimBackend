@@ -10,6 +10,7 @@ public record GetAuctionsQuery(
     AuctionStatus? Status = null,
     AuctionType? Type = null,
     Guid? AuthorId = null,
+    Guid? ParticipantId = null,
     int PageIndex = 1,
     int PageSize = 20
 ) : IRequest<PagedResult<AuctionDto>>;

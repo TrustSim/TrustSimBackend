@@ -42,7 +42,10 @@ namespace TrustSimBackend.Domain.Enums
         PENALTY,
 
         /// <summary>Khóa tiền cọc bổ sung lũy tiến theo giá trúng đấu giá khi phiên kết thúc.</summary>
-        AUCTION_PROGRESSIVE_DEPOSIT_LOCK
+        AUCTION_PROGRESSIVE_DEPOSIT_LOCK,
+
+        /// <summary>Nhận tiền bồi thường vi phạm quy chế hoặc hợp đồng từ cọc của đối phương.</summary>
+        AUCTION_COMPENSATION
     }
 }
 

@@ -33,6 +33,23 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
+    /// Người dùng gửi ý định xác nhận kết quả phân tích AI eKYC ở Pha 1 là chính xác (Pha 2).
+    /// Endpoint chỉ nhận Intent Key (VerificationId) mà không nhận bất kỳ thông tin cá nhân nào,
+    /// triệt tiêu hoàn toàn lỗ hổng gian lận hoặc tự ý chỉnh sửa dữ liệu client-side.
+    /// </summary>
+    [HttpPost("kyc/confirm-ekyc")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<UserProfileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ConfirmEkyc([FromBody] ConfirmEkycRequest request)
+    {
+        var command = new ConfirmEkycCommand(request.VerificationId, CurrentUserId);
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<UserProfileDto>.SuccessResult(result, "Xác nhận và cập nhật hồ sơ eKYC thành công!"));
+    }
+
+    /// <summary>
     /// Lấy trạng thái hồ sơ KYC gần nhất của người dùng hiện tại
     /// </summary>
     [HttpGet("kyc/status")]

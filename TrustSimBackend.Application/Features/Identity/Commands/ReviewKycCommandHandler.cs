@@ -55,17 +55,17 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
                         using var doc = global::System.Text.Json.JsonDocument.Parse(verification.OcrRawData);
                         if (doc.RootElement.TryGetProperty("extractedInfo", out var info))
                         {
-                            if (info.TryGetProperty("fullName", out var nameProp) && nameProp.GetString() is { } name && !string.IsNullOrWhiteSpace(name))
+                            if (string.IsNullOrWhiteSpace(verification.UserProfile.FullName) && info.TryGetProperty("fullName", out var nameProp) && nameProp.GetString() is { } name && !string.IsNullOrWhiteSpace(name))
                             {
                                 verification.UserProfile.FullName = name.Trim();
                             }
 
-                            if (info.TryGetProperty("identityNumber", out var idProp) && idProp.GetString() is { } id && !string.IsNullOrWhiteSpace(id))
+                            if (string.IsNullOrWhiteSpace(verification.UserProfile.IdentityNumber) && info.TryGetProperty("identityNumber", out var idProp) && idProp.GetString() is { } id && !string.IsNullOrWhiteSpace(id))
                             {
                                 verification.UserProfile.IdentityNumber = id.Trim();
                             }
 
-                            if (info.TryGetProperty("dateOfBirth", out var dobProp) && dobProp.GetString() is { } dobStr && !string.IsNullOrWhiteSpace(dobStr))
+                            if (!verification.UserProfile.DateOfBirth.HasValue && info.TryGetProperty("dateOfBirth", out var dobProp) && dobProp.GetString() is { } dobStr && !string.IsNullOrWhiteSpace(dobStr))
                             {
                                 if (DateTime.TryParseExact(dobStr.Trim(), new[] { "dd/MM/yyyy", "yyyy-MM-dd", "d/M/yyyy" }, 
                                     global::System.Globalization.CultureInfo.InvariantCulture, global::System.Globalization.DateTimeStyles.None, out var parsedDob))
@@ -74,13 +74,16 @@ public class ReviewKycCommandHandler : IRequestHandler<ReviewKycCommand, bool>
                                 }
                             }
 
-                            if (info.TryGetProperty("placeOfResidence", out var resProp) && resProp.GetString() is { } res && !string.IsNullOrWhiteSpace(res))
+                            if (string.IsNullOrWhiteSpace(verification.UserProfile.Address))
                             {
-                                verification.UserProfile.Address = res.Trim();
-                            }
-                            else if (info.TryGetProperty("address", out var addrProp) && addrProp.GetString() is { } addr && !string.IsNullOrWhiteSpace(addr))
-                            {
-                                verification.UserProfile.Address = addr.Trim();
+                                if (info.TryGetProperty("placeOfResidence", out var resProp) && resProp.GetString() is { } res && !string.IsNullOrWhiteSpace(res))
+                                {
+                                    verification.UserProfile.Address = res.Trim();
+                                }
+                                else if (info.TryGetProperty("address", out var addrProp) && addrProp.GetString() is { } addr && !string.IsNullOrWhiteSpace(addr))
+                                {
+                                    verification.UserProfile.Address = addr.Trim();
+                                }
                             }
                         }
                     }

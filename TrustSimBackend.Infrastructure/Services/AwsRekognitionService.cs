@@ -324,34 +324,37 @@ public class AwsRekognitionService : IAwsRekognitionService
                 var plainLine = RemoveDiacritics(normalizedLine).ToUpperInvariant();
                 if (plainLine.Contains("QUE QUAN") || plainLine.Contains("PLACE OF ORIGIN") || plainLine.Contains("NOI SINH"))
                 {
-                    var cleaned = Regex.Replace(normalizedLine, @"(?:Qu[eê]\s*qu[aá]n|Place\s*of\s*origin|N[oơ]i\s*sinh|[:/,\-])", " ", RegexOptions.IgnoreCase).Trim();
+                    var cleaned = CleanAddressText(normalizedLine);
                     if (!string.IsNullOrWhiteSpace(cleaned) && cleaned.Length > 3)
                     {
-                        result.PlaceOfOrigin = CleanOcrNoise(cleaned);
+                        result.PlaceOfOrigin = cleaned;
                     }
                     else if (i + 1 < lines.Count && !IsAnyCardLabel(lines[i + 1]))
                     {
-                        result.PlaceOfOrigin = CleanOcrNoise(lines[i + 1].Trim());
+                        result.PlaceOfOrigin = CleanAddressText(lines[i + 1]);
                     }
                 }
             }
 
             // Bóc tách Nơi thường trú (Place of Residence)
             var plainLineResidence = RemoveDiacritics(normalizedLine).ToUpperInvariant();
-            if (plainLineResidence.Contains("NOI THUONG TRU") || plainLineResidence.Contains("PLACE OF RESIDENCE") || plainLineResidence.Contains("NOI CU TRU"))
+            if (plainLineResidence.Contains("NOI THUONG TRU") || 
+                plainLineResidence.Contains("PLACE OF RESIDENCE") || 
+                plainLineResidence.Contains("NOI CU TRU") ||
+                Regex.IsMatch(plainLineResidence, @"\bNOI\s*THU[RW]?ONG\s*TRU\b"))
             {
                 residenceStartIndex = i;
-                var cleaned = Regex.Replace(normalizedLine, @"(?:N[oơ]i\s*th[uư][oờ]ng\s*tr[uú]|Place\s*of\s*residence|N[oơ]i\s*c[uư]\s*tr[uú]|[:/\-])", " ", RegexOptions.IgnoreCase).Trim();
+                var cleaned = CleanAddressText(normalizedLine);
                 if (!string.IsNullOrWhiteSpace(cleaned) && cleaned.Length > 2)
                 {
-                    residenceLines.Add(CleanOcrNoise(cleaned));
+                    residenceLines.Add(cleaned);
                 }
             }
             else if (residenceStartIndex >= 0 && i > residenceStartIndex && i <= residenceStartIndex + 4)
             {
                 if (!IsAnyCardLabel(normalizedLine))
                 {
-                    var cleaned = CleanOcrNoise(normalizedLine).Trim();
+                    var cleaned = CleanAddressText(normalizedLine);
                     if (!string.IsNullOrWhiteSpace(cleaned) && !dateRegex.IsMatch(cleaned))
                     {
                         residenceLines.Add(cleaned);
@@ -386,12 +389,13 @@ public class AwsRekognitionService : IAwsRekognitionService
         if (residenceLines.Count > 0)
         {
             var joined = string.Join(", ", residenceLines.Distinct()).Replace(", ,", ",").Trim(',', ' ');
+            joined = CleanAddressText(joined);
             result.PlaceOfResidence = joined;
             result.Address = joined;
         }
         else if (!string.IsNullOrEmpty(result.PlaceOfOrigin))
         {
-            result.Address = result.PlaceOfOrigin;
+            result.Address = CleanAddressText(result.PlaceOfOrigin);
         }
 
         // Fallback: Tìm số CCCD nếu chưa có
@@ -441,13 +445,15 @@ public class AwsRekognitionService : IAwsRekognitionService
     /// </summary>
     private static bool IsAnyCardLabel(string text)
     {
+        if (string.IsNullOrWhiteSpace(text)) return false;
         var plain = RemoveDiacritics(NormalizeHomoglyphs(text)).ToUpperInvariant();
+        plain = Regex.Replace(plain, @"[/:\-,\s]+$", "").Trim();
 
         if (Regex.IsMatch(plain, @"\b(HO\s*(?:VA\s*)?(?:CHU\s*DEM\s*(?:VA\s*)?)?TEN|FULL\s*NAME|KHAI\s*SINH|HO\s*TEN)\b")) return true;
         if (Regex.IsMatch(plain, @"\b(NGAY\s*SINH|DATE\s*OF\s*BIRTH|DOB|NAM\s*SINH)\b")) return true;
         if (Regex.IsMatch(plain, @"\b(GIOI\s*TINH|SEX|GENDER|QUOC\s*TICH|NATIONALITY)\b")) return true;
         if (Regex.IsMatch(plain, @"\b(QUE\s*QUAN|PLACE\s*OF\s*ORIGIN|NOI\s*SINH|PLACE\s*OF\s*BIRTH)\b")) return true;
-        if (Regex.IsMatch(plain, @"\b(NOI\s*THUONG\s*TRU|NOI\s*CU\s*TRU|PLACE\s*OF\s*RESIDENCE|RESIDENCE)\b")) return true;
+        if (Regex.IsMatch(plain, @"\b(NOI\s*THU[RW]?ONG\s*TRU|NOI\s*CU\s*TRU|PLACE\s*OF\s*RESIDENCE|RESIDENCE)\b")) return true;
         if (Regex.IsMatch(plain, @"\b(CO\s*GIA\s*TRI\s*DEN|DATE\s*OF\s*EXPIRY|EXPIRY|HET\s*HAN)\b")) return true;
         if (Regex.IsMatch(plain, @"\b(CONG\s*HOA\s*XA\s*HOI|VIET\s*NAM|DOC\s*LAP|TU\s*DO|HANH\s*PHUC)\b")) return true;
         if (Regex.IsMatch(plain, @"\b(CAN\s*CUOC\s*CONG\s*DAN|CAN\s*CUOC|CITIZEN\s*IDENTITY|IDENTITY\s*CARD|CHUNG\s*MINH\s*NHAN\s*DAN)\b")) return true;
@@ -483,12 +489,12 @@ public class AwsRekognitionService : IAwsRekognitionService
     }
 
     /// <summary>
-    /// Chuẩn hóa và làm sạch nhiễu OCR (các ký tự nháy đơn, macron, gạch nối bị nhận diện sai).
+    /// Chuẩn hóa và làm sạch nhiễu OCR (các ký tự nháy đơn, macron, gạch nối, lỗi nhận diện 'ư' thành 'ur'/'uw').
     /// </summary>
     private static string CleanOcrNoise(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-        return text
+        var cleaned = text
             .Replace("''", "")
             .Replace("'", "")
             .Replace("`", "")
@@ -497,8 +503,43 @@ public class AwsRekognitionService : IAwsRekognitionService
             .Replace("\u0113", "ê")
             .Replace("\u016B", "u")
             .Replace("\u016A", "U")
-            .Replace("  ", " ")
-            .Trim();
+            .Replace("  ", " ");
+
+        // Chuẩn hóa lỗi OCR phổ biến: nhầm 'ư' có móc thành 'ur' hoặc 'uw'
+        cleaned = Regex.Replace(cleaned, @"\bth[uư]r[oơô]ng\b", "thường", RegexOptions.IgnoreCase);
+        cleaned = Regex.Replace(cleaned, @"\bth[uư]w[oơô]ng\b", "thường", RegexOptions.IgnoreCase);
+
+        return cleaned.Trim();
+    }
+
+    /// <summary>
+    /// Làm sạch chuỗi địa chỉ hoặc quê quán bóc tách từ OCR:
+    /// Loại bỏ hoàn toàn các tiền tố nhãn (ví dụ: "Nơi thường trú", "Noi thurong trú", "Place of residence", "Quê quán",...)
+    /// và các ký tự phân tách thừa (dấu hai chấm, dấu gạch nối, dấu phẩy ở đầu/cuối).
+    /// </summary>
+    private static string CleanAddressText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+        var cleaned = CleanOcrNoise(NormalizeHomoglyphs(text));
+
+        // 1. Loại bỏ các nhãn thẻ CCCD thường dính vào nội dung địa chỉ (kèm cả dấu gạch chéo / hai chấm / gạch ngang)
+        // Hỗ trợ triệt để cả: "Nơi thường trú /", "Noi thường trú /", "Noi thurong trú /", "Place of residence /", "Nơi cư trú /", v.v.
+        var labelPattern = @"(?i)\b(?:N[oơòóỏõọôồốổỗộơờớởỡợ]?i\s+th[uư][rw]?[oơôòóỏõọồốổỗộờớởỡợ]?ng\s+tr[uùúủũụưừứửữự]?|Place\s+of\s+residence|Residence|N[oơòóỏõọôồốổỗộơờớởỡợ]?i\s+c[uưùúủũụưừứửữự]?\s+tr[uùúủũụưừứửữự]?|Qu[eêèéẻẽẹêềếểễệ]?\s+qu[aáàảãạâầấẩẫậăằắẳẵặ]?n|Place\s+of\s+origin|N[oơòóỏõọôồốổỗộơờớởỡợ]?i\s+sinh|Place\s+of\s+birth|ĐKHK\s+th[uư][rw]?[oơôòóỏõọồốổỗộờớởỡợ]?ng\s+tr[uùúủũụưừứửữự]?|H[oộòóỏõọôồốổỗộơờớởỡợ]?\s+kh[aẩàáảãạâầấẩẫậăằắẳẵặ]?u\s+th[uư][rw]?[oơôòóỏõọồốổỗộờớởỡợ]?ng\s+tr[uùúủũụưừứửữự]?)\b\s*[/:\-]*\s*";
+        cleaned = Regex.Replace(cleaned, labelPattern, " ");
+
+        // 2. Loại bỏ các tiền tố nhãn không dấu ở đầu chuỗi (ví dụ: "Noi thuong tru /", "Noi thurong tru /", "Place of residence /")
+        cleaned = Regex.Replace(cleaned, @"^(?:\s*(?:Noi\s+thu[rw]?ong\s+tru|Place\s+of\s+residence|Residence|Noi\s+cu\s+tru|Que\s+quan|Place\s+of\s+origin|Noi\s+sinh|DKHK\s+thu[rw]?ong\s+tru)\s*[/:\-]*\s*)+", "", RegexOptions.IgnoreCase);
+
+        // 3. Xóa các ký tự phân tách mồ côi ở đầu chuỗi (như "/", ":", "-", ",")
+        cleaned = Regex.Replace(cleaned, @"^[\s/:\-,]+", "");
+
+        // 4. Chuẩn hóa khoảng trắng và dấu câu
+        cleaned = Regex.Replace(cleaned, @"\s+", " ");
+        cleaned = Regex.Replace(cleaned, @"\s*,\s*", ", ");
+        cleaned = cleaned.Trim(',', ' ', ':', '-', '/');
+
+        return cleaned;
     }
 
     /// <summary>

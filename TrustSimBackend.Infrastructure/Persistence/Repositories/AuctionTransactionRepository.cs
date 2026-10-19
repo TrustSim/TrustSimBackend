@@ -19,6 +19,16 @@ public class AuctionTransactionRepository : IAuctionTransactionRepository
     public async Task<IReadOnlyList<AuctionTransaction>> GetByAuctionIdAsync(Guid auctionId, CancellationToken cancellationToken = default)
         => await _context.AuctionTransactions.Where(t => t.AuctionId == auctionId).OrderByDescending(t => t.CreatedAt).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<AuctionTransaction>> GetByWalletIdAsync(Guid walletId, DateTime? fromDate = null, DateTime? toDate = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.AuctionTransactions.Where(t => t.WalletId == walletId);
+        if (fromDate.HasValue)
+            query = query.Where(t => t.CreatedAt >= fromDate.Value);
+        if (toDate.HasValue)
+            query = query.Where(t => t.CreatedAt <= toDate.Value);
+        return await query.OrderByDescending(t => t.CreatedAt).ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(AuctionTransaction transaction, CancellationToken cancellationToken = default)
         => await _context.AuctionTransactions.AddAsync(transaction, cancellationToken);
 

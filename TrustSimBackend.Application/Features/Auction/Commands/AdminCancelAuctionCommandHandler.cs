@@ -122,7 +122,39 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
             }
         }
 
-        // 4. Lưu hoặc cập nhật AuctionResult sang CANCELLED
+        // 4. Hoàn cọc cam kết bán cho Người bán khi Admin hủy phiên
+        if (auction.AuctionRule?.SellerDepositAmount > 0)
+        {
+            var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(auction.AuthorId, cancellationToken);
+            if (sellerWallet != null)
+            {
+                var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                var relJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(
+                    sellerWallet.Id,
+                    sellerDeposit,
+                    auction.Id,
+                    cancellationToken);
+
+                var sellerRelTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = sellerWallet.Id,
+                    AuctionId = auction.Id,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                    BalanceAfter = sellerWallet.AvailableBalance,
+                    LedgerJournalId = relJournal.Id,
+                    JournalCode = relJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await _unitOfWork.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
+            }
+        }
+
+        // 5. Lưu hoặc cập nhật AuctionResult sang CANCELLED
         var auctionResult = await _unitOfWork.Auctions.GetResultByAuctionIdAsync(auction.Id, cancellationToken);
         if (auctionResult != null)
         {

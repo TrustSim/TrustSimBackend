@@ -188,14 +188,28 @@ public class SellerApproveRunnerUpCommandHandler : IRequestHandler<SellerApprove
             if (sellerWallet != null)
             {
                 var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
-                await _ledgerService.PostSellerListingDepositReleaseAsync(
+                var relJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(
                     sellerWallet.Id,
                     sellerDeposit,
                     auction.Id,
                     cancellationToken);
-                sellerWallet.AvailableBalance += sellerDeposit;
-                sellerWallet.LockedBalance -= sellerDeposit;
-                _unitOfWork.Wallets.Update(sellerWallet);
+
+                var sellerRelTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = sellerWallet.Id,
+                    AuctionId = auction.Id,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                    BalanceAfter = sellerWallet.AvailableBalance,
+                    LedgerJournalId = relJournal.Id,
+                    JournalCode = relJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await _unitOfWork.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
             }
         }
 

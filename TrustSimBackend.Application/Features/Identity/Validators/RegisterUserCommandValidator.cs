@@ -11,7 +11,8 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .NotEmpty().WithMessage("Tên đăng nhập không được để trống.")
             .MinimumLength(3).WithMessage("Tên đăng nhập phải có ít nhất 3 ký tự.")
             .MaximumLength(50).WithMessage("Tên đăng nhập không vượt quá 50 ký tự.")
-            .Matches("^[a-zA-Z0-9_.]+$").WithMessage("Tên đăng nhập chỉ chứa chữ cái, chữ số, dấu gạch dưới và dấu chấm.");
+            .Matches(@"^[\p{L}0-9_.\s]+$").WithMessage("Tên đăng nhập chỉ chứa chữ cái, chữ số, dấu gạch dưới, dấu chấm và khoảng trắng.")
+            .Must(name => string.IsNullOrWhiteSpace(name) || (!name.StartsWith(' ') && !name.EndsWith(' '))).WithMessage("Tên đăng nhập không được bắt đầu hoặc kết thúc bằng khoảng trắng.");
 
         RuleFor(v => v.Email)
             .NotEmpty().WithMessage("Email không được để trống.")

@@ -8,6 +8,7 @@ using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Application.Features.Auction.Factory;
 using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Application.Features.Auction.Services;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -83,10 +84,25 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         sim.SimStatus = SimStatus.IN_AUCTION;
 
         // Khóa cọc Seller vào Sổ cái kép
-        await _ledgerService.PostSellerListingDepositLockAsync(sellerWallet.Id, sellerDeposit, auction.Id, cancellationToken);
-        sellerWallet.AvailableBalance -= sellerDeposit;
-        sellerWallet.LockedBalance += sellerDeposit;
-        _unitOfWork.Wallets.Update(sellerWallet);
+        var balanceBefore = sellerWallet.AvailableBalance;
+        var journal = await _ledgerService.PostSellerListingDepositLockAsync(sellerWallet.Id, sellerDeposit, auction.Id, cancellationToken);
+
+        var depositTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = sellerWallet.Id,
+            AuctionId = auction.Id,
+            AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_LOCK,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = sellerDeposit,
+            BalanceBefore = balanceBefore,
+            BalanceAfter = sellerWallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = DateTime.UtcNow,
+            CompletedAt = DateTime.UtcNow
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(depositTx, cancellationToken);
 
         await _unitOfWork.Auctions.AddAsync(auction, cancellationToken);
         _unitOfWork.SimNumbers.Update(sim);

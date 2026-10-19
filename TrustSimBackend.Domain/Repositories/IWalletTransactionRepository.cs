@@ -19,6 +19,11 @@ public interface IWalletTransactionRepository
         int pageIndex,
         int pageSize,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<WalletTransaction>> GetListByWalletIdAsync(
+        Guid walletId,
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<WalletTransaction> Items, int TotalCount)> GetPagedAllAsync(
         WalletTransactionType? type,
         TransactionStatus? status,

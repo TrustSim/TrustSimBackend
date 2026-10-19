@@ -18,6 +18,7 @@ public interface IAuctionRepository
         Guid? authorId,
         int pageIndex,
         int pageSize,
+        Guid? participantId = null,
         CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Auction> Items, int TotalCount)> GetPublicPagedAsync(
         int pageIndex,

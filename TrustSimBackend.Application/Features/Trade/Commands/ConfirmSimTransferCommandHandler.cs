@@ -7,6 +7,7 @@ using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
@@ -183,6 +184,52 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             journalCode = journal.JournalCode;
             trade.Escrow.EscrowStatus = EscrowStatus.RELEASED;
             trade.Escrow.ReleasedAt = now;
+
+            var payoutTx = new AuctionTransaction
+            {
+                Id = Guid.NewGuid(),
+                WalletId = sellerWallet.Id,
+                AuctionId = trade.AuctionId,
+                EscrowId = trade.Escrow.Id,
+                AuctionTransactionType = AuctionTransactionType.SELLER_PAYOUT,
+                TransactionStatus = TransactionStatus.COMPLETED,
+                Amount = netSellerPayout,
+                BalanceBefore = sellerWallet.AvailableBalance - netSellerPayout,
+                BalanceAfter = sellerWallet.AvailableBalance,
+                LedgerJournalId = journal.Id,
+                JournalCode = journal.JournalCode,
+                CreatedAt = now,
+                CompletedAt = now
+            };
+            await _unitOfWork.AuctionTransactions.AddAsync(payoutTx, cancellationToken);
+
+            // Hoàn trả cọc cam kết bán cho người bán (nếu có)
+            var sellerDeposit = trade.Auction?.AuctionRule?.SellerDepositAmount ?? 0m;
+            if (sellerDeposit > 0 && sellerWallet.LockedBalance >= sellerDeposit)
+            {
+                var releaseJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(
+                    sellerWallet.Id,
+                    sellerDeposit,
+                    trade.AuctionId,
+                    cancellationToken);
+
+                var releaseTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = sellerWallet.Id,
+                    AuctionId = trade.AuctionId,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                    BalanceAfter = sellerWallet.AvailableBalance,
+                    LedgerJournalId = releaseJournal.Id,
+                    JournalCode = releaseJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await _unitOfWork.AuctionTransactions.AddAsync(releaseTx, cancellationToken);
+            }
         }
 
         // Hủy tác vụ hẹn giờ tự động giải ngân LIQUIDATION_DEADLINE vì Người Mua đã chủ động nghiệm thu

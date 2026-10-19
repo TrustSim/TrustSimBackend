@@ -4,6 +4,8 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Commands;
@@ -54,6 +56,24 @@ public class ReleaseAuctionDepositCommandHandler : IRequestHandler<ReleaseAuctio
             request.AmountToRelease,
             depositId,
             cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var releaseTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = wallet.Id,
+            AuctionId = request.AuctionId,
+            AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = request.AmountToRelease,
+            BalanceBefore = wallet.AvailableBalance - request.AmountToRelease,
+            BalanceAfter = wallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = now,
+            CompletedAt = now
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(releaseTx, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

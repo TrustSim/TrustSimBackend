@@ -109,6 +109,27 @@ public class ForfeitWinnerPurchaseCommandHandler : IRequestHandler<ForfeitWinner
                 };
                 await _unitOfWork.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
             }
+
+            // Ghi nhận giao dịch nhận 50% tiền đền bù cho Người bán
+            if (compensationAmount > 0)
+            {
+                var sellerCompTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = sellerWallet.Id,
+                    AuctionId = auction.Id,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_COMPENSATION,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = compensationAmount,
+                    BalanceBefore = sellerWallet.AvailableBalance - compensationAmount,
+                    BalanceAfter = sellerWallet.AvailableBalance,
+                    LedgerJournalId = forfeitJournal.Id,
+                    JournalCode = forfeitJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await _unitOfWork.AuctionTransactions.AddAsync(sellerCompTx, cancellationToken);
+            }
         }
 
         // Bắn thông báo phạt cọc cho Winner trong mọi trường hợp bùng kèo
@@ -179,6 +200,34 @@ public class ForfeitWinnerPurchaseCommandHandler : IRequestHandler<ForfeitWinner
             {
                 sim.SimStatus = SimStatus.AVAILABLE;
                 _unitOfWork.SimNumbers.Update(sim);
+            }
+
+            // Hoàn cọc cam kết bán cho Người bán khi phiên kết thúc thất bại không có Á quân
+            if (auction.AuctionRule?.SellerDepositAmount > 0)
+            {
+                var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
+                var relJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(
+                    sellerWallet.Id,
+                    sellerDeposit,
+                    auction.Id,
+                    cancellationToken);
+
+                var sellerRelTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = sellerWallet.Id,
+                    AuctionId = auction.Id,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                    BalanceAfter = sellerWallet.AvailableBalance,
+                    LedgerJournalId = relJournal.Id,
+                    JournalCode = relJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await _unitOfWork.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
