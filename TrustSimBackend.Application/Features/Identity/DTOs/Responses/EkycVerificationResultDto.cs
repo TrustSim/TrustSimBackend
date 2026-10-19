@@ -15,6 +15,10 @@ public class EkycVerificationResultDto
     public string ExtractedFullName { get; set; } = string.Empty;
     public string ExtractedIdentityNumber { get; set; } = string.Empty;
     public DateTime? ExtractedDateOfBirth { get; set; }
+    public string ExtractedAddress { get; set; } = string.Empty;
+    public string FrontCardUrl { get; set; } = string.Empty;
+    public string BackCardUrl { get; set; } = string.Empty;
+    public string SelfieUrl { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public DateTime SubmittedAt { get; set; }
 }

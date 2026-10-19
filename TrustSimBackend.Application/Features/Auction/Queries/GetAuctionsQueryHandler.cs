@@ -30,6 +30,7 @@ public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedRe
             request.AuthorId,
             request.PageIndex,
             request.PageSize,
+            request.ParticipantId,
             cancellationToken);
 
         var currentUserId = _currentUserService.IsAuthenticated ? _currentUserService.UserId : null;

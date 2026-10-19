@@ -4,6 +4,7 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -73,6 +74,24 @@ public class HoldEscrowDepositCommandHandler : IRequestHandler<HoldEscrowDeposit
             request.ExistingDepositAmount,
             request.EscrowId,
             cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var escrowHoldTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = wallet.Id,
+            EscrowId = request.EscrowId,
+            AuctionTransactionType = AuctionTransactionType.ESCROW_HOLD,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = request.TotalEscrowAmount,
+            BalanceBefore = wallet.AvailableBalance + additionalAmount,
+            BalanceAfter = wallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = now,
+            CompletedAt = now
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(escrowHoldTx, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

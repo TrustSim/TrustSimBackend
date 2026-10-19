@@ -4,6 +4,8 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Commands;
@@ -54,6 +56,24 @@ public class ForfeitAuctionDepositCommandHandler : IRequestHandler<ForfeitAuctio
             request.AmountToForfeit,
             depositId,
             cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var forfeitTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = wallet.Id,
+            AuctionId = request.AuctionId,
+            AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = request.AmountToForfeit,
+            BalanceBefore = wallet.AvailableBalance,
+            BalanceAfter = wallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = now,
+            CompletedAt = now
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(forfeitTx, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

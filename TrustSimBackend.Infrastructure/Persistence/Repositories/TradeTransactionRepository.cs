@@ -59,6 +59,26 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
 
+    public async Task<TradeTransaction?> GetByCodeAsync(string tradeCode, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.TradeTransactions
+            .Include(t => t.Buyer)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.Seller)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.SimNumber)
+                .ThenInclude(s => s!.PhonePrefix)
+                    .ThenInclude(p => p!.SimCarrier)
+            .Include(t => t.Escrow)
+            .Include(t => t.Auction)
+                .ThenInclude(a => a!.AuctionRule)
+            .Include(t => t.TransferContract)
+                .ThenInclude(c => c!.DigitalSignatures)
+            .Include(t => t.SimTransfer)
+                .ThenInclude(st => st!.TransferProofs)
+            .FirstOrDefaultAsync(t => t.TradeTransactionCode == tradeCode, cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
         TradeTransactionStatus? status,
         int pageIndex,

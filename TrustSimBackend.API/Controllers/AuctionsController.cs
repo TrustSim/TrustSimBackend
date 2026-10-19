@@ -20,10 +20,28 @@ public class AuctionsController : BaseApiController
         [FromQuery] AuctionStatus? status,
         [FromQuery] AuctionType? type,
         [FromQuery] Guid? authorId,
+        [FromQuery] Guid? participantId,
+        [FromQuery] bool? isAuthor,
+        [FromQuery] bool? isParticipant,
+        [FromQuery] string? myRole,
         [FromQuery] int pageIndex = 1,
         [FromQuery] int pageSize = 20)
     {
-        var query = new GetAuctionsQuery(keyword, status, type, authorId, pageIndex, pageSize);
+        if (isAuthor == true || string.Equals(myRole, "author", StringComparison.OrdinalIgnoreCase))
+        {
+            if (CurrentUserId == Guid.Empty)
+                return Unauthorized(ApiResponse<object>.FailureResult("Bạn cần đăng nhập để lọc phiên đấu giá theo vai trò người bán (author)."));
+            authorId = CurrentUserId;
+        }
+
+        if (isParticipant == true || string.Equals(myRole, "participant", StringComparison.OrdinalIgnoreCase))
+        {
+            if (CurrentUserId == Guid.Empty)
+                return Unauthorized(ApiResponse<object>.FailureResult("Bạn cần đăng nhập để lọc phiên đấu giá theo vai trò người tham gia (participant)."));
+            participantId = CurrentUserId;
+        }
+
+        var query = new GetAuctionsQuery(keyword, status, type, authorId, participantId, pageIndex, pageSize);
         var result = await Mediator.Send(query);
         return Ok(ApiResponse<PagedResult<AuctionDto>>.SuccessResult(result, "Lấy danh sách phiên đấu giá thành công."));
     }

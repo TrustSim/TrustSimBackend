@@ -4,6 +4,7 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -62,9 +63,28 @@ public class ReleaseEscrowCommandHandler : IRequestHandler<ReleaseEscrowCommand,
             escrowId,
             cancellationToken);
 
+        var netPayout = request.TotalEscrowAmount - platformFeeAmount;
+        var now = DateTime.UtcNow;
+
+        var payoutTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = sellerWallet.Id,
+            EscrowId = escrowId,
+            AuctionTransactionType = AuctionTransactionType.SELLER_PAYOUT,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = netPayout,
+            BalanceBefore = sellerWallet.AvailableBalance - netPayout,
+            BalanceAfter = sellerWallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = now,
+            CompletedAt = now
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(payoutTx, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var netPayout = request.TotalEscrowAmount - platformFeeAmount;
         _logger.LogInformation(
             "[Escrow Release] Đã giải ngân EscrowId='{EscrowId}': Tổng Escrow={Total:N0} VNĐ -> Người bán nhận={Net:N0} VNĐ, Phí sàn={Fee:N0} VNĐ (Chứng từ #{JournalCode})",
             escrowId, request.TotalEscrowAmount, netPayout, platformFeeAmount, journal.JournalCode);

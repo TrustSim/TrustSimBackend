@@ -4,6 +4,7 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -54,6 +55,24 @@ public class RefundEscrowCommandHandler : IRequestHandler<RefundEscrowCommand, L
             request.TotalEscrowAmount,
             request.EscrowId,
             cancellationToken);
+
+        var now = DateTime.UtcNow;
+        var escrowRefundTx = new AuctionTransaction
+        {
+            Id = Guid.NewGuid(),
+            WalletId = buyerWallet.Id,
+            EscrowId = request.EscrowId,
+            AuctionTransactionType = AuctionTransactionType.ESCROW_REFUNDED,
+            TransactionStatus = TransactionStatus.COMPLETED,
+            Amount = request.TotalEscrowAmount,
+            BalanceBefore = buyerWallet.AvailableBalance - request.TotalEscrowAmount,
+            BalanceAfter = buyerWallet.AvailableBalance,
+            LedgerJournalId = journal.Id,
+            JournalCode = journal.JournalCode,
+            CreatedAt = now,
+            CompletedAt = now
+        };
+        await _unitOfWork.AuctionTransactions.AddAsync(escrowRefundTx, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

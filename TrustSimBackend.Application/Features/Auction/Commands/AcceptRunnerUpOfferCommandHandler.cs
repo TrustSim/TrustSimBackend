@@ -5,8 +5,6 @@ using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Application.Features.Auction.Services;
-using TrustSimBackend.Domain.Entities.Financial;
-using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
@@ -15,26 +13,20 @@ namespace TrustSimBackend.Application.Features.Auction.Commands;
 public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpOfferCommand, AuctionResultDto>
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ILedgerService _ledgerService;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
     private readonly INotificationService _notificationService;
-    private readonly IPdfContractService _pdfContractService;
 
     public AcceptRunnerUpOfferCommandHandler(
         IUnitOfWork unitOfWork,
-        ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
         IAuctionDelayQueueService delayQueue,
-        INotificationService notificationService,
-        IPdfContractService pdfContractService)
+        INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
-        _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
         _notificationService = notificationService;
-        _pdfContractService = pdfContractService;
     }
 
     public async Task<AuctionResultDto> Handle(AcceptRunnerUpOfferCommand request, CancellationToken cancellationToken)
@@ -82,167 +74,68 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             priceToPay = runnerUpBid.BidAmount;
         }
 
-        if (wallet.AvailableBalance < priceToPay)
-        {
-            throw new BadRequestException(
-                $"Số dư khả dụng ({wallet.AvailableBalance:N0} VNĐ) không đủ để thanh toán theo giá bid của bạn ({priceToPay:N0} VNĐ). Vui lòng nạp thêm tiền vào ví.");
-        }
-
         var now = DateTime.UtcNow;
-        var escrowId = Guid.NewGuid();
-        var tradeId = Guid.NewGuid();
+        var paymentGraceHours = auction.AuctionRule?.PaymentGracePeriodHours ?? 24;
+        var paymentDeadline = now.AddHours(paymentGraceHours);
 
-        var signingGraceMinutes = auction.AuctionRule?.SigningGracePeriodMinutes ?? 1440;
-        var signingDeadline = now.AddMinutes(signingGraceMinutes);
+        // 1. Cập nhật tư cách người tham gia của Người về nhì thành WON
+        participant.Status = ParticipantStatus.WON;
+        _unitOfWork.Auctions.UpdateParticipant(participant);
 
-        var trade = new TradeTransaction
-        {
-            Id = tradeId,
-            TradeTransactionCode = $"TRD-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-            TradeTransactionStatus = TradeTransactionStatus.PendingSignature,
-            AuctionId = auction.Id,
-            BuyerId = participant.UserAccountId,
-            SellerId = auction.AuthorId,
-            SimNumberId = auction.SimNumberId,
-            EscrowDeadline = null,
-            SigningDeadline = signingDeadline,
-            TransferDeadline = null,
-            LiquidationDeadline = null,
-            CompletedAt = null,
-            CancelledAt = null,
-            IsActive = true
-        };
-
-        var contract = new TransferContract
-        {
-            Id = Guid.NewGuid(),
-            TradeTransactionId = trade.Id,
-            ContractStatus = ContractStatus.DRAFT,
-            DocumentUrl = string.Empty,
-            DocumentHash = string.Empty
-        };
-        trade.TransferContract = contract;
-
-        var escrow = new Escrow
-        {
-            Id = escrowId,
-            TradeTransactionId = trade.Id,
-            EscrowAmount = priceToPay,
-            EscrowStatus = EscrowStatus.HELD,
-            HeldAt = now
-        };
-
-        // Ghi nhận chứng từ sổ cái kép ESCROW_HOLD (Do Runner-up đã được hoàn cọc lúc hết phiên, họ thanh toán toàn bộ priceToPay: Nợ 2010 / Có 2030)
-        var journal = await _ledgerService.PostEscrowHoldAsync(
-            wallet.Id,
-            priceToPay,
-            existingDepositAmount: 0m,
-            escrowId,
-            cancellationToken);
-
-        // Tạo bản ghi AuctionTransaction
-        var auctionTx = new AuctionTransaction
-        {
-            Id = Guid.NewGuid(),
-            WalletId = wallet.Id,
-            AuctionId = auction.Id,
-            EscrowId = escrowId,
-            AuctionTransactionType = AuctionTransactionType.ESCROW_HOLD,
-            TransactionStatus = TransactionStatus.COMPLETED,
-            Amount = priceToPay,
-            BalanceBefore = wallet.AvailableBalance + priceToPay,
-            BalanceAfter = wallet.AvailableBalance,
-            LedgerJournalId = journal.Id,
-            JournalCode = journal.JournalCode,
-            CreatedAt = now,
-            CompletedAt = now
-        };
-
-        // Gán quan hệ 2 chiều
-        trade.Escrow = escrow;
-
-        // Hủy deadline Á quân trong Delay Queue và nạp deadline ký hợp đồng
-        await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.RUNNER_UP_DEADLINE, cancellationToken);
-        await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
-        {
-            AuctionId = auction.Id,
-            JobType = AuctionDelayJobTypes.SIGNING_DEADLINE,
-            ExecuteAt = trade.SigningDeadline!.Value,
-            ExtraData = trade.Id.ToString()
-        }, cancellationToken);
-
-        // Cập nhật trạng thái SIM sang TRANSFERRING
-        var sim = await _unitOfWork.SimNumbers.GetByIdAsync(auction.SimNumberId, cancellationToken);
-        if (sim != null)
-        {
-            sim.SimStatus = SimStatus.TRANSFERRING;
-            _unitOfWork.SimNumbers.Update(sim);
-        }
-
-        // Cập nhật Bid của Runner-Up thành WINNING
+        // 2. Cập nhật Bid của Runner-Up thành WINNING
         if (runnerUpBid != null)
         {
             runnerUpBid.Status = BidStatus.WINNING;
             _unitOfWork.Bids.Update(runnerUpBid);
         }
 
-        // Cập nhật giá hiện tại của Auction thành giá mua thực tế của Runner-Up
+        // 3. Cập nhật giá hiện tại của Auction thành giá mua thực tế của Runner-Up
         auction.CurrentPrice = priceToPay;
         _unitOfWork.Auctions.Update(auction);
 
-        // Đảm bảo ví giữ trạng thái ACTIVE
-        wallet.WalletStatus = WalletStatus.ACTIVE;
-        _unitOfWork.Wallets.Update(wallet);
-
-        participant.Status = ParticipantStatus.WON;
-        _unitOfWork.Auctions.UpdateParticipant(participant);
-
-        await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);
-        await _unitOfWork.TradeTransactions.AddAsync(trade, cancellationToken);
-        await _unitOfWork.AuctionTransactions.AddAsync(auctionTx, cancellationToken);
-
+        // 4. Cập nhật kết quả đấu giá: Runner-up trở thành người thắng, chuyển sang chờ thanh toán (PENDING_PAYMENT) với hạn chót 24h
         auctionResult.WinnerId = participant.Id;
         auctionResult.FinalPrice = priceToPay;
         auctionResult.WinType = AuctionWinType.RUNNER_UP_TAKEOVER;
-        auctionResult.AuctionResultStatus = AuctionResultStatus.CONFIRMED;
-        auctionResult.SettledAt = now;
+        auctionResult.AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT;
+        auctionResult.PaymentDeadline = paymentDeadline;
+        auctionResult.RunnerUpPaymentDeadline = paymentDeadline;
         _unitOfWork.Auctions.UpdateResult(auctionResult);
+
+        // 5. Hủy deadline Á quân trong Delay Queue và nạp deadline thanh toán mới
+        await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.RUNNER_UP_DEADLINE, cancellationToken);
+        await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+        {
+            AuctionId = auction.Id,
+            JobType = AuctionDelayJobTypes.PAYMENT_DEADLINE,
+            ExecuteAt = paymentDeadline,
+            ExtraData = participant.Id.ToString()
+        }, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Tự động sinh Văn bản 1 (Phiếu chốt giá trúng) và tải lên Supabase Storage CDN ngay lập tức
-        string? winningNoticeUrl = null;
-        try
-        {
-            winningNoticeUrl = await _pdfContractService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
-        }
-        catch
-        {
-            // fallback nếu lỗi
-        }
-
-        // Gửi thông báo cho Á quân và Seller
-        var graceHours = auction.AuctionRule?.SigningGracePeriodHours ?? 24;
+        // 6. Gửi thông báo cho Á quân và Seller
+        var simPhone = auction.SimNumber?.PhoneNumber ?? "SIM";
 
         await _notificationService.SendNotificationAsync(
             userId: participant.UserAccountId,
-            type: NotificationType.CONTRACT_SIGNING_REQUIRED,
-            title: $"📝 Yêu cầu ký hợp đồng SIM {sim?.PhoneNumber}!",
-            content: $"Bạn đã mua thành công SIM theo đề nghị Á quân phiên {auction.AuctionCode}. Tiền đã được ký quỹ Escrow an toàn. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-            actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
-            referenceType: "TradeTransaction",
-            referenceId: trade.Id,
+            type: NotificationType.AUCTION_WON,
+            title: $"🎉 Chấp nhận quyền mua SIM {simPhone} thành công!",
+            content: $"Bạn đã đồng ý nhận quyền mua SIM {simPhone} với mức giá {priceToPay:N0} VNĐ. Vui lòng nạp tiền vào ví và hoàn tất thanh toán ký quỹ Escrow trước {paymentDeadline:dd/MM/yyyy HH:mm} để tiến hành ký kết hợp đồng.",
+            actionUrl: $"/auctions/{auction.Id}/payment",
+            referenceType: "Auction",
+            referenceId: auction.Id,
             sendEmail: true,
             cancellationToken: cancellationToken);
 
         await _notificationService.SendNotificationAsync(
             userId: auction.AuthorId,
-            type: NotificationType.CONTRACT_SIGNING_REQUIRED,
-            title: $"📝 Á quân đã mua SIM {sim?.PhoneNumber}! Vui lòng ký hợp đồng",
-            content: $"Á quân phiên {auction.AuctionCode} đã thanh toán đủ {priceToPay:N0} VNĐ vào quỹ Escrow. Vui lòng xem biên bản chốt giá trúng và ký hợp đồng điện tử trong vòng {graceHours} giờ.",
-            actionUrl: winningNoticeUrl ?? $"/trades/{trade.Id}",
-            referenceType: "TradeTransaction",
-            referenceId: trade.Id,
+            type: NotificationType.SYSTEM_ALERT,
+            title: $"📢 Người về nhì đã đồng ý mua SIM {simPhone}!",
+            content: $"Người về nhì trong phiên {auction.AuctionCode} đã đồng ý mua SIM với mức giá {priceToPay:N0} VNĐ. Người mua có {paymentGraceHours} giờ để hoàn tất nạp tiền và thanh toán ký quỹ.",
+            actionUrl: $"/auctions/{auction.Id}",
+            referenceType: "Auction",
+            referenceId: auction.Id,
             sendEmail: true,
             cancellationToken: cancellationToken);
 
@@ -258,13 +151,14 @@ public class AcceptRunnerUpOfferCommandHandler : IRequestHandler<AcceptRunnerUpO
             RunnerUpParticipantId = auctionResult.RunnerUpParticipantId,
             RunnerUpFinalPrice = auctionResult.RunnerUpFinalPrice,
             WinType = AuctionWinType.RUNNER_UP_TAKEOVER,
-            AuctionResultStatus = AuctionResultStatus.CONFIRMED,
-            SettledAt = now
+            AuctionResultStatus = AuctionResultStatus.PENDING_PAYMENT,
+            PaymentDeadline = paymentDeadline,
+            SettledAt = auctionResult.SettledAt
         };
 
         await _realtimeNotifier.NotifyAuctionStatusChangedAsync(
             auction.Id,
-            AuctionResultStatus.CONFIRMED.ToString(),
+            AuctionResultStatus.PENDING_PAYMENT.ToString(),
             participant.Id,
             priceToPay,
             cancellationToken);

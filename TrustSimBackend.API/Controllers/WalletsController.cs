@@ -44,6 +44,24 @@ public class WalletsController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy sao kê tài chính tổng hợp (kết hợp cả giao dịch nạp/rút ví và các biến động cọc/Escrow/chuyển nhượng SIM)
+    /// </summary>
+    [HttpGet("statement")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<UnifiedWalletTransactionDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetUnifiedStatement(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] int pageIndex = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        var query = new GetUnifiedWalletStatementQuery(CurrentUserId, fromDate, toDate, pageIndex, pageSize);
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<PagedResult<UnifiedWalletTransactionDto>>.SuccessResult(result, "Lấy sao kê tài chính tổng hợp thành công."));
+    }
+
+    /// <summary>
     /// Xem thông tin chi tiết một giao dịch ví theo ID
     /// </summary>
     [HttpGet("transactions/{id:guid}")]

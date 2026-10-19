@@ -7,6 +7,7 @@ public interface ITradeTransactionRepository
 {
     // Lấy giao dịch kèm theo toàn bộ thông tin vệ tinh (Escrow, Contract, SimTransfer)
     Task<TradeTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<TradeTransaction?> GetByCodeAsync(string tradeCode, CancellationToken cancellationToken = default);
     
     Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
         TradeTransactionStatus? status,

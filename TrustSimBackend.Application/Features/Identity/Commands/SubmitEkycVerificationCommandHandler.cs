@@ -165,99 +165,27 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
 
         if (faceMatch.IsMatched && faceMatch.SimilarityScore >= _settings.AutoApproveSimilarityThreshold)
         {
-            // TH1: Đạt chuẩn xuất sắc -> TỰ ĐỘNG DUYỆT (VERIFIED)
+            // Đạt chuẩn xuất sắc qua AI -> Chờ người dùng xác nhận ở API 2 để cập nhật vào hồ sơ
             isAutoApproved = true;
-            verification.VerificationStatus = VerificationStatus.VERIFIED;
+            verification.VerificationStatus = VerificationStatus.PENDING_VERIFICATION;
             verification.VerificationMethod = "AUTOMATED_AWS_REKOGNITION";
-            verification.VerifiedAt = DateTime.UtcNow;
-
-            // Cập nhật UserProfile
-            user.UserProfile.VerificationStatus = VerificationStatus.VERIFIED;
-            user.UserProfile.IdentityNumber = ocrResult.IdentityNumber;
-            if (!string.IsNullOrEmpty(ocrResult.FullName))
-            {
-                user.UserProfile.FullName = ocrResult.FullName;
-            }
-            if (ocrResult.DateOfBirth.HasValue)
-            {
-                user.UserProfile.DateOfBirth = ocrResult.DateOfBirth.Value;
-            }
-            if (!string.IsNullOrEmpty(ocrResult.Address))
-            {
-                user.UserProfile.Address = ocrResult.Address;
-            }
-            user.UserProfile.UpdatedDate = DateTime.UtcNow;
-
-            // Khởi tạo/Kích hoạt cặp khóa ký số PKI RSA-2048 trong UserSecurityProfile
-            var keyPair = _pkiKeyService.GenerateKeyPair();
-            if (user.UserSecurityProfile == null)
-            {
-                user.UserSecurityProfile = new UserSecurityProfile
-                {
-                    UserAccountId = user.Id,
-                    PublicKey = keyPair.PublicKeyPem,
-                    EncryptedPrivateKey = keyPair.EncryptedPrivateKey,
-                    KeyHash = keyPair.KeyHash,
-                    KeyGeneratedAt = DateTime.UtcNow,
-                    UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE,
-                    IsActive = true,
-                    CreatedDate = DateTime.UtcNow
-                };
-            }
-            else
-            {
-                user.UserSecurityProfile.PublicKey = keyPair.PublicKeyPem;
-                user.UserSecurityProfile.EncryptedPrivateKey = keyPair.EncryptedPrivateKey;
-                user.UserSecurityProfile.KeyHash = keyPair.KeyHash;
-                user.UserSecurityProfile.KeyGeneratedAt = DateTime.UtcNow;
-                user.UserSecurityProfile.UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE;
-                user.UserSecurityProfile.UpdatedDate = DateTime.UtcNow;
-            }
-
-            // Cập nhật UserAccount
-            user.UpdatedDate = DateTime.UtcNow;
-
-            returnMessage = "Xác thực danh tính eKYC tự động thành công qua AI! Cặp khóa ký số PKI đã được kích hoạt.";
+            returnMessage = "Phân tích AI eKYC thành công! Vui lòng kiểm tra lại thông tin và bấm Xác nhận để hoàn tất cập nhật hồ sơ.";
         }
         else if (faceMatch.SimilarityScore >= _settings.ManualReviewSimilarityThreshold)
         {
-            // TH2: Điểm cận biên -> CHUYỂN ADMIN DUYỆT (PENDING_VERIFICATION)
+            // Điểm cận biên -> Chuyển sang chờ người dùng xác nhận & Admin duyệt
             verification.VerificationStatus = VerificationStatus.PENDING_VERIFICATION;
             verification.VerificationMethod = "MANUAL_ADMIN_REVIEW";
-
-            user.UserProfile.VerificationStatus = VerificationStatus.PENDING_VERIFICATION;
-            user.UserProfile.IdentityNumber = ocrResult.IdentityNumber;
-            if (!string.IsNullOrEmpty(ocrResult.FullName))
-            {
-                user.UserProfile.FullName = ocrResult.FullName;
-            }
-            if (ocrResult.DateOfBirth.HasValue)
-            {
-                user.UserProfile.DateOfBirth = ocrResult.DateOfBirth.Value;
-            }
-            if (!string.IsNullOrEmpty(ocrResult.Address))
-            {
-                user.UserProfile.Address = ocrResult.Address;
-            }
-            user.UserProfile.UpdatedDate = DateTime.UtcNow;
-
-            user.UpdatedDate = DateTime.UtcNow;
-
-            returnMessage = "Hồ sơ eKYC của bạn đã được tiếp nhận và đang chờ chuyên viên đối soát trong vòng 24h.";
+            returnMessage = "Ảnh eKYC đã được tiếp nhận. Vui lòng kiểm tra lại thông tin và bấm Xác nhận để gửi chuyên viên đối soát.";
         }
         else
         {
-            // TH3: Dưới ngưỡng -> TỪ CHỐI (REJECTED)
+            // Dưới ngưỡng -> TỪ CHỐI (REJECTED)
             verification.VerificationStatus = VerificationStatus.REJECTED;
             verification.VerificationMethod = "AUTOMATED_AWS_REKOGNITION";
             verification.RejectionReason = $"Độ tương đồng khuôn mặt không đạt yêu cầu ({faceMatch.SimilarityScore:F1}% < {_settings.ManualReviewSimilarityThreshold:F0}%).";
             verification.VerifiedAt = DateTime.UtcNow;
 
-            user.UserProfile.VerificationStatus = VerificationStatus.REJECTED;
-            user.UserProfile.UpdatedDate = DateTime.UtcNow;
-            user.UpdatedDate = DateTime.UtcNow;
-
-            _unitOfWork.Users.Update(user);
             await _unitOfWork.IdentityVerifications.AddAsync(verification, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -267,14 +195,11 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             throw new KycFaceMismatchException(faceMatch.SimilarityScore);
         }
 
-        _unitOfWork.Users.Update(user);
         await _unitOfWork.IdentityVerifications.AddAsync(verification, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Lưu ý: Các tệp ảnh eKYC (CCCD, Selfie) được bảo lưu vĩnh viễn trên Cloud Supabase Storage để làm bằng chứng pháp lý và đối soát.
-
-        _logger.LogInformation("[eKYC] Xử lý hoàn tất cho User {UserId}: Trạng thái={Status}, AutoApproved={Auto}, Similarity={Sim}%",
-            user.Id, verification.VerificationStatus, isAutoApproved, faceMatch.SimilarityScore);
+        _logger.LogInformation("[eKYC Pha 1] Phân tích AI hoàn tất cho User {UserId}: VerificationId={VerificationId}, Score={Sim}%",
+            user.Id, verification.Id, faceMatch.SimilarityScore);
 
         return new EkycVerificationResultDto
         {
@@ -283,9 +208,13 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
             VerificationStatus = verification.VerificationStatus,
             IsAutoApproved = isAutoApproved,
             FaceSimilarityScore = faceMatch.SimilarityScore,
-            ExtractedFullName = user.UserProfile.FullName,
-            ExtractedIdentityNumber = user.UserProfile.IdentityNumber,
-            ExtractedDateOfBirth = user.UserProfile.DateOfBirth,
+            ExtractedFullName = ocrResult.FullName ?? string.Empty,
+            ExtractedIdentityNumber = ocrResult.IdentityNumber ?? string.Empty,
+            ExtractedDateOfBirth = ocrResult.DateOfBirth,
+            ExtractedAddress = ocrResult.Address ?? string.Empty,
+            FrontCardUrl = frontUrl,
+            BackCardUrl = backUrl,
+            SelfieUrl = selfieUrl,
             Message = returnMessage,
             SubmittedAt = verification.SubmittedAt
         };

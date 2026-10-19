@@ -309,13 +309,28 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 if (sellerWallet != null)
                 {
                     var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
-                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                    var relJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
                         sellerWallet.Id,
                         sellerDeposit,
                         auction.Id,
                         cancellationToken);
-                    sellerWallet.AvailableBalance += sellerDeposit;
-                    sellerWallet.LockedBalance -= sellerDeposit;
+
+                    var sellerRelTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = sellerWallet.Id,
+                        AuctionId = auction.Id,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = sellerDeposit,
+                        BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                        BalanceAfter = sellerWallet.AvailableBalance,
+                        LedgerJournalId = relJournal.Id,
+                        JournalCode = relJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
                 }
             }
 
@@ -529,13 +544,28 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 if (sellerWallet != null)
                 {
                     var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
-                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                    var relJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
                         sellerWallet.Id,
                         sellerDeposit,
                         auction.Id,
                         cancellationToken);
-                    sellerWallet.AvailableBalance += sellerDeposit;
-                    sellerWallet.LockedBalance -= sellerDeposit;
+
+                    var sellerRelTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = sellerWallet.Id,
+                        AuctionId = auction.Id,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = sellerDeposit,
+                        BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                        BalanceAfter = sellerWallet.AvailableBalance,
+                        LedgerJournalId = relJournal.Id,
+                        JournalCode = relJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
                 }
             }
 
@@ -709,13 +739,28 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 if (sellerWallet != null)
                 {
                     var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
-                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                    var relJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
                         sellerWallet.Id,
                         sellerDeposit,
                         auction.Id,
                         cancellationToken);
-                    sellerWallet.AvailableBalance += sellerDeposit;
-                    sellerWallet.LockedBalance -= sellerDeposit;
+
+                    var sellerRelTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = sellerWallet.Id,
+                        AuctionId = auction.Id,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = sellerDeposit,
+                        BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                        BalanceAfter = sellerWallet.AvailableBalance,
+                        LedgerJournalId = relJournal.Id,
+                        JournalCode = relJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
                 }
             }
 
@@ -1204,6 +1249,27 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                     await context.AuctionTransactions.AddAsync(forfeitureTx, cancellationToken);
                 }
 
+                // Ghi nhận giao dịch nhận 50% đền bù cho Người bán
+                if (compensationAmount > 0 && sellerWallet != null)
+                {
+                    var sellerCompTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = sellerWallet.Id,
+                        AuctionId = result.AuctionId,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_COMPENSATION,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = compensationAmount,
+                        BalanceBefore = sellerWallet.AvailableBalance - compensationAmount,
+                        BalanceAfter = sellerWallet.AvailableBalance,
+                        LedgerJournalId = forfeitJournal.Id,
+                        JournalCode = forfeitJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(sellerCompTx, cancellationToken);
+                }
+
                 _logger.LogInformation(
                     "[AuctionDelayDispatcher] ⚠️ Tịch thu toàn bộ cọc {Total:N0} VNĐ ({Count} khoản cọc) của Winner {User}. Đền bù Seller {Comp:N0} VNĐ",
                     totalDepositAmount, lockedDeposits.Count, result.Winner?.UserAccount?.UserName, compensationAmount);
@@ -1246,7 +1312,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
         bool isShieldingDetected = false;
         string failureReason = string.Empty;
 
-        if (result.RunnerUpParticipantId.HasValue && result.RunnerUpFinalPrice.HasValue && result.RunnerUpFinalPrice.Value > 0)
+        if (result.WinType != AuctionWinType.RUNNER_UP_TAKEOVER && result.RunnerUpParticipantId.HasValue && result.RunnerUpFinalPrice.HasValue && result.RunnerUpFinalPrice.Value > 0)
         {
             var gapRatio = result.FinalPrice / result.RunnerUpFinalPrice.Value;
             result.PriceGapRatio = Math.Round(gapRatio, 2);
@@ -1264,7 +1330,9 @@ public class AuctionDelayQueueDispatcher : BackgroundService
         }
         else
         {
-            failureReason = "Phiên đấu giá không có Người về nhì hợp lệ.";
+            failureReason = result.WinType == AuctionWinType.RUNNER_UP_TAKEOVER
+                ? "Người về nhì đã chấp nhận quyền mua nhưng quá hạn thanh toán tiền mua SIM."
+                : "Phiên đấu giá không có Người về nhì hợp lệ.";
         }
 
         // 3. Cây quyết định & Phát Thông báo
@@ -1288,13 +1356,28 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 if (sellerWallet != null)
                 {
                     var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
-                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                    var relJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
                         sellerWallet.Id,
                         sellerDeposit,
                         auction.Id,
                         cancellationToken);
-                    sellerWallet.AvailableBalance += sellerDeposit;
-                    sellerWallet.LockedBalance -= sellerDeposit;
+
+                    var sellerRelTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = sellerWallet.Id,
+                        AuctionId = auction.Id,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = sellerDeposit,
+                        BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                        BalanceAfter = sellerWallet.AvailableBalance,
+                        LedgerJournalId = relJournal.Id,
+                        JournalCode = relJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
                 }
             }
 
@@ -1582,13 +1665,28 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             if (sellerWallet != null)
             {
                 var sellerDeposit = result.Auction.AuctionRule.SellerDepositAmount;
-                await ledgerService.PostSellerListingDepositReleaseAsync(
+                var relJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
                     sellerWallet.Id,
                     sellerDeposit,
                     result.AuctionId,
                     cancellationToken);
-                sellerWallet.AvailableBalance += sellerDeposit;
-                sellerWallet.LockedBalance -= sellerDeposit;
+
+                var sellerRelTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = sellerWallet.Id,
+                    AuctionId = result.AuctionId,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = sellerWallet.AvailableBalance - sellerDeposit,
+                    BalanceAfter = sellerWallet.AvailableBalance,
+                    LedgerJournalId = relJournal.Id,
+                    JournalCode = relJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await context.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
             }
         }
 
@@ -1696,11 +1794,28 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 var sellerDeposit = trade.Auction.AuctionRule.SellerDepositAmount;
                 if (sellerDeposit > 0)
                 {
-                    await ledgerService.PostSellerListingDepositReleaseAsync(
+                    var relJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
                         trade.Seller.Wallet.Id,
                         sellerDeposit,
                         trade.AuctionId,
                         cancellationToken);
+
+                    var sellerRelTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = trade.Seller.Wallet.Id,
+                        AuctionId = trade.AuctionId,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = sellerDeposit,
+                        BalanceBefore = trade.Seller.Wallet.AvailableBalance - sellerDeposit,
+                        BalanceAfter = trade.Seller.Wallet.AvailableBalance,
+                        LedgerJournalId = relJournal.Id,
+                        JournalCode = relJournal.JournalCode,
+                        CreatedAt = DateTime.UtcNow,
+                        CompletedAt = DateTime.UtcNow
+                    };
+                    await context.AuctionTransactions.AddAsync(sellerRelTx, cancellationToken);
                 }
             }
 
@@ -1760,24 +1875,81 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             // 1. Hoàn 100% tiền Quỹ Escrow về cho Người Mua
             if (trade.Escrow != null && trade.Escrow.EscrowStatus == EscrowStatus.HELD && trade.Buyer?.Wallet != null)
             {
-                await ledgerService.PostEscrowRefundAsync(
+                var escrowRefundJournal = await ledgerService.PostEscrowRefundAsync(
                     trade.Buyer.Wallet.Id,
                     trade.Escrow.EscrowAmount,
                     trade.Escrow.Id,
                     cancellationToken);
                 trade.Escrow.EscrowStatus = EscrowStatus.REFUNDED;
+
+                var escrowRefundTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = trade.Buyer.Wallet.Id,
+                    AuctionId = trade.AuctionId,
+                    EscrowId = trade.Escrow.Id,
+                    AuctionTransactionType = AuctionTransactionType.ESCROW_REFUNDED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = trade.Escrow.EscrowAmount,
+                    BalanceBefore = trade.Buyer.Wallet.AvailableBalance - trade.Escrow.EscrowAmount,
+                    BalanceAfter = trade.Buyer.Wallet.AvailableBalance,
+                    LedgerJournalId = escrowRefundJournal.Id,
+                    JournalCode = escrowRefundJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await context.AuctionTransactions.AddAsync(escrowRefundTx, cancellationToken);
             }
 
             // 2. Tịch thu cọc Người bán (bồi thường 50% cho Người Mua và 50% cho Sàn)
             var sellerDeposit = trade.Auction?.AuctionRule?.SellerDepositAmount ?? 0m;
             if (sellerDeposit > 0 && trade.Seller?.Wallet != null && trade.Buyer?.Wallet != null)
             {
-                await ledgerService.PostSellerListingDepositForfeitedWithCompensationAsync(
+                var forfeitJournal = await ledgerService.PostSellerListingDepositForfeitedWithCompensationAsync(
                     trade.Seller.Wallet.Id,
                     trade.Buyer.Wallet.Id,
                     sellerDeposit,
                     trade.Id,
                     cancellationToken);
+
+                var compensationAmount = Math.Round(sellerDeposit * 0.5m, 2);
+
+                var sellerForfeitTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = trade.Seller.Wallet.Id,
+                    AuctionId = trade.AuctionId,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = trade.Seller.Wallet.AvailableBalance,
+                    BalanceAfter = trade.Seller.Wallet.AvailableBalance,
+                    LedgerJournalId = forfeitJournal.Id,
+                    JournalCode = forfeitJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await context.AuctionTransactions.AddAsync(sellerForfeitTx, cancellationToken);
+
+                if (compensationAmount > 0)
+                {
+                    var buyerCompTx = new AuctionTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        WalletId = trade.Buyer.Wallet.Id,
+                        AuctionId = trade.AuctionId,
+                        AuctionTransactionType = AuctionTransactionType.AUCTION_COMPENSATION,
+                        TransactionStatus = TransactionStatus.COMPLETED,
+                        Amount = compensationAmount,
+                        BalanceBefore = trade.Buyer.Wallet.AvailableBalance - compensationAmount,
+                        BalanceAfter = trade.Buyer.Wallet.AvailableBalance,
+                        LedgerJournalId = forfeitJournal.Id,
+                        JournalCode = forfeitJournal.JournalCode,
+                        CreatedAt = now,
+                        CompletedAt = now
+                    };
+                    await context.AuctionTransactions.AddAsync(buyerCompTx, cancellationToken);
+                }
             }
 
             await context.SaveChangesAsync(cancellationToken);
@@ -1827,6 +1999,8 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 .ThenInclude(b => b!.Wallet)
             .Include(t => t.Seller)
                 .ThenInclude(s => s!.Wallet)
+            .Include(t => t.Auction)
+                .ThenInclude(a => a!.AuctionRule)
             .FirstOrDefaultAsync(t => (tradeId != Guid.Empty && t.Id == tradeId) || (tradeId == Guid.Empty && t.AuctionId == job.AuctionId), cancellationToken);
 
         if (trade == null || trade.TradeTransactionStatus != TradeTransactionStatus.PendingTransfer)
@@ -1876,7 +2050,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
         if (trade.Escrow != null && trade.Escrow.EscrowStatus == EscrowStatus.HELD && trade.Seller?.Wallet != null && escrowAmount > 0)
         {
-            await ledgerService.PostEscrowReleaseAsync(
+            var journal = await ledgerService.PostEscrowReleaseAsync(
                 trade.Seller.Wallet.Id,
                 escrowAmount,
                 platformFeeAmount,
@@ -1884,6 +2058,51 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 cancellationToken);
             trade.Escrow.EscrowStatus = EscrowStatus.RELEASED;
             trade.Escrow.ReleasedAt = now;
+
+            var payoutTx = new AuctionTransaction
+            {
+                Id = Guid.NewGuid(),
+                WalletId = trade.Seller.Wallet.Id,
+                AuctionId = trade.AuctionId,
+                EscrowId = trade.Escrow.Id,
+                AuctionTransactionType = AuctionTransactionType.SELLER_PAYOUT,
+                TransactionStatus = TransactionStatus.COMPLETED,
+                Amount = netSellerPayout,
+                BalanceBefore = trade.Seller.Wallet.AvailableBalance - netSellerPayout,
+                BalanceAfter = trade.Seller.Wallet.AvailableBalance,
+                LedgerJournalId = journal.Id,
+                JournalCode = journal.JournalCode,
+                CreatedAt = now,
+                CompletedAt = now
+            };
+            await context.AuctionTransactions.AddAsync(payoutTx, cancellationToken);
+
+            var sellerDeposit = trade.Auction?.AuctionRule?.SellerDepositAmount ?? 0m;
+            if (sellerDeposit > 0 && trade.Seller.Wallet.LockedBalance >= sellerDeposit)
+            {
+                var releaseJournal = await ledgerService.PostSellerListingDepositReleaseAsync(
+                    trade.Seller.Wallet.Id,
+                    sellerDeposit,
+                    trade.AuctionId,
+                    cancellationToken);
+
+                var releaseTx = new AuctionTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    WalletId = trade.Seller.Wallet.Id,
+                    AuctionId = trade.AuctionId,
+                    AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                    TransactionStatus = TransactionStatus.COMPLETED,
+                    Amount = sellerDeposit,
+                    BalanceBefore = trade.Seller.Wallet.AvailableBalance - sellerDeposit,
+                    BalanceAfter = trade.Seller.Wallet.AvailableBalance,
+                    LedgerJournalId = releaseJournal.Id,
+                    JournalCode = releaseJournal.JournalCode,
+                    CreatedAt = now,
+                    CompletedAt = now
+                };
+                await context.AuctionTransactions.AddAsync(releaseTx, cancellationToken);
+            }
         }
 
         if (trade.TransferContract != null)

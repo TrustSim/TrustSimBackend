@@ -40,6 +40,19 @@ public class TradeTransactionsController : BaseApiController
     }
 
     /// <summary>
+    /// Lấy chi tiết một giao dịch mua bán SIM theo mã giao dịch
+    /// </summary>
+    [HttpGet("code/{tradeCode}")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<TradeTransactionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByCode([FromRoute] string tradeCode)
+    {
+        var result = await Mediator.Send(new GetTradeTransactionByCodeQuery(tradeCode, CurrentUserId, IsAdmin || IsConsultant));
+        return Ok(ApiResponse<TradeTransactionDto>.SuccessResult(result, "Lấy thông tin giao dịch thành công."));
+    }
+
+    /// <summary>
     /// Khởi tạo giao dịch chuyển nhượng SIM (tạo tài khoản ký quỹ Escrow bảo đảm)
     /// </summary>
     [HttpPost]
