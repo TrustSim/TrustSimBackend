@@ -1,7 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -80,9 +84,7 @@ public class TradeTransactionRepository : ITradeTransactionRepository
     }
 
     public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
-        TradeTransactionStatus? status,
-        int pageIndex,
-        int pageSize,
+        AdminTradeQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _dbContext.TradeTransactions
@@ -97,27 +99,49 @@ public class TradeTransactionRepository : ITradeTransactionRepository
                 .ThenInclude(st => st!.TransferProofs)
             .AsQueryable();
 
-        if (status.HasValue)
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            query = query.Where(t => t.TradeTransactionStatus == status.Value);
+            var clean = filter.Keyword.Trim();
+            query = query.Where(t => t.TradeTransactionCode.Contains(clean)
+                || (t.SimNumber != null && t.SimNumber.PhoneNumber.Contains(clean))
+                || (t.Buyer != null && t.Buyer.UserProfile != null && t.Buyer.UserProfile.FullName.Contains(clean))
+                || (t.Seller != null && t.Seller.UserProfile != null && t.Seller.UserProfile.FullName.Contains(clean)));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(t => t.TradeTransactionStatus == filter.Status.Value);
+        }
 
-        var items = await query
-            .OrderByDescending(t => t.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.BuyerId.HasValue)
+        {
+            query = query.Where(t => t.BuyerId == filter.BuyerId.Value);
+        }
 
-        return (items, totalCount);
+        if (filter.SellerId.HasValue)
+        {
+            query = query.Where(t => t.SellerId == filter.SellerId.Value);
+        }
+
+        if (filter.MinAmount.HasValue)
+        {
+            query = query.Where(t => t.Escrow != null && t.Escrow.EscrowAmount >= filter.MinAmount.Value);
+        }
+
+        if (filter.MaxAmount.HasValue)
+        {
+            query = query.Where(t => t.Escrow != null && t.Escrow.EscrowAmount <= filter.MaxAmount.Value);
+        }
+
+        query = query.ApplyDateRange(t => t.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(TradeSortMappings.Mappings, filter.SortBy, filter.SortOrder, defaultSortExpression: t => t.CreatedDate, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
-        TradeTransactionStatus? status,
-        int pageIndex,
-        int pageSize,
+        MyTradeQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _dbContext.TradeTransactions
@@ -130,22 +154,49 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .Include(t => t.TransferContract)
             .Include(t => t.SimTransfer)
                 .ThenInclude(st => st!.TransferProofs)
-            .Where(t => t.BuyerId == userId || t.SellerId == userId);
+            .AsQueryable();
 
-        if (status.HasValue)
+        if (string.Equals(filter.Role, "buyer", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(t => t.TradeTransactionStatus == status.Value);
+            query = query.Where(t => t.BuyerId == userId);
+        }
+        else if (string.Equals(filter.Role, "seller", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(t => t.SellerId == userId);
+        }
+        else
+        {
+            query = query.Where(t => t.BuyerId == userId || t.SellerId == userId);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var clean = filter.Keyword.Trim();
+            query = query.Where(t => t.TradeTransactionCode.Contains(clean)
+                || (t.SimNumber != null && t.SimNumber.PhoneNumber.Contains(clean))
+                || (t.Buyer != null && t.Buyer.UserProfile != null && t.Buyer.UserProfile.FullName.Contains(clean))
+                || (t.Seller != null && t.Seller.UserProfile != null && t.Seller.UserProfile.FullName.Contains(clean)));
+        }
 
-        var items = await query
-            .OrderByDescending(t => t.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(t => t.TradeTransactionStatus == filter.Status.Value);
+        }
 
-        return (items, totalCount);
+        if (filter.MinAmount.HasValue)
+        {
+            query = query.Where(t => t.Escrow != null && t.Escrow.EscrowAmount >= filter.MinAmount.Value);
+        }
+
+        if (filter.MaxAmount.HasValue)
+        {
+            query = query.Where(t => t.Escrow != null && t.Escrow.EscrowAmount <= filter.MaxAmount.Value);
+        }
+
+        query = query.ApplyDateRange(t => t.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(TradeSortMappings.Mappings, filter.SortBy, filter.SortOrder, defaultSortExpression: t => t.CreatedDate, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public void Update(TradeTransaction tradeTransaction)

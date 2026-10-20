@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Queries;
@@ -19,11 +20,12 @@ public class AdminExportTransactionsQueryHandler : IRequestHandler<AdminExportTr
 
     public async Task<byte[]> Handle(AdminExportTransactionsQuery request, CancellationToken cancellationToken)
     {
+        var exportFilter = request.Filter ?? new AdminWalletTransactionsFilter();
+        exportFilter.PageIndex = 1;
+        exportFilter.PageSize = 100000;
+
         var (items, _) = await _unitOfWork.WalletTransactions.GetPagedAllAsync(
-            request.Type,
-            request.Status,
-            pageIndex: 1,
-            pageSize: 100000,
+            exportFilter,
             cancellationToken: cancellationToken);
 
         var rows = items.Select(t => new TransactionExcelExportRow

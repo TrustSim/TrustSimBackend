@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -12,13 +13,7 @@ public interface IAuctionRepository
     Task<Auction?> GetDetailByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Auction?> GetByCodeAsync(string auctionCode, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Auction> Items, int TotalCount)> GetPagedAsync(
-        string? keyword,
-        AuctionStatus? status,
-        AuctionType? type,
-        Guid? authorId,
-        int pageIndex,
-        int pageSize,
-        Guid? participantId = null,
+        AuctionQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Auction> Items, int TotalCount)> GetPublicPagedAsync(
         int pageIndex,

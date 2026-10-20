@@ -20,9 +20,7 @@ public class GetMyTradeTransactionsQueryHandler : IRequestHandler<GetMyTradeTran
     {
         var (items, totalCount) = await _unitOfWork.TradeTransactions.GetPagedByUserIdAsync(
             request.UserId,
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(t => new TradeTransactionDto
@@ -43,6 +41,6 @@ public class GetMyTradeTransactionsQueryHandler : IRequestHandler<GetMyTradeTran
             CreatedDate = t.CreatedDate
         }).ToList();
 
-        return PagedResult<TradeTransactionDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<TradeTransactionDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

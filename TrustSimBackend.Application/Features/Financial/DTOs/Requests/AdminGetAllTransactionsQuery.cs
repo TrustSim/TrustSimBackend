@@ -1,14 +1,10 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 
 public record AdminGetAllTransactionsQuery(
-    Guid? UserId = null,
-    WalletTransactionType? Type = null,
-    TransactionStatus? Status = null,
-    int PageIndex = 1,
-    int PageSize = 20
+    AdminWalletTransactionsFilter Filter
 ) : IRequest<PagedResult<WalletTransactionDto>>;

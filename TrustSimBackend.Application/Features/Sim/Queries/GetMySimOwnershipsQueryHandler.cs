@@ -1,11 +1,12 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Sim.Queries;
 
-public class GetMySimOwnershipsQueryHandler : IRequestHandler<GetMySimOwnershipsQuery, IReadOnlyList<SimOwnershipDto>>
+public class GetMySimOwnershipsQueryHandler : IRequestHandler<GetMySimOwnershipsQuery, PagedResult<SimOwnershipDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -14,11 +15,14 @@ public class GetMySimOwnershipsQueryHandler : IRequestHandler<GetMySimOwnerships
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<SimOwnershipDto>> Handle(GetMySimOwnershipsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<SimOwnershipDto>> Handle(GetMySimOwnershipsQuery request, CancellationToken cancellationToken)
     {
-        var ownerships = await _unitOfWork.SimOwnerships.GetByUserIdAsync(request.UserId, cancellationToken);
+        var (ownerships, totalCount) = await _unitOfWork.SimOwnerships.GetPagedByUserIdAsync(
+            request.UserId,
+            request.Filter,
+            cancellationToken);
 
-        return ownerships.Select(o =>
+        var dtos = ownerships.Select(o =>
         {
             var latestVerification = o.SimVerifications.OrderByDescending(v => v.RequestedAt).FirstOrDefault();
             return new SimOwnershipDto
@@ -39,5 +43,7 @@ public class GetMySimOwnershipsQueryHandler : IRequestHandler<GetMySimOwnerships
                 CreatedDate = o.CreatedDate
             };
         }).ToList();
+
+        return PagedResult<SimOwnershipDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

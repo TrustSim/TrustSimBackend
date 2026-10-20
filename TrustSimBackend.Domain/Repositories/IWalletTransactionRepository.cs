@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -14,10 +15,7 @@ public interface IWalletTransactionRepository
     Task<bool> ExistsByTransactionCodeAsync(string transactionCode, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<WalletTransaction> Items, int TotalCount)> GetPagedByWalletIdAsync(
         Guid walletId,
-        WalletTransactionType? type,
-        TransactionStatus? status,
-        int pageIndex,
-        int pageSize,
+        WalletTransactionQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task<IReadOnlyList<WalletTransaction>> GetListByWalletIdAsync(
         Guid walletId,
@@ -25,10 +23,10 @@ public interface IWalletTransactionRepository
         DateTime? toDate = null,
         CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<WalletTransaction> Items, int TotalCount)> GetPagedAllAsync(
-        WalletTransactionType? type,
-        TransactionStatus? status,
-        int pageIndex,
-        int pageSize,
+        AdminWalletTransactionsFilter filter,
+        CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<WalletTransaction> Items, int TotalCount)> GetPagedWithdrawalsAsync(
+        AdminWithdrawalQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task<WalletTransaction?> GetActivePendingTopUpByWalletIdAsync(Guid walletId, CancellationToken cancellationToken = default);
     Task<bool> HasActivePendingWithdrawalAsync(Guid walletId, CancellationToken cancellationToken = default);

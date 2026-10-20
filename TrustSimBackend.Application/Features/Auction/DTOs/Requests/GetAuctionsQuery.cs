@@ -1,16 +1,11 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 
-public record GetAuctionsQuery(
-    string? Keyword = null,
-    AuctionStatus? Status = null,
-    AuctionType? Type = null,
-    Guid? AuthorId = null,
-    Guid? ParticipantId = null,
-    int PageIndex = 1,
-    int PageSize = 20
-) : IRequest<PagedResult<AuctionDto>>;
+/// <summary>
+/// Query lấy danh sách phiên đấu giá có phân trang, lọc và sắp xếp động.
+/// </summary>
+public record GetAuctionsQuery(AuctionQueryFilter Filter) : IRequest<PagedResult<AuctionDto>>;

@@ -17,15 +17,7 @@ public class GetSimsQueryHandler : IRequestHandler<GetSimsQuery, PagedResult<Sim
 
     public async Task<PagedResult<SimNumberDto>> Handle(GetSimsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _unitOfWork.SimNumbers.GetPagedAsync(
-            request.Keyword,
-            request.CarrierId,
-            request.CategoryId,
-            request.PrefixId,
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
-            cancellationToken);
+        var (items, totalCount) = await _unitOfWork.SimNumbers.GetPagedAsync(request.Filter, cancellationToken);
 
         var dtos = items.Select(s => new SimNumberDto
         {
@@ -41,6 +33,6 @@ public class GetSimsQueryHandler : IRequestHandler<GetSimsQuery, PagedResult<Sim
             CreatedDate = s.CreatedDate
         }).ToList();
 
-        return PagedResult<SimNumberDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<SimNumberDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

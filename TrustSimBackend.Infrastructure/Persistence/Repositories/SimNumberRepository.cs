@@ -1,12 +1,20 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
 public class SimNumberRepository : ISimNumberRepository
 {
+
     private readonly TrustSimDbContext _context;
 
     public SimNumberRepository(TrustSimDbContext context)
@@ -47,13 +55,7 @@ public class SimNumberRepository : ISimNumberRepository
     }
 
     public async Task<(IReadOnlyList<SimNumber> Items, int TotalCount)> GetPagedAsync(
-        string? keyword,
-        Guid? carrierId,
-        Guid? categoryId,
-        Guid? prefixId,
-        SimStatus? status,
-        int pageIndex,
-        int pageSize,
+        SimPublicQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.SimNumbers
@@ -64,41 +66,51 @@ public class SimNumberRepository : ISimNumberRepository
                 .ThenInclude(m => m.SimCategory)
             .Where(s => !s.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(keyword))
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            var clean = keyword.Trim();
+            var clean = filter.Keyword.Trim();
             query = query.Where(s => s.PhoneNumber.Contains(clean));
         }
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(s => s.SimStatus == status.Value);
+            query = query.Where(s => s.SimStatus == filter.Status.Value);
         }
 
-        if (prefixId.HasValue)
+        if (filter.PrefixId.HasValue)
         {
-            query = query.Where(s => s.PhonePrefixId == prefixId.Value);
+            query = query.Where(s => s.PhonePrefixId == filter.PrefixId.Value);
         }
 
-        if (carrierId.HasValue)
+        if (filter.CarrierId.HasValue)
         {
-            query = query.Where(s => s.PhonePrefix != null && s.PhonePrefix.SimCarrierId == carrierId.Value);
+            query = query.Where(s => s.PhonePrefix != null && s.PhonePrefix.SimCarrierId == filter.CarrierId.Value);
         }
 
-        if (categoryId.HasValue)
+        if (filter.CategoryId.HasValue)
         {
-            query = query.Where(s => s.SimCategoryMappings.Any(m => m.SimCategoryId == categoryId.Value));
+            query = query.Where(s => s.SimCategoryMappings.Any(m => m.SimCategoryId == filter.CategoryId.Value));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (filter.FormatRhythmId.HasValue)
+        {
+            query = query.Where(s => s.FormatRhythmId == filter.FormatRhythmId.Value);
+        }
 
-        var items = await query
-            .OrderByDescending(s => s.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.MinPrice.HasValue)
+        {
+            query = query.Where(s => s.Price >= filter.MinPrice.Value);
+        }
 
-        return (items, totalCount);
+        if (filter.MaxPrice.HasValue)
+        {
+            query = query.Where(s => s.Price <= filter.MaxPrice.Value);
+        }
+
+        query = query.ApplyDateRange(s => s.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(SimSortMappings.PublicSimMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: s => s.CreatedDate, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task<Guid> GetOrCreateDefaultFormatRhythmIdAsync(CancellationToken cancellationToken = default)

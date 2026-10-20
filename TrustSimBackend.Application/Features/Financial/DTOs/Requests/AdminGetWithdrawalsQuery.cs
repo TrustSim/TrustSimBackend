@@ -1,7 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 
@@ -9,7 +9,5 @@ namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 /// Query Admin lấy danh sách tất cả giao dịch rút tiền.
 /// </summary>
 public record AdminGetWithdrawalsQuery(
-    TransactionStatus? Status = null,
-    int PageIndex = 1,
-    int PageSize = 20
+    AdminWithdrawalQueryFilter Filter
 ) : IRequest<PagedResult<WalletTransactionDto>>;

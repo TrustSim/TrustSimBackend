@@ -1,12 +1,20 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
 public class AuctionRepository : IAuctionRepository
 {
+
     private readonly TrustSimDbContext _context;
 
     public AuctionRepository(TrustSimDbContext context)
@@ -61,13 +69,7 @@ public class AuctionRepository : IAuctionRepository
     }
 
     public async Task<(IReadOnlyList<Auction> Items, int TotalCount)> GetPagedAsync(
-        string? keyword,
-        AuctionStatus? status,
-        AuctionType? type,
-        Guid? authorId,
-        int pageIndex,
-        int pageSize,
-        Guid? participantId = null,
+        AuctionQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.Auctions
@@ -81,41 +83,56 @@ public class AuctionRepository : IAuctionRepository
             .Include(a => a.Bids)
             .Where(a => !a.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(keyword))
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            var clean = keyword.Trim();
+            var clean = filter.Keyword.Trim();
             query = query.Where(a => a.AuctionCode.Contains(clean) || (a.SimNumber != null && a.SimNumber.PhoneNumber.Contains(clean)));
         }
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(a => a.AuctionStatus == status.Value);
+            query = query.Where(a => a.AuctionStatus == filter.Status.Value);
         }
 
-        if (type.HasValue)
+        if (filter.Type.HasValue)
         {
-            query = query.Where(a => a.AuctionType == type.Value);
+            query = query.Where(a => a.AuctionType == filter.Type.Value);
         }
 
-        if (authorId.HasValue)
+        if (filter.AuthorId.HasValue)
         {
-            query = query.Where(a => a.AuthorId == authorId.Value);
+            query = query.Where(a => a.AuthorId == filter.AuthorId.Value);
         }
 
-        if (participantId.HasValue)
+        if (filter.ParticipantId.HasValue)
         {
-            query = query.Where(a => a.Participants.Any(p => p.UserAccountId == participantId.Value));
+            query = query.Where(a => a.Participants.Any(p => p.UserAccountId == filter.ParticipantId.Value));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (filter.CarrierId.HasValue)
+        {
+            query = query.Where(a => a.SimNumber != null && a.SimNumber.PhonePrefix != null && a.SimNumber.PhonePrefix.SimCarrierId == filter.CarrierId.Value);
+        }
 
-        var items = await query
-            .OrderByDescending(a => a.StartAt)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.CategoryId.HasValue)
+        {
+            query = query.Where(a => a.SimNumber != null && a.SimNumber.SimCategoryMappings.Any(m => m.SimCategoryId == filter.CategoryId.Value));
+        }
 
-        return (items, totalCount);
+        if (filter.MinPrice.HasValue)
+        {
+            query = query.Where(a => a.CurrentPrice >= filter.MinPrice.Value);
+        }
+
+        if (filter.MaxPrice.HasValue)
+        {
+            query = query.Where(a => a.CurrentPrice <= filter.MaxPrice.Value);
+        }
+
+        query = query.ApplyDateRange(a => a.StartAt, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(AuctionSortMappings.Mappings, filter.SortBy, filter.SortOrder, defaultSortExpression: a => a.StartAt, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task<(IReadOnlyList<Auction> Items, int TotalCount)> GetPublicPagedAsync(

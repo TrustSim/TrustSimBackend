@@ -1,4 +1,5 @@
 using TrustSimBackend.Domain.Entities.Identity;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -16,11 +17,7 @@ public interface IUserAccountRepository
     Task<bool> ExistsByIdentityNumberAsync(string identityNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task<bool> ExistsByPhoneNumberAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> GetPagedAsync(
-        string? keyword = null,
-        Domain.Enums.UserRole? role = null,
-        bool? isActive = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        AdminUsersQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default);
     void Update(UserAccount userAccount);

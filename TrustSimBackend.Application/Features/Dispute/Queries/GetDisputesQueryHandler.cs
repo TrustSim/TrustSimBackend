@@ -19,9 +19,7 @@ public class GetDisputesQueryHandler : IRequestHandler<GetDisputesQuery, PagedRe
     {
         var (items, totalCount) = await _unitOfWork.DisputeTickets.GetPagedAsync(
             request.UserId,
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(d => new DisputeTicketDto
@@ -37,6 +35,6 @@ public class GetDisputesQueryHandler : IRequestHandler<GetDisputesQuery, PagedRe
             CreatedDate = d.CreatedDate
         }).ToList();
 
-        return PagedResult<DisputeTicketDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<DisputeTicketDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

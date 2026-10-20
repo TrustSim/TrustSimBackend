@@ -1,7 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -66,6 +70,35 @@ public class SimOwnershipRepository : ISimOwnershipRepository
             .Where(o => o.UserAccountId == userId)
             .OrderByDescending(o => o.CreatedDate)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<(IReadOnlyList<SimOwnership> Items, int TotalCount)> GetPagedByUserIdAsync(
+        Guid userId,
+        BaseQueryFilter<SimOwnershipSortBy> filter,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.SimOwnerships
+            .Include(o => o.SimNumber)
+                .ThenInclude(s => s!.PhonePrefix)
+                    .ThenInclude(p => p!.SimCarrier)
+            .Include(o => o.SimNumber)
+                .ThenInclude(s => s!.FormatRhythm)
+            .Include(o => o.SimVerifications)
+            .AsNoTracking()
+            .Where(o => o.UserAccountId == userId);
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var kw = filter.Keyword.Trim().ToLower();
+            query = query.Where(o =>
+                (o.SimNumber != null && o.SimNumber.PhoneNumber.ToLower().Contains(kw)) ||
+                (o.SimNumber != null && o.SimNumber.PhonePrefix != null && o.SimNumber.PhonePrefix.SimCarrier != null && o.SimNumber.PhonePrefix.SimCarrier.CarrierName.ToLower().Contains(kw)));
+        }
+
+        query = query.ApplyDateRange(o => o.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(SimSortMappings.OwnershipMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: o => o.CreatedDate, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task<bool> HasActiveOwnershipAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default)

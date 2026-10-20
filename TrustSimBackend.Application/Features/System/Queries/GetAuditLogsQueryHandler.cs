@@ -18,14 +18,7 @@ public class GetAuditLogsQueryHandler : IRequestHandler<GetAuditLogsQuery, Paged
     public async Task<PagedResult<AuditLogDto>> Handle(GetAuditLogsQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _unitOfWork.AuditLogs.GetPagedAsync(
-            request.EntityName,
-            request.EntityId,
-            request.ActorId,
-            request.ActionType,
-            request.FromDate,
-            request.ToDate,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(log => new AuditLogDto
@@ -43,6 +36,6 @@ public class GetAuditLogsQueryHandler : IRequestHandler<GetAuditLogsQuery, Paged
             CreatedDate = log.CreatedDate
         }).ToList();
 
-        return new PagedResult<AuditLogDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<AuditLogDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

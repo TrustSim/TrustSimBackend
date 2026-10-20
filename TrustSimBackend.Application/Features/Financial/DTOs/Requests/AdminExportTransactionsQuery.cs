@@ -1,9 +1,8 @@
 using MediatR;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 
 public record AdminExportTransactionsQuery(
-    WalletTransactionType? Type = null,
-    TransactionStatus? Status = null
+    AdminWalletTransactionsFilter Filter
 ) : IRequest<byte[]>;

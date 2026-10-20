@@ -1,6 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Identity.Queries;
@@ -18,10 +19,15 @@ public class AdminExportKycQueryHandler : IRequestHandler<AdminExportKycQuery, b
 
     public async Task<byte[]> Handle(AdminExportKycQuery request, CancellationToken cancellationToken)
     {
+        var filter = new AdminKycQueryFilter
+        {
+            Status = request.Status,
+            PageIndex = 1,
+            PageSize = 100000
+        };
+
         var (items, _) = await _unitOfWork.IdentityVerifications.GetPagedAsync(
-            request.Status,
-            pageIndex: 1,
-            pageSize: 100000,
+            filter,
             cancellationToken: cancellationToken);
 
         var rows = items.Select(k => new

@@ -19,9 +19,7 @@ public class AdminGetAllTradesQueryHandler : IRequestHandler<AdminGetAllTradesQu
     public async Task<PagedResult<TradeTransactionDto>> Handle(AdminGetAllTradesQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _unitOfWork.TradeTransactions.GetPagedAsync(
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(t => new TradeTransactionDto
@@ -42,6 +40,6 @@ public class AdminGetAllTradesQueryHandler : IRequestHandler<AdminGetAllTradesQu
             CreatedDate = t.CreatedDate
         }).ToList();
 
-        return new PagedResult<TradeTransactionDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+        return new PagedResult<TradeTransactionDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

@@ -1,6 +1,10 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -36,10 +40,7 @@ public class WalletRepository : IWalletRepository
     }
 
     public async Task<(IReadOnlyList<Wallet> Items, int TotalCount)> GetPagedAsync(
-        string? keyword = null,
-        Domain.Enums.WalletStatus? status = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        AdminWalletQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.Wallets
@@ -47,28 +48,34 @@ public class WalletRepository : IWalletRepository
                 .ThenInclude(u => u!.UserProfile)
             .AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(keyword))
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            var kw = keyword.Trim().ToLower();
+            var clean = filter.Keyword.Trim();
             query = query.Where(w =>
-                (w.UserAccount != null && w.UserAccount.UserName != null && w.UserAccount.UserName.ToLower().Contains(kw)) ||
-                (w.UserAccount != null && w.UserAccount.Email != null && w.UserAccount.Email.ToLower().Contains(kw)) ||
-                (w.UserAccount != null && w.UserAccount.UserProfile != null && w.UserAccount.UserProfile.FullName.ToLower().Contains(kw)));
+                (w.UserAccount != null && w.UserAccount.UserName != null && w.UserAccount.UserName.Contains(clean)) ||
+                (w.UserAccount != null && w.UserAccount.Email != null && w.UserAccount.Email.Contains(clean)) ||
+                (w.UserAccount != null && w.UserAccount.UserProfile != null && w.UserAccount.UserProfile.FullName.Contains(clean)));
         }
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(w => w.WalletStatus == status.Value);
+            query = query.Where(w => w.WalletStatus == filter.Status.Value);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(w => w.AvailableBalance)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.MinBalance.HasValue)
+        {
+            query = query.Where(w => w.AvailableBalance >= filter.MinBalance.Value);
+        }
 
-        return (items, totalCount);
+        if (filter.MaxBalance.HasValue)
+        {
+            query = query.Where(w => w.AvailableBalance <= filter.MaxBalance.Value);
+        }
+
+        query = query.ApplyDateRange(w => w.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(WalletSortMappings.WalletMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: w => w.CreatedDate, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default)

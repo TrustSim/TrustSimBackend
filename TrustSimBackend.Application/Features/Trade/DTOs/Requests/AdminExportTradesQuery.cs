@@ -1,8 +1,8 @@
 using MediatR;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 
 public record AdminExportTradesQuery(
-    TradeTransactionStatus? Status = null
+    AdminTradeQueryFilter Filter
 ) : IRequest<byte[]>;

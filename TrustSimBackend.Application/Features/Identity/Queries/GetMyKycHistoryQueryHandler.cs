@@ -1,4 +1,5 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
@@ -6,9 +7,9 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Identity.Queries;
 
 /// <summary>
-/// Handler lấy lịch sử tất cả các lần nộp hồ sơ KYC của người dùng.
+/// Handler lấy lịch sử tất cả các lần nộp hồ sơ KYC của người dùng (phân trang, sắp xếp).
 /// </summary>
-public class GetMyKycHistoryQueryHandler : IRequestHandler<GetMyKycHistoryQuery, IReadOnlyList<IdentityVerificationDto>>
+public class GetMyKycHistoryQueryHandler : IRequestHandler<GetMyKycHistoryQuery, PagedResult<IdentityVerificationDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -17,11 +18,14 @@ public class GetMyKycHistoryQueryHandler : IRequestHandler<GetMyKycHistoryQuery,
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<IdentityVerificationDto>> Handle(GetMyKycHistoryQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<IdentityVerificationDto>> Handle(GetMyKycHistoryQuery request, CancellationToken cancellationToken)
     {
-        var list = await _unitOfWork.IdentityVerifications.GetHistoryByUserIdAsync(request.UserId, cancellationToken);
+        var (list, totalCount) = await _unitOfWork.IdentityVerifications.GetPagedHistoryByUserIdAsync(
+            request.UserId,
+            request.Filter,
+            cancellationToken);
 
-        return list.Select(v => new IdentityVerificationDto
+        var dtos = list.Select(v => new IdentityVerificationDto
         {
             Id = v.Id,
             UserProfileId = v.UserProfileId,
@@ -40,5 +44,7 @@ public class GetMyKycHistoryQueryHandler : IRequestHandler<GetMyKycHistoryQuery,
             VerifiedAt = v.VerifiedAt,
             VerifiedByUserName = v.VerifiedByUser?.UserName
         }).ToList();
+
+        return PagedResult<IdentityVerificationDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

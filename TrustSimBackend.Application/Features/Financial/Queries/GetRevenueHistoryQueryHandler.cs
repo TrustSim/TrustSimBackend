@@ -3,6 +3,7 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Queries;
@@ -28,16 +29,24 @@ public class GetRevenueHistoryQueryHandler : IRequestHandler<GetRevenueHistoryQu
 
     public async Task<PagedResult<PlatformRevenueHistoryDto>> Handle(GetRevenueHistoryQuery request, CancellationToken cancellationToken)
     {
+        var ledgerFilter = new LedgerJournalQueryFilter
+        {
+            TransactionType = request.Filter.TransactionType,
+            FromDate = request.Filter.FromDate,
+            ToDate = request.Filter.ToDate,
+            Keyword = request.Filter.Keyword,
+            SortBy = request.Filter.SortBy,
+            SortOrder = request.Filter.SortOrder,
+            PageIndex = request.Filter.PageIndex,
+            PageSize = request.Filter.PageSize
+        };
+
         var (journals, totalCount) = await _unitOfWork.LedgerJournals.GetPagedAsync(
-            request.TransactionType,
-            request.FromDate,
-            request.ToDate,
-            request.PageIndex,
-            request.PageSize,
+            ledgerFilter,
             cancellationToken);
 
         // Lọc các chứng từ liên quan đến doanh thu nếu không chỉ định loại cụ thể
-        var revenueJournals = request.TransactionType.HasValue
+        var revenueJournals = request.Filter.TransactionType.HasValue
             ? journals
             : journals.Where(j => RevenueTransactionTypes.Contains(j.TransactionType)).ToList();
 
@@ -95,6 +104,6 @@ public class GetRevenueHistoryQueryHandler : IRequestHandler<GetRevenueHistoryQu
             });
         }
 
-        return new PagedResult<PlatformRevenueHistoryDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+        return new PagedResult<PlatformRevenueHistoryDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

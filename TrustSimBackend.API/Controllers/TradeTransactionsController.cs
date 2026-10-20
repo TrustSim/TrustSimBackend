@@ -5,6 +5,7 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -16,14 +17,10 @@ public class TradeTransactionsController : BaseApiController
     [HttpGet]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<TradeTransactionDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyTrades(
-        [FromQuery] TradeTransactionStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetMyTrades([FromQuery] MyTradeQueryFilter filter)
     {
-        var query = new GetMyTradeTransactionsQuery(CurrentUserId, status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<TradeTransactionDto>>.SuccessResult(result, "Lấy danh sách giao dịch thành công."));
+        var result = await Mediator.Send(new GetMyTradeTransactionsQuery(CurrentUserId, filter));
+        return HandlePagedResult(result, "Lấy danh sách giao dịch thành công.");
     }
 
     /// <summary>
@@ -85,14 +82,10 @@ public class TradeTransactionsController : BaseApiController
     [HttpGet("admin")]
     [Authorize(Roles = "ADMIN,CONSULTANT")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<TradeTransactionDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminGetAllTrades(
-        [FromQuery] TradeTransactionStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> AdminGetAllTrades([FromQuery] AdminTradeQueryFilter filter)
     {
-        var query = new AdminGetAllTradesQuery(status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<TradeTransactionDto>>.SuccessResult(result, "Lấy danh sách giao dịch chuyển nhượng thành công."));
+        var result = await Mediator.Send(new AdminGetAllTradesQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách giao dịch chuyển nhượng thành công.");
     }
 
     /// <summary>
@@ -101,9 +94,9 @@ public class TradeTransactionsController : BaseApiController
     [HttpGet("export")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminExportTrades([FromQuery] TradeTransactionStatus? status)
+    public async Task<IActionResult> AdminExportTrades([FromQuery] AdminTradeQueryFilter filter)
     {
-        var bytes = await Mediator.Send(new AdminExportTradesQuery(status));
+        var bytes = await Mediator.Send(new AdminExportTradesQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Trades_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 }

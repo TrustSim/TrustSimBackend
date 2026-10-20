@@ -7,6 +7,7 @@ using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Application.Features.Financial.Queries;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -32,15 +33,10 @@ public class WalletsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<WalletTransactionDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetTransactions(
-        [FromQuery] WalletTransactionType? type,
-        [FromQuery] TransactionStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetTransactions([FromQuery] WalletTransactionQueryFilter filter)
     {
-        var query = new GetWalletTransactionsQuery(CurrentUserId, type, status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<WalletTransactionDto>>.SuccessResult(result, "Lấy lịch sử giao dịch thành công."));
+        var result = await Mediator.Send(new GetWalletTransactionsQuery(CurrentUserId, filter));
+        return HandlePagedResult(result, "Lấy lịch sử giao dịch thành công.");
     }
 
     /// <summary>
@@ -50,15 +46,10 @@ public class WalletsController : BaseApiController
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<UnifiedWalletTransactionDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetUnifiedStatement(
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetUnifiedStatement([FromQuery] UnifiedStatementQueryFilter filter)
     {
-        var query = new GetUnifiedWalletStatementQuery(CurrentUserId, fromDate, toDate, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<UnifiedWalletTransactionDto>>.SuccessResult(result, "Lấy sao kê tài chính tổng hợp thành công."));
+        var result = await Mediator.Send(new GetUnifiedWalletStatementQuery(CurrentUserId, filter));
+        return HandlePagedResult(result, "Lấy sao kê tài chính tổng hợp thành công.");
     }
 
     /// <summary>
@@ -156,14 +147,10 @@ public class WalletsController : BaseApiController
     [HttpGet("admin/withdrawals")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<WalletTransactionDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminGetWithdrawals(
-        [FromQuery] TransactionStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> AdminGetWithdrawals([FromQuery] AdminWithdrawalQueryFilter filter)
     {
-        var query = new AdminGetWithdrawalsQuery(status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<WalletTransactionDto>>.SuccessResult(result, "Lấy danh sách yêu cầu rút tiền thành công."));
+        var result = await Mediator.Send(new AdminGetWithdrawalsQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách yêu cầu rút tiền thành công.");
     }
 
     /// <summary>
@@ -172,15 +159,10 @@ public class WalletsController : BaseApiController
     [HttpGet("admin")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<AdminWalletDetailDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminGetWallets(
-        [FromQuery] string? keyword,
-        [FromQuery] WalletStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> AdminGetWallets([FromQuery] AdminWalletQueryFilter filter)
     {
-        var query = new AdminGetWalletsQuery(keyword, status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<AdminWalletDetailDto>>.SuccessResult(result, "Lấy danh sách ví thành công."));
+        var result = await Mediator.Send(new AdminGetWalletsQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách ví thành công.");
     }
 
     /// <summary>
@@ -217,16 +199,10 @@ public class WalletsController : BaseApiController
     [HttpGet("admin/transactions")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<WalletTransactionDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminGetAllTransactions(
-        [FromQuery] Guid? userId,
-        [FromQuery] WalletTransactionType? type,
-        [FromQuery] TransactionStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> AdminGetAllTransactions([FromQuery] AdminWalletTransactionsFilter filter)
     {
-        var query = new AdminGetAllTransactionsQuery(userId, type, status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<WalletTransactionDto>>.SuccessResult(result, "Lấy lịch sử giao dịch toàn sàn thành công."));
+        var result = await Mediator.Send(new AdminGetAllTransactionsQuery(filter));
+        return HandlePagedResult(result, "Lấy lịch sử giao dịch toàn sàn thành công.");
     }
 
     /// <summary>
@@ -276,16 +252,10 @@ public class WalletsController : BaseApiController
     [HttpGet("admin/ledger/journals")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<LedgerJournalDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetLedgerJournals(
-        [FromQuery] LedgerTransactionType? transactionType,
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetLedgerJournals([FromQuery] LedgerJournalQueryFilter filter)
     {
-        var query = new GetLedgerJournalsQuery(transactionType, fromDate, toDate, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<LedgerJournalDto>>.SuccessResult(result, "Lấy danh sách chứng từ kế toán thành công."));
+        var result = await Mediator.Send(new GetLedgerJournalsQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách chứng từ kế toán thành công.");
     }
 
     /// <summary>
@@ -320,11 +290,9 @@ public class WalletsController : BaseApiController
     [HttpGet("admin/transactions/export")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminExportTransactions(
-        [FromQuery] WalletTransactionType? type,
-        [FromQuery] TransactionStatus? status)
+    public async Task<IActionResult> AdminExportTransactions([FromQuery] AdminWalletTransactionsFilter filter)
     {
-        var bytes = await Mediator.Send(new AdminExportTransactionsQuery(type, status));
+        var bytes = await Mediator.Send(new AdminExportTransactionsQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"WalletTransactions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 
@@ -373,16 +341,10 @@ public class WalletsController : BaseApiController
     [HttpGet("admin/financial/revenue-history")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<PlatformRevenueHistoryDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminGetRevenueHistory(
-        [FromQuery] LedgerTransactionType? transactionType,
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> AdminGetRevenueHistory([FromQuery] RevenueHistoryQueryFilter filter)
     {
-        var query = new GetRevenueHistoryQuery(transactionType, fromDate, toDate, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<PlatformRevenueHistoryDto>>.SuccessResult(result, "Lấy lịch sử biến động doanh thu sàn thành công."));
+        var result = await Mediator.Send(new GetRevenueHistoryQuery(filter));
+        return HandlePagedResult(result, "Lấy lịch sử biến động doanh thu sàn thành công.");
     }
 }
 

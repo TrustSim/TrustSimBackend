@@ -1,5 +1,5 @@
 using TrustSimBackend.Domain.Entities.Dispute;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -11,9 +11,7 @@ public interface IDisputeTicketRepository
     Task<DisputeTicket?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<DisputeTicket> Items, int TotalCount)> GetPagedAsync(
         Guid? userId,
-        DisputeStatus? status,
-        int pageIndex,
-        int pageSize,
+        DisputeQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task AddAsync(DisputeTicket ticket, CancellationToken cancellationToken = default);
     void Update(DisputeTicket ticket);

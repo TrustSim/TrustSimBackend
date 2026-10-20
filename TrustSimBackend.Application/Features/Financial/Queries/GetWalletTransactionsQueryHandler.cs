@@ -29,10 +29,7 @@ public class GetWalletTransactionsQueryHandler : IRequestHandler<GetWalletTransa
 
         var (items, totalCount) = await _unitOfWork.WalletTransactions.GetPagedByWalletIdAsync(
             wallet.Id,
-            request.Type,
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(t => new WalletTransactionDto
@@ -55,6 +52,6 @@ public class GetWalletTransactionsQueryHandler : IRequestHandler<GetWalletTransa
             ExpiredAt = t.ExpiredAt
         }).ToList();
 
-        return PagedResult<WalletTransactionDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<WalletTransactionDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

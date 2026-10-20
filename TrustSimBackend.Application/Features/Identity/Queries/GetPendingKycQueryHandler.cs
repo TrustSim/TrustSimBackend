@@ -21,9 +21,7 @@ public class GetPendingKycQueryHandler : IRequestHandler<GetPendingKycQuery, Pag
     public async Task<PagedResult<IdentityVerificationDto>> Handle(GetPendingKycQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _unitOfWork.IdentityVerifications.GetPagedAsync(
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(v => new IdentityVerificationDto
@@ -46,6 +44,6 @@ public class GetPendingKycQueryHandler : IRequestHandler<GetPendingKycQuery, Pag
             VerifiedByUserName = v.VerifiedByUser?.UserName
         }).ToList();
 
-        return PagedResult<IdentityVerificationDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<IdentityVerificationDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

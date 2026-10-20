@@ -18,16 +18,8 @@ public class GetAdminSimsQueryHandler : IRequestHandler<GetAdminSimsQuery, Paged
 
     public async Task<PagedResult<SimListItemDto>> Handle(GetAdminSimsQuery request, CancellationToken cancellationToken)
     {
-        var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
-        var pageSize = request.PageSize <= 0 ? 10 : (request.PageSize > 100 ? 100 : request.PageSize);
-
         var (items, totalCount) = await _unitOfWork.Sims.GetAdminSimsPagedAsync(
-            pageIndex,
-            pageSize,
-            request.Status,
-            request.CarrierId,
-            request.CategoryId,
-            request.Search,
+            request.Filter,
             cancellationToken);
 
         var dtoList = items.Select(sim =>
@@ -62,8 +54,8 @@ public class GetAdminSimsQueryHandler : IRequestHandler<GetAdminSimsQuery, Paged
         var result = new PagedResult<SimListItemDto>(
             dtoList,
             totalCount,
-            pageIndex,
-            pageSize);
+            request.Filter.PageIndex,
+            request.Filter.PageSize);
 
         return result;
     }

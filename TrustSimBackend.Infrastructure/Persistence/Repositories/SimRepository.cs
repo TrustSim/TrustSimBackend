@@ -1,7 +1,14 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -64,10 +71,7 @@ public class SimRepository : ISimRepository
 
     public async Task<(List<SimOwnership> Items, int TotalCount)> GetMySimsPagedAsync(
         Guid userAccountId,
-        int pageIndex,
-        int pageSize,
-        SimStatus? status = null,
-        string? search = null,
+        MySimsQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.SimOwnerships
@@ -82,35 +86,52 @@ public class SimRepository : ISimRepository
             .Include(o => o.SimVerifications)
             .Where(o => o.UserAccountId == userAccountId && o.OwnershipStatus == OwnershipStatus.ACTIVE && !o.SimNumber!.IsDeleted);
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(o => o.SimNumber!.SimStatus == status.Value);
+            query = query.Where(o => o.SimNumber!.SimStatus == filter.Status.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (filter.CarrierId.HasValue)
         {
-            var cleanSearch = search.Trim();
+            query = query.Where(o => o.SimNumber!.PhonePrefix != null && o.SimNumber!.PhonePrefix.SimCarrierId == filter.CarrierId.Value);
+        }
+
+        if (filter.CategoryId.HasValue)
+        {
+            query = query.Where(o => o.SimNumber!.SimCategoryMappings.Any(m => m.SimCategoryId == filter.CategoryId.Value));
+        }
+
+        if (filter.MinPrice.HasValue)
+        {
+            query = query.Where(o => o.SimNumber!.Price >= filter.MinPrice.Value);
+        }
+
+        if (filter.MaxPrice.HasValue)
+        {
+            query = query.Where(o => o.SimNumber!.Price <= filter.MaxPrice.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var cleanSearch = filter.Keyword.Trim();
             query = query.Where(o => o.SimNumber!.PhoneNumber.Contains(cleanSearch));
         }
+
+        query = query.ApplyDateRange(o => o.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(SimSortMappings.MySimMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: o => o.CreatedDate, defaultSortOrder: SortOrder.Desc);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderByDescending(o => o.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((filter.PageIndex - 1) * filter.PageSize)
+            .Take(filter.PageSize)
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
     }
 
     public async Task<(List<SimNumber> Items, int TotalCount)> GetAdminSimsPagedAsync(
-        int pageIndex,
-        int pageSize,
-        SimStatus? status = null,
-        Guid? carrierId = null,
-        Guid? categoryId = null,
-        string? search = null,
+        AdminSimsQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.SimNumbers
@@ -126,33 +147,55 @@ public class SimRepository : ISimRepository
                 .ThenInclude(o => o.SimVerifications)
             .Where(s => !s.IsDeleted);
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(s => s.SimStatus == status.Value);
+            query = query.Where(s => s.SimStatus == filter.Status.Value);
         }
 
-        if (carrierId.HasValue)
+        if (filter.CarrierId.HasValue)
         {
-            query = query.Where(s => s.PhonePrefix != null && s.PhonePrefix.SimCarrierId == carrierId.Value);
+            query = query.Where(s => s.PhonePrefix != null && s.PhonePrefix.SimCarrierId == filter.CarrierId.Value);
         }
 
-        if (categoryId.HasValue)
+        if (filter.CategoryId.HasValue)
         {
-            query = query.Where(s => s.SimCategoryMappings.Any(m => m.SimCategoryId == categoryId.Value));
+            query = query.Where(s => s.SimCategoryMappings.Any(m => m.SimCategoryId == filter.CategoryId.Value));
         }
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (filter.PrefixId.HasValue)
         {
-            var cleanSearch = search.Trim();
+            query = query.Where(s => s.PhonePrefixId == filter.PrefixId.Value);
+        }
+
+        if (filter.FormatRhythmId.HasValue)
+        {
+            query = query.Where(s => s.FormatRhythmId == filter.FormatRhythmId.Value);
+        }
+
+        if (filter.MinPrice.HasValue)
+        {
+            query = query.Where(s => s.Price >= filter.MinPrice.Value);
+        }
+
+        if (filter.MaxPrice.HasValue)
+        {
+            query = query.Where(s => s.Price <= filter.MaxPrice.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var cleanSearch = filter.Keyword.Trim();
             query = query.Where(s => s.PhoneNumber.Contains(cleanSearch));
         }
+
+        query = query.ApplyDateRange(s => s.CreatedDate, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(SimSortMappings.AdminSimMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: s => s.CreatedDate, defaultSortOrder: SortOrder.Desc);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderByDescending(s => s.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((filter.PageIndex - 1) * filter.PageSize)
+            .Take(filter.PageSize)
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
