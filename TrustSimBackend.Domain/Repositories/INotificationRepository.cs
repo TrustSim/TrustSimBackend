@@ -1,4 +1,5 @@
 using TrustSimBackend.Domain.Entities.System;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -10,9 +11,7 @@ public interface INotificationRepository
     Task<Notification?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Notification> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
-        bool? isRead,
-        int pageIndex,
-        int pageSize,
+        NotificationQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
     Task AddAsync(Notification notification, CancellationToken cancellationToken = default);

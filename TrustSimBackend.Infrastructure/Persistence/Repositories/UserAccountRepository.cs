@@ -1,6 +1,10 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Identity;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -85,11 +89,7 @@ public class UserAccountRepository : IUserAccountRepository
     }
 
     public async Task<(IReadOnlyList<UserAccount> Items, int TotalCount)> GetPagedAsync(
-        string? keyword = null,
-        Domain.Enums.UserRole? role = null,
-        bool? isActive = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        AdminUsersQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.UserAccounts
@@ -99,9 +99,9 @@ public class UserAccountRepository : IUserAccountRepository
             .AsNoTracking()
             .Where(u => !u.IsDeleted);
 
-        if (!string.IsNullOrWhiteSpace(keyword))
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            var kw = keyword.Trim().ToLower();
+            var kw = filter.Keyword.Trim().ToLower();
             query = query.Where(u =>
                 (u.UserName != null && u.UserName.ToLower().Contains(kw)) ||
                 (u.Email != null && u.Email.ToLower().Contains(kw)) ||
@@ -109,24 +109,43 @@ public class UserAccountRepository : IUserAccountRepository
                 (u.UserProfile != null && u.UserProfile.PhoneNumber.Contains(kw)));
         }
 
-        if (role.HasValue)
+        if (filter.Role.HasValue)
         {
-            query = query.Where(u => u.Role == role.Value);
+            query = query.Where(u => u.Role == filter.Role.Value);
         }
 
-        if (isActive.HasValue)
+        if (filter.IsActive.HasValue)
         {
-            query = query.Where(u => u.IsActive == isActive.Value);
+            query = query.Where(u => u.IsActive == filter.IsActive.Value);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(u => u.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.KycStatus.HasValue)
+        {
+            query = query.Where(u => u.UserProfile != null && u.UserProfile.VerificationStatus == filter.KycStatus.Value);
+        }
 
-        return (items, totalCount);
+        if (filter.MinWalletBalance.HasValue)
+        {
+            query = query.Where(u => u.Wallet != null && u.Wallet.AvailableBalance >= filter.MinWalletBalance.Value);
+        }
+
+        if (filter.MaxWalletBalance.HasValue)
+        {
+            query = query.Where(u => u.Wallet != null && u.Wallet.AvailableBalance <= filter.MaxWalletBalance.Value);
+        }
+
+        if (filter.FromDate.HasValue)
+        {
+            query = query.Where(u => u.CreatedDate >= filter.FromDate.Value);
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            query = query.Where(u => u.CreatedDate <= filter.ToDate.Value);
+        }
+
+        query = query.ApplySafeSorting(UserSortMappings.UserAccountMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: u => u.CreatedDate, defaultSortOrder: SortOrder.Desc);
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task AddAsync(UserAccount userAccount, CancellationToken cancellationToken = default)

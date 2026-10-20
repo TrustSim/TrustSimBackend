@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Auction.Queries;
@@ -20,13 +21,15 @@ public class AdminExportAuctionsQueryHandler : IRequestHandler<AdminExportAuctio
     public async Task<byte[]> Handle(AdminExportAuctionsQuery request, CancellationToken cancellationToken)
     {
         var (items, _) = await _unitOfWork.Auctions.GetPagedAsync(
-            request.Keyword,
-            request.Status,
-            request.Type,
-            null,
-            pageIndex: 1,
-            pageSize: 100000,
-            cancellationToken: cancellationToken);
+            new AuctionQueryFilter
+            {
+                Keyword = request.Keyword,
+                Status = request.Status,
+                Type = request.Type,
+                PageIndex = 1,
+                PageSize = 100000
+            },
+            cancellationToken);
 
         var rows = items.Select(a => new AuctionExcelExportRow
         {

@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Dispute.DTOs.Requests;
 using TrustSimBackend.Application.Features.Dispute.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Dispute.Queries;
@@ -19,11 +20,16 @@ public class AdminExportDisputesQueryHandler : IRequestHandler<AdminExportDisput
 
     public async Task<byte[]> Handle(AdminExportDisputesQuery request, CancellationToken cancellationToken)
     {
+        var filter = new DisputeQueryFilter
+        {
+            Status = request.Status,
+            PageIndex = 1,
+            PageSize = 100000
+        };
+
         var (items, _) = await _unitOfWork.DisputeTickets.GetPagedAsync(
             null,
-            request.Status,
-            pageIndex: 1,
-            pageSize: 100000,
+            filter,
             cancellationToken: cancellationToken);
 
         var rows = items.Select(d => new DisputeExcelExportRow

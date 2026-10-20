@@ -1,7 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Queries;
@@ -10,11 +10,8 @@ namespace TrustSimBackend.Application.Features.Financial.Queries;
 /// Query lấy danh sách chứng từ kế toán ghi kép (phân trang và bộ lọc).
 /// </summary>
 public record GetLedgerJournalsQuery(
-    LedgerTransactionType? TransactionType = null,
-    DateTime? FromDate = null,
-    DateTime? ToDate = null,
-    int PageIndex = 1,
-    int PageSize = 20) : IRequest<PagedResult<LedgerJournalDto>>;
+    LedgerJournalQueryFilter Filter
+) : IRequest<PagedResult<LedgerJournalDto>>;
 
 public class GetLedgerJournalsQueryHandler : IRequestHandler<GetLedgerJournalsQuery, PagedResult<LedgerJournalDto>>
 {
@@ -28,15 +25,11 @@ public class GetLedgerJournalsQueryHandler : IRequestHandler<GetLedgerJournalsQu
     public async Task<PagedResult<LedgerJournalDto>> Handle(GetLedgerJournalsQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _unitOfWork.LedgerJournals.GetPagedAsync(
-            request.TransactionType,
-            request.FromDate,
-            request.ToDate,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(LedgerJournalDto.FromEntity).ToList();
 
-        return new PagedResult<LedgerJournalDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+        return new PagedResult<LedgerJournalDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

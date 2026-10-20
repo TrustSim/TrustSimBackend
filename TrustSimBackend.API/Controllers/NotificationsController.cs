@@ -4,25 +4,23 @@ using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
 public class NotificationsController : BaseApiController
 {
     /// <summary>
-    /// Lấy danh sách thông báo của người dùng hiện tại
+    /// Lấy danh sách thông báo của người dùng hiện tại (phân trang, sắp xếp, lọc đa tiêu chí)
     /// </summary>
     [HttpGet]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<NotificationDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyNotifications(
-        [FromQuery] bool? isRead,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetMyNotifications([FromQuery] NotificationQueryFilter filter)
     {
-        var query = new GetMyNotificationsQuery(CurrentUserId, isRead, pageIndex, pageSize);
+        var query = new GetMyNotificationsQuery(CurrentUserId, filter);
         var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<NotificationDto>>.SuccessResult(result, "Lấy danh sách thông báo thành công."));
+        return HandlePagedResult(result, "Lấy danh sách thông báo thành công.");
     }
 
     /// <summary>

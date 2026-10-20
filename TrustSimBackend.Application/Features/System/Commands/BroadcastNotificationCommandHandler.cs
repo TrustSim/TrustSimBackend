@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Domain.Entities.System;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.System.Commands;
@@ -21,12 +22,16 @@ public class BroadcastNotificationCommandHandler : IRequestHandler<BroadcastNoti
 
     public async Task<int> Handle(BroadcastNotificationCommand request, CancellationToken cancellationToken)
     {
+        var filter = new AdminUsersQueryFilter
+        {
+            Role = request.TargetRole,
+            IsActive = true,
+            PageIndex = 1,
+            PageSize = 100000
+        };
+
         var (users, _) = await _unitOfWork.Users.GetPagedAsync(
-            null,
-            request.TargetRole,
-            isActive: true,
-            pageIndex: 1,
-            pageSize: 100000,
+            filter,
             cancellationToken: cancellationToken);
 
         if (!users.Any()) return 0;

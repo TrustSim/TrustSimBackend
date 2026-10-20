@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -10,16 +11,12 @@ public interface ITradeTransactionRepository
     Task<TradeTransaction?> GetByCodeAsync(string tradeCode, CancellationToken cancellationToken = default);
     
     Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
-        TradeTransactionStatus? status,
-        int pageIndex,
-        int pageSize,
+        AdminTradeQueryFilter filter,
         CancellationToken cancellationToken = default);
 
     Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
-        TradeTransactionStatus? status,
-        int pageIndex,
-        int pageSize,
+        MyTradeQueryFilter filter,
         CancellationToken cancellationToken = default);
 
     // Thêm mới một giao dịch vào DB

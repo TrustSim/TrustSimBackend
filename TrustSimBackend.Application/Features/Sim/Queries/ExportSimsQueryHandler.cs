@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Sim.DTOs.Requests;
 using TrustSimBackend.Application.Features.Sim.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Sim.Queries;
@@ -20,14 +21,17 @@ public class ExportSimsQueryHandler : IRequestHandler<ExportSimsQuery, byte[]>
     public async Task<byte[]> Handle(ExportSimsQuery request, CancellationToken cancellationToken)
     {
         var (items, _) = await _unitOfWork.SimNumbers.GetPagedAsync(
-            request.Keyword,
-            request.CarrierId,
-            request.CategoryId,
-            request.PrefixId,
-            request.Status,
-            pageIndex: 1,
-            pageSize: 100000,
-            cancellationToken: cancellationToken);
+            new SimPublicQueryFilter
+            {
+                Keyword = request.Keyword,
+                CarrierId = request.CarrierId,
+                CategoryId = request.CategoryId,
+                PrefixId = request.PrefixId,
+                Status = request.Status,
+                PageIndex = 1,
+                PageSize = 100000
+            },
+            cancellationToken);
 
         var exportRows = items.Select(s => new SimExcelExportRow
         {

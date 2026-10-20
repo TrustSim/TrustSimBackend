@@ -5,6 +5,7 @@ using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Queries;
@@ -26,78 +27,122 @@ public class GetUnifiedWalletStatementQueryHandler : IRequestHandler<GetUnifiedW
             throw new NotFoundException("Không tìm thấy ví tiền của người dùng.");
         }
 
-        var walletTxs = await _unitOfWork.WalletTransactions.GetListByWalletIdAsync(wallet.Id, request.FromDate, request.ToDate, cancellationToken);
-        var auctionTxs = await _unitOfWork.AuctionTransactions.GetByWalletIdAsync(wallet.Id, request.FromDate, request.ToDate, cancellationToken);
+        var filter = request.Filter;
+        var unifiedList = new List<UnifiedWalletTransactionDto>();
 
-        var unifiedList = new List<UnifiedWalletTransactionDto>(walletTxs.Count + auctionTxs.Count);
+        var loadWallet = string.IsNullOrWhiteSpace(filter.SourceType) ||
+                         string.Equals(filter.SourceType, "WALLET", StringComparison.OrdinalIgnoreCase);
 
-        foreach (var w in walletTxs)
+        var loadAuction = string.IsNullOrWhiteSpace(filter.SourceType) ||
+                          !string.Equals(filter.SourceType, "WALLET", StringComparison.OrdinalIgnoreCase);
+
+        if (loadWallet)
         {
-            var direction = w.WalletTransactionType switch
+            var walletTxs = await _unitOfWork.WalletTransactions.GetListByWalletIdAsync(wallet.Id, filter.FromDate, filter.ToDate, cancellationToken);
+            foreach (var w in walletTxs)
             {
-                WalletTransactionType.TOP_UP => "CREDIT",
-                WalletTransactionType.WITHDRAW => "DEBIT",
-                _ => "DEBIT"
-            };
+                var direction = w.WalletTransactionType switch
+                {
+                    WalletTransactionType.TOP_UP => "CREDIT",
+                    WalletTransactionType.WITHDRAW => "DEBIT",
+                    _ => "DEBIT"
+                };
 
-            unifiedList.Add(new UnifiedWalletTransactionDto
-            {
-                Id = w.Id,
-                Source = "WALLET",
-                TransactionType = w.WalletTransactionType.ToString(),
-                Direction = direction,
-                Amount = w.Amount,
-                BalanceBefore = w.BalanceBefore,
-                BalanceAfter = w.BalanceAfter,
-                Status = w.TransactionStatus.ToString(),
-                ReferenceCode = w.TransactionCode,
-                Description = w.Description ?? GetWalletTypeDescription(w.WalletTransactionType),
-                CreatedAt = w.CreatedAt
-            });
+                unifiedList.Add(new UnifiedWalletTransactionDto
+                {
+                    Id = w.Id,
+                    Source = "WALLET",
+                    TransactionType = w.WalletTransactionType.ToString(),
+                    Direction = direction,
+                    Amount = w.Amount,
+                    BalanceBefore = w.BalanceBefore,
+                    BalanceAfter = w.BalanceAfter,
+                    Status = w.TransactionStatus.ToString(),
+                    ReferenceCode = w.TransactionCode,
+                    Description = w.Description ?? GetWalletTypeDescription(w.WalletTransactionType),
+                    CreatedAt = w.CreatedAt
+                });
+            }
         }
 
-        foreach (var a in auctionTxs)
+        if (loadAuction)
         {
-            var direction = a.AuctionTransactionType switch
+            var auctionTxs = await _unitOfWork.AuctionTransactions.GetByWalletIdAsync(wallet.Id, filter.FromDate, filter.ToDate, cancellationToken);
+            foreach (var a in auctionTxs)
             {
-                AuctionTransactionType.AUCTION_DEPOSIT_LOCK => "LOCK",
-                AuctionTransactionType.AUCTION_PROGRESSIVE_DEPOSIT_LOCK => "LOCK",
-                AuctionTransactionType.ESCROW_HOLD => "LOCK",
-                AuctionTransactionType.AUCTION_DEPOSIT_RELEASED => "CREDIT",
-                AuctionTransactionType.AUCTION_COMPENSATION => "CREDIT",
-                AuctionTransactionType.ESCROW_REFUNDED => "CREDIT",
-                AuctionTransactionType.SELLER_PAYOUT => "CREDIT",
-                AuctionTransactionType.TOP_UP_CREDIT => "CREDIT",
-                AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED => "DEBIT",
-                AuctionTransactionType.ESCROW_DEBIT => "DEBIT",
-                AuctionTransactionType.PENALTY => "DEBIT",
-                _ => "DEBIT"
-            };
+                var direction = a.AuctionTransactionType switch
+                {
+                    AuctionTransactionType.AUCTION_DEPOSIT_LOCK => "LOCK",
+                    AuctionTransactionType.AUCTION_PROGRESSIVE_DEPOSIT_LOCK => "LOCK",
+                    AuctionTransactionType.ESCROW_HOLD => "LOCK",
+                    AuctionTransactionType.AUCTION_DEPOSIT_RELEASED => "CREDIT",
+                    AuctionTransactionType.AUCTION_COMPENSATION => "CREDIT",
+                    AuctionTransactionType.ESCROW_REFUNDED => "CREDIT",
+                    AuctionTransactionType.SELLER_PAYOUT => "CREDIT",
+                    AuctionTransactionType.TOP_UP_CREDIT => "CREDIT",
+                    AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED => "DEBIT",
+                    AuctionTransactionType.ESCROW_DEBIT => "DEBIT",
+                    AuctionTransactionType.PENALTY => "DEBIT",
+                    _ => "DEBIT"
+                };
 
-            unifiedList.Add(new UnifiedWalletTransactionDto
-            {
-                Id = a.Id,
-                Source = "AUCTION",
-                TransactionType = a.AuctionTransactionType.ToString(),
-                Direction = direction,
-                Amount = a.Amount,
-                BalanceBefore = a.BalanceBefore,
-                BalanceAfter = a.BalanceAfter,
-                Status = a.TransactionStatus.ToString(),
-                ReferenceCode = a.JournalCode,
-                Description = GetAuctionTypeDescription(a.AuctionTransactionType),
-                CreatedAt = a.CreatedAt
-            });
+                unifiedList.Add(new UnifiedWalletTransactionDto
+                {
+                    Id = a.Id,
+                    Source = "AUCTION",
+                    TransactionType = a.AuctionTransactionType.ToString(),
+                    Direction = direction,
+                    Amount = a.Amount,
+                    BalanceBefore = a.BalanceBefore,
+                    BalanceAfter = a.BalanceAfter,
+                    Status = a.TransactionStatus.ToString(),
+                    ReferenceCode = a.JournalCode,
+                    Description = GetAuctionTypeDescription(a.AuctionTransactionType),
+                    CreatedAt = a.CreatedAt
+                });
+            }
         }
 
-        var totalCount = unifiedList.Count;
-        var pagedItems = unifiedList
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
+        var query = unifiedList.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var clean = filter.Keyword.Trim();
+            query = query.Where(x =>
+                (x.ReferenceCode != null && x.ReferenceCode.Contains(clean, StringComparison.OrdinalIgnoreCase)) ||
+                (x.Description != null && x.Description.Contains(clean, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (filter.MinAmount.HasValue)
+        {
+            query = query.Where(x => x.Amount >= filter.MinAmount.Value);
+        }
+
+        if (filter.MaxAmount.HasValue)
+        {
+            query = query.Where(x => x.Amount <= filter.MaxAmount.Value);
+        }
+
+        if (filter.SortBy == WalletTransactionSortBy.Amount)
+        {
+            query = filter.SortOrder == SortOrder.Asc
+                ? query.OrderBy(x => x.Amount)
+                : query.OrderByDescending(x => x.Amount);
+        }
+        else
+        {
+            query = filter.SortOrder == SortOrder.Asc
+                ? query.OrderBy(x => x.CreatedAt)
+                : query.OrderByDescending(x => x.CreatedAt);
+        }
+
+        var totalCount = query.Count();
+        var pagedItems = query
+            .Skip((filter.PageIndex - 1) * filter.PageSize)
+            .Take(filter.PageSize)
             .ToList();
 
-        return new PagedResult<UnifiedWalletTransactionDto>(pagedItems, totalCount, request.PageIndex, request.PageSize);
+        return new PagedResult<UnifiedWalletTransactionDto>(pagedItems, totalCount, filter.PageIndex, filter.PageSize);
     }
 
     private static string GetWalletTypeDescription(WalletTransactionType type) => type switch

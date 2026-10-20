@@ -1,7 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.System;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -22,14 +26,7 @@ public class AuditLogRepository : IAuditLogRepository
     }
 
     public async Task<(IReadOnlyList<AuditLog> Items, int TotalCount)> GetPagedAsync(
-        string? entityName = null,
-        Guid? entityId = null,
-        Guid? actorId = null,
-        ActionType? actionType = null,
-        DateTime? fromDate = null,
-        DateTime? toDate = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        AuditLogQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.AuditLogs
@@ -37,44 +34,48 @@ public class AuditLogRepository : IAuditLogRepository
             .AsNoTracking()
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(entityName))
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            query = query.Where(a => a.EntityName.ToLower().Contains(entityName.ToLower()));
+            var kw = filter.Keyword.Trim().ToLower();
+            query = query.Where(a =>
+                a.EntityName.ToLower().Contains(kw) ||
+                a.AuditLogName.ToLower().Contains(kw) ||
+                (a.OldData != null && a.OldData.ToLower().Contains(kw)) ||
+                (a.NewData != null && a.NewData.ToLower().Contains(kw)));
         }
 
-        if (entityId.HasValue)
+        if (!string.IsNullOrWhiteSpace(filter.EntityName))
         {
-            query = query.Where(a => a.EntityId == entityId.Value);
+            query = query.Where(a => a.EntityName.ToLower().Contains(filter.EntityName.ToLower()));
         }
 
-        if (actorId.HasValue)
+        if (filter.EntityId.HasValue)
         {
-            query = query.Where(a => a.ActorId == actorId.Value);
+            query = query.Where(a => a.EntityId == filter.EntityId.Value);
         }
 
-        if (actionType.HasValue)
+        if (filter.ActorId.HasValue)
         {
-            query = query.Where(a => a.ActionType == actionType.Value);
+            query = query.Where(a => a.ActorId == filter.ActorId.Value);
         }
 
-        if (fromDate.HasValue)
+        if (filter.ActionType.HasValue)
         {
-            query = query.Where(a => a.CreatedDate >= fromDate.Value);
+            query = query.Where(a => a.ActionType == filter.ActionType.Value);
         }
 
-        if (toDate.HasValue)
+        if (filter.FromDate.HasValue)
         {
-            query = query.Where(a => a.CreatedDate <= toDate.Value);
+            query = query.Where(a => a.CreatedDate >= filter.FromDate.Value);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(a => a.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.ToDate.HasValue)
+        {
+            query = query.Where(a => a.CreatedDate <= filter.ToDate.Value);
+        }
 
-        return (items, totalCount);
+        query = query.ApplySafeSorting(SystemSortMappings.AuditLogMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: a => a.CreatedDate, defaultSortOrder: SortOrder.Desc);
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task AddAsync(AuditLog log, CancellationToken cancellationToken = default)

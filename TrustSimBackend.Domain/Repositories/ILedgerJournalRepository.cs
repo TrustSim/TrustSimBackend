@@ -1,5 +1,5 @@
 using TrustSimBackend.Domain.Entities.Financial;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -12,11 +12,7 @@ public interface ILedgerJournalRepository
     Task<LedgerJournal?> GetByCodeAsync(string journalCode, CancellationToken cancellationToken = default);
     Task<LedgerJournal?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<LedgerJournal> Items, int TotalCount)> GetPagedAsync(
-        LedgerTransactionType? transactionType = null,
-        DateTime? fromDate = null,
-        DateTime? toDate = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        LedgerJournalQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task AddAsync(LedgerJournal journal, CancellationToken cancellationToken = default);
 }

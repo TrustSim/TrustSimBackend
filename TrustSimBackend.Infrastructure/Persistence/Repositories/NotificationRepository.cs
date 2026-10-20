@@ -1,6 +1,10 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.System;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -20,27 +24,38 @@ public class NotificationRepository : INotificationRepository
 
     public async Task<(IReadOnlyList<Notification> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
-        bool? isRead,
-        int pageIndex,
-        int pageSize,
+        NotificationQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
-        var query = _context.Notifications.Where(n => n.UserId == userId && !n.IsDeleted);
+        var query = _context.Notifications
+            .AsNoTracking()
+            .Where(n => n.UserId == userId && !n.IsDeleted);
 
-        if (isRead.HasValue)
+        if (filter.IsRead.HasValue)
         {
-            query = query.Where(n => n.IsRead == isRead.Value);
+            query = query.Where(n => n.IsRead == filter.IsRead.Value);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var kw = filter.Keyword.Trim().ToLower();
+            query = query.Where(n =>
+                n.Title.ToLower().Contains(kw) ||
+                n.Content.ToLower().Contains(kw));
+        }
 
-        var items = await query
-            .OrderByDescending(n => n.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.FromDate.HasValue)
+        {
+            query = query.Where(n => n.CreatedDate >= filter.FromDate.Value);
+        }
 
-        return (items, totalCount);
+        if (filter.ToDate.HasValue)
+        {
+            query = query.Where(n => n.CreatedDate <= filter.ToDate.Value);
+        }
+
+        query = query.ApplySafeSorting(SystemSortMappings.NotificationMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: n => n.CreatedDate, defaultSortOrder: SortOrder.Desc);
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default)

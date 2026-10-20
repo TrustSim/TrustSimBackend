@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Identity.Queries;
@@ -19,12 +20,17 @@ public class AdminExportUsersQueryHandler : IRequestHandler<AdminExportUsersQuer
 
     public async Task<byte[]> Handle(AdminExportUsersQuery request, CancellationToken cancellationToken)
     {
+        var filter = new AdminUsersQueryFilter
+        {
+            Keyword = request.Keyword,
+            Role = request.Role,
+            IsActive = request.IsActive,
+            PageIndex = 1,
+            PageSize = 100000
+        };
+
         var (users, _) = await _unitOfWork.Users.GetPagedAsync(
-            request.Keyword,
-            request.Role,
-            request.IsActive,
-            pageIndex: 1,
-            pageSize: 100000,
+            filter,
             cancellationToken: cancellationToken);
 
         var rows = users.Select(u => new UserExcelExportRow

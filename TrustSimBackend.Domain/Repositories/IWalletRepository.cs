@@ -1,4 +1,5 @@
 using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -11,10 +12,7 @@ public interface IWalletRepository
     Task<Wallet?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<bool> ExistsByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Wallet> Items, int TotalCount)> GetPagedAsync(
-        string? keyword = null,
-        Domain.Enums.WalletStatus? status = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        AdminWalletQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task AddAsync(Wallet wallet, CancellationToken cancellationToken = default);
     void Update(Wallet wallet);

@@ -6,6 +6,7 @@ using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Infrastructure.Services.Financial;
@@ -155,7 +156,7 @@ public class LedgerIntegrityVerifier : ILedgerIntegrityVerifier
 
         // 5. Đối soát số dư toàn sàn giữa Sổ cái kép và Snapshot của các Ví
         var allEntries = await _unitOfWork.LedgerEntries.GetAllOrderedBySequenceAsync(1, 50000, cancellationToken);
-        var (wallets, _) = await _unitOfWork.Wallets.GetPagedAsync(pageIndex: 1, pageSize: 1000, cancellationToken: cancellationToken);
+        var (wallets, _) = await _unitOfWork.Wallets.GetPagedAsync(new AdminWalletQueryFilter { PageIndex = 1, PageSize = 1000 }, cancellationToken);
 
         decimal totalPlatformBank1010 = 0;
         decimal totalUserAvailable2010 = 0;

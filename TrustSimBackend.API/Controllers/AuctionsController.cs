@@ -5,45 +5,35 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
 public class AuctionsController : BaseApiController
 {
     /// <summary>
-    /// Tìm kiếm và lọc danh sách phiên đấu giá (phân trang, lọc theo trạng thái, loại hình, từ khóa)
+    /// Tìm kiếm và lọc danh sách phiên đấu giá (phân trang, lọc theo trạng thái, loại hình, nhà mạng, phân loại, khoảng giá, ngày bắt đầu, sắp xếp động)
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<AuctionDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAuctions(
-        [FromQuery] string? keyword,
-        [FromQuery] AuctionStatus? status,
-        [FromQuery] AuctionType? type,
-        [FromQuery] Guid? authorId,
-        [FromQuery] Guid? participantId,
-        [FromQuery] bool? isAuthor,
-        [FromQuery] bool? isParticipant,
-        [FromQuery] string? myRole,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetAuctions([FromQuery] AuctionQueryFilter filter)
     {
-        if (isAuthor == true || string.Equals(myRole, "author", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(filter.Role, "author", StringComparison.OrdinalIgnoreCase))
         {
             if (CurrentUserId == Guid.Empty)
                 return Unauthorized(ApiResponse<object>.FailureResult("Bạn cần đăng nhập để lọc phiên đấu giá theo vai trò người bán (author)."));
-            authorId = CurrentUserId;
+            filter.AuthorId = CurrentUserId;
         }
 
-        if (isParticipant == true || string.Equals(myRole, "participant", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(filter.Role, "participant", StringComparison.OrdinalIgnoreCase))
         {
             if (CurrentUserId == Guid.Empty)
                 return Unauthorized(ApiResponse<object>.FailureResult("Bạn cần đăng nhập để lọc phiên đấu giá theo vai trò người tham gia (participant)."));
-            participantId = CurrentUserId;
+            filter.ParticipantId = CurrentUserId;
         }
 
-        var query = new GetAuctionsQuery(keyword, status, type, authorId, participantId, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<AuctionDto>>.SuccessResult(result, "Lấy danh sách phiên đấu giá thành công."));
+        var result = await Mediator.Send(new GetAuctionsQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách phiên đấu giá thành công.");
     }
 
     /// <summary>

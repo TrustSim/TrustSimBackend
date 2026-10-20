@@ -23,15 +23,7 @@ public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedRe
 
     public async Task<PagedResult<AuctionDto>> Handle(GetAuctionsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _unitOfWork.Auctions.GetPagedAsync(
-            request.Keyword,
-            request.Status,
-            request.Type,
-            request.AuthorId,
-            request.PageIndex,
-            request.PageSize,
-            request.ParticipantId,
-            cancellationToken);
+        var (items, totalCount) = await _unitOfWork.Auctions.GetPagedAsync(request.Filter, cancellationToken);
 
         var currentUserId = _currentUserService.IsAuthenticated ? _currentUserService.UserId : null;
 
@@ -64,7 +56,7 @@ public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedRe
             IsUserRegistered = currentUserId.HasValue && a.Participants.Any(p => p.UserAccountId == currentUserId.Value)
         }).ToList();
 
-        return PagedResult<AuctionDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<AuctionDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }
 

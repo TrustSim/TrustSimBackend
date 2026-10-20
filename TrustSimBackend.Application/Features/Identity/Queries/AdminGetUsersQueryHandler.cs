@@ -18,11 +18,7 @@ public class AdminGetUsersQueryHandler : IRequestHandler<AdminGetUsersQuery, Pag
     public async Task<PagedResult<AdminUserDetailDto>> Handle(AdminGetUsersQuery request, CancellationToken cancellationToken)
     {
         var (users, totalCount) = await _unitOfWork.Users.GetPagedAsync(
-            request.Keyword,
-            request.Role,
-            request.IsActive,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = users.Select(u => new AdminUserDetailDto
@@ -45,6 +41,6 @@ public class AdminGetUsersQueryHandler : IRequestHandler<AdminGetUsersQuery, Pag
             CreatedDate = u.CreatedDate
         }).ToList();
 
-        return new PagedResult<AdminUserDetailDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<AdminUserDetailDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

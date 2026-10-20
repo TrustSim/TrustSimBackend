@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -12,12 +13,13 @@ public interface IIdentityVerificationRepository
     Task<IdentityVerification?> GetDetailByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IdentityVerification?> GetLatestByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<IdentityVerification>> GetHistoryByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedHistoryByUserIdAsync(
+        Guid userId,
+        BaseQueryFilter<KycSortBy> filter,
+        CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedAsync(
-        VerificationStatus? status,
-        int pageIndex,
-        int pageSize,
+        AdminKycQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task AddAsync(IdentityVerification verification, CancellationToken cancellationToken = default);
     void Update(IdentityVerification verification);
 }
-

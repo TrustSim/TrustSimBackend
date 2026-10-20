@@ -19,9 +19,7 @@ public class GetMyNotificationsQueryHandler : IRequestHandler<GetMyNotifications
     {
         var (items, totalCount) = await _unitOfWork.Notifications.GetPagedByUserIdAsync(
             request.UserId,
-            request.IsRead,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(n => new NotificationDto
@@ -40,6 +38,6 @@ public class GetMyNotificationsQueryHandler : IRequestHandler<GetMyNotifications
             CreatedDate = n.CreatedDate
         }).ToList();
 
-        return PagedResult<NotificationDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<NotificationDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

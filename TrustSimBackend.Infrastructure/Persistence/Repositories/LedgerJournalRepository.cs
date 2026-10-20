@@ -1,7 +1,10 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Financial;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -43,40 +46,43 @@ public class LedgerJournalRepository : ILedgerJournalRepository
     }
 
     public async Task<(IReadOnlyList<LedgerJournal> Items, int TotalCount)> GetPagedAsync(
-        LedgerTransactionType? transactionType = null,
-        DateTime? fromDate = null,
-        DateTime? toDate = null,
-        int pageIndex = 1,
-        int pageSize = 20,
+        LedgerJournalQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.LedgerJournals
             .Include(j => j.Entries.OrderBy(e => e.SequenceNumber))
             .AsNoTracking();
 
-        if (transactionType.HasValue)
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            query = query.Where(j => j.TransactionType == transactionType.Value);
+            var clean = filter.Keyword.Trim();
+            var isGuid = Guid.TryParse(clean, out var cleanGuid);
+
+            query = query.Where(j => j.JournalCode.Contains(clean)
+                || (j.Description != null && j.Description.Contains(clean))
+                || (j.ReferenceType != null && j.ReferenceType.Contains(clean))
+                || (isGuid && j.ReferenceId == cleanGuid));
         }
 
-        if (fromDate.HasValue)
+        if (filter.TransactionType.HasValue)
         {
-            query = query.Where(j => j.PostedAt >= fromDate.Value);
+            query = query.Where(j => j.TransactionType == filter.TransactionType.Value);
         }
 
-        if (toDate.HasValue)
+        if (filter.MinAmount.HasValue)
         {
-            query = query.Where(j => j.PostedAt <= toDate.Value);
+            query = query.Where(j => j.Entries.Any(e => e.Amount >= filter.MinAmount.Value));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
-        var items = await query
-            .OrderByDescending(j => j.PostedAt)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.MaxAmount.HasValue)
+        {
+            query = query.Where(j => j.Entries.Any(e => e.Amount <= filter.MaxAmount.Value));
+        }
 
-        return (items, totalCount);
+        query = query.ApplyDateRange(j => j.PostedAt, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(WalletSortMappings.LedgerJournalMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: j => j.PostedAt, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task AddAsync(LedgerJournal journal, CancellationToken cancellationToken = default)

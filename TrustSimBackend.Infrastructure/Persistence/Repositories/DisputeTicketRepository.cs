@@ -1,7 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Dispute;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -28,9 +32,7 @@ public class DisputeTicketRepository : IDisputeTicketRepository
 
     public async Task<(IReadOnlyList<DisputeTicket> Items, int TotalCount)> GetPagedAsync(
         Guid? userId,
-        DisputeStatus? status,
-        int pageIndex,
-        int pageSize,
+        DisputeQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.DisputeTickets
@@ -38,6 +40,7 @@ public class DisputeTicketRepository : IDisputeTicketRepository
                 .ThenInclude(u => u!.UserProfile)
             .Include(d => d.ResolvedByAdmin)
                 .ThenInclude(u => u!.UserProfile)
+            .AsNoTracking()
             .AsQueryable();
 
         if (userId.HasValue)
@@ -45,20 +48,37 @@ public class DisputeTicketRepository : IDisputeTicketRepository
             query = query.Where(d => d.ComplainantId == userId.Value);
         }
 
-        if (status.HasValue)
+        if (filter.Status.HasValue)
         {
-            query = query.Where(d => d.Status == status.Value);
+            query = query.Where(d => d.Status == filter.Status.Value);
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (filter.TradeId.HasValue)
+        {
+            query = query.Where(d => d.TradeTransactionId == filter.TradeId.Value);
+        }
 
-        var items = await query
-            .OrderByDescending(d => d.CreatedDate)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var kw = filter.Keyword.Trim().ToLower();
+            query = query.Where(d =>
+                d.Reason.ToLower().Contains(kw) ||
+                (d.AdminResolutionNotes != null && d.AdminResolutionNotes.ToLower().Contains(kw)) ||
+                (d.Complainant != null && d.Complainant.UserProfile != null && d.Complainant.UserProfile.FullName.ToLower().Contains(kw)));
+        }
 
-        return (items, totalCount);
+        if (filter.FromDate.HasValue)
+        {
+            query = query.Where(d => d.CreatedDate >= filter.FromDate.Value);
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            query = query.Where(d => d.CreatedDate <= filter.ToDate.Value);
+        }
+
+        query = query.ApplySafeSorting(SystemSortMappings.DisputeMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: d => d.CreatedDate, defaultSortOrder: SortOrder.Desc);
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task AddAsync(DisputeTicket ticket, CancellationToken cancellationToken = default)

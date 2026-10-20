@@ -1,7 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
+using TrustSimBackend.Infrastructure.Persistence.Extensions;
+using TrustSimBackend.Infrastructure.Persistence.SortMappings;
 
 namespace TrustSimBackend.Infrastructure.Persistence.Repositories;
 
@@ -50,10 +54,33 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedHistoryByUserIdAsync(
+        Guid userId,
+        BaseQueryFilter<KycSortBy> filter,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.IdentityVerifications
+            .Include(v => v.UserProfile)
+            .Include(v => v.VerifiedByUser)
+            .AsNoTracking()
+            .Where(v => v.UserProfile != null && v.UserProfile.UserAccountId == userId);
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var clean = filter.Keyword.Trim().ToLower();
+            query = query.Where(v =>
+                (v.RejectionReason != null && v.RejectionReason.ToLower().Contains(clean)) ||
+                (v.VerificationMethod != null && v.VerificationMethod.ToLower().Contains(clean)));
+        }
+
+        query = query.ApplyDateRange(v => v.SubmittedAt, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(UserSortMappings.KycMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: v => v.SubmittedAt, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedAsync(
-        VerificationStatus? status,
-        int pageIndex,
-        int pageSize,
+        AdminKycQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.IdentityVerifications
@@ -62,20 +89,31 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
             .Include(v => v.VerifiedByUser)
             .AsQueryable();
 
-        if (status.HasValue)
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
-            query = query.Where(v => v.VerificationStatus == status.Value);
+            var clean = filter.Keyword.Trim().ToLower();
+            query = query.Where(v =>
+                (v.UserProfile != null && v.UserProfile.IdentityNumber.ToLower().Contains(clean)) ||
+                (v.UserProfile != null && v.UserProfile.FullName.ToLower().Contains(clean)) ||
+                (v.UserProfile != null && v.UserProfile.UserAccount != null && v.UserProfile.UserAccount.UserName != null && v.UserProfile.UserAccount.UserName.ToLower().Contains(clean)) ||
+                (v.UserProfile != null && v.UserProfile.UserAccount != null && v.UserProfile.UserAccount.Email != null && v.UserProfile.UserAccount.Email.ToLower().Contains(clean)) ||
+                (v.UserProfile != null && v.UserProfile.PhoneNumber.Contains(clean)));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(v => v.VerificationStatus == filter.Status.Value);
+        }
 
-        var items = await query
-            .OrderByDescending(v => v.SubmittedAt)
-            .Skip((pageIndex - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        if (filter.MinSimilarityScore.HasValue)
+        {
+            query = query.Where(v => v.FaceSimilarityScore >= filter.MinSimilarityScore.Value);
+        }
 
-        return (items, totalCount);
+        query = query.ApplyDateRange(v => v.SubmittedAt, filter.FromDate, filter.ToDate);
+        query = query.ApplySafeSorting(UserSortMappings.KycMappings, filter.SortBy, filter.SortOrder, defaultSortExpression: v => v.SubmittedAt, defaultSortOrder: SortOrder.Desc);
+
+        return await query.ToPagedTupleAsync(filter.PageIndex, filter.PageSize, cancellationToken);
     }
 
     public async Task AddAsync(IdentityVerification verification, CancellationToken cancellationToken = default)

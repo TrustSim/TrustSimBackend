@@ -21,11 +21,8 @@ public class AdminGetWithdrawalsQueryHandler : IRequestHandler<AdminGetWithdrawa
 
     public async Task<PagedResult<WalletTransactionDto>> Handle(AdminGetWithdrawalsQuery request, CancellationToken cancellationToken)
     {
-        var (items, totalCount) = await _unitOfWork.WalletTransactions.GetPagedAllAsync(
-            WalletTransactionType.WITHDRAW,
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+        var (items, totalCount) = await _unitOfWork.WalletTransactions.GetPagedWithdrawalsAsync(
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(t => new WalletTransactionDto
@@ -48,6 +45,6 @@ public class AdminGetWithdrawalsQueryHandler : IRequestHandler<AdminGetWithdrawa
             ExpiredAt = t.ExpiredAt
         }).ToList();
 
-        return PagedResult<WalletTransactionDto>.Create(dtos, totalCount, request.PageIndex, request.PageSize);
+        return PagedResult<WalletTransactionDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

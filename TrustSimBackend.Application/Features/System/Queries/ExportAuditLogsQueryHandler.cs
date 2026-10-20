@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.System.Queries;
@@ -19,15 +20,18 @@ public class ExportAuditLogsQueryHandler : IRequestHandler<ExportAuditLogsQuery,
 
     public async Task<byte[]> Handle(ExportAuditLogsQuery request, CancellationToken cancellationToken)
     {
+        var filter = new AuditLogQueryFilter
+        {
+            EntityName = request.EntityName,
+            ActionType = request.ActionType,
+            FromDate = request.FromDate,
+            ToDate = request.ToDate,
+            PageIndex = 1,
+            PageSize = 100000
+        };
+
         var (items, _) = await _unitOfWork.AuditLogs.GetPagedAsync(
-            request.EntityName,
-            null,
-            null,
-            request.ActionType,
-            request.FromDate,
-            request.ToDate,
-            pageIndex: 1,
-            pageSize: 100000,
+            filter,
             cancellationToken: cancellationToken);
 
         var rows = items.Select(log => new AuditLogExcelExportRow

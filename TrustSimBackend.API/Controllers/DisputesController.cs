@@ -5,25 +5,23 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Dispute.DTOs.Requests;
 using TrustSimBackend.Application.Features.Dispute.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
 public class DisputesController : BaseApiController
 {
     /// <summary>
-    /// Lấy danh sách khiếu nại tranh chấp (có phân trang và lọc theo trạng thái)
+    /// Lấy danh sách khiếu nại tranh chấp (phân trang, sắp xếp, lọc đa tiêu chí)
     /// </summary>
     [HttpGet]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<DisputeTicketDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetDisputes(
-        [FromQuery] DisputeStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetDisputes([FromQuery] DisputeQueryFilter filter)
     {
-        var query = new GetDisputesQuery(IsAdmin ? null : CurrentUserId, status, pageIndex, pageSize);
+        var query = new GetDisputesQuery(IsAdmin ? null : CurrentUserId, filter);
         var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<DisputeTicketDto>>.SuccessResult(result, "Lấy danh sách khiếu nại thành công."));
+        return HandlePagedResult(result, "Lấy danh sách khiếu nại thành công.");
     }
 
     /// <summary>

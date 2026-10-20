@@ -4,6 +4,7 @@ using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Financial;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Financial.Commands;
@@ -34,7 +35,7 @@ public class SimulateTamperTestCommandHandler : IRequestHandler<SimulateTamperTe
         // Nếu chưa có giao dịch nào, tự động tạo 1 giao dịch mẫu trước
         if (entries.Count == 0)
         {
-            var dummyWallet = (await _unitOfWork.Wallets.GetPagedAsync(pageIndex: 1, pageSize: 1, cancellationToken: cancellationToken)).Items.FirstOrDefault();
+            var dummyWallet = (await _unitOfWork.Wallets.GetPagedAsync(new AdminWalletQueryFilter { PageIndex = 1, PageSize = 1 }, cancellationToken)).Items.FirstOrDefault();
             if (dummyWallet == null)
             {
                 throw new BadRequestException("Chưa có ví người dùng nào trong hệ thống để thực hiện mô phỏng.");

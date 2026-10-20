@@ -1,4 +1,6 @@
 using TrustSimBackend.Domain.Entities.Sim;
+using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -12,6 +14,10 @@ public interface ISimOwnershipRepository
     Task<SimOwnership?> GetActiveOwnershipBySimNumberIdAsync(Guid simNumberId, CancellationToken cancellationToken = default);
     Task<SimOwnership?> GetLatestOwnershipByUserAndSimNumberIdAsync(Guid userId, Guid simNumberId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SimOwnership>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<SimOwnership> Items, int TotalCount)> GetPagedByUserIdAsync(
+        Guid userId,
+        BaseQueryFilter<SimOwnershipSortBy> filter,
+        CancellationToken cancellationToken = default);
     Task<bool> HasActiveOwnershipAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task AddAsync(SimOwnership ownership, CancellationToken cancellationToken = default);
     void Update(SimOwnership ownership);

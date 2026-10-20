@@ -1,7 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Financial.DTOs.Responses;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 
@@ -9,9 +9,6 @@ namespace TrustSimBackend.Application.Features.Financial.DTOs.Requests;
 /// Query lấy danh sách lịch sử nạp/rút tiền của ví cá nhân.
 /// </summary>
 public record GetWalletTransactionsQuery(
-    Guid UserId = default,
-    WalletTransactionType? Type = null,
-    TransactionStatus? Status = null,
-    int PageIndex = 1,
-    int PageSize = 10
+    Guid UserId,
+    WalletTransactionQueryFilter Filter
 ) : IRequest<PagedResult<WalletTransactionDto>>;

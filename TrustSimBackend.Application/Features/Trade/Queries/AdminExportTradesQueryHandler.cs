@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Trade.Queries;
@@ -19,10 +20,12 @@ public class AdminExportTradesQueryHandler : IRequestHandler<AdminExportTradesQu
 
     public async Task<byte[]> Handle(AdminExportTradesQuery request, CancellationToken cancellationToken)
     {
+        var exportFilter = request.Filter ?? new AdminTradeQueryFilter();
+        exportFilter.PageIndex = 1;
+        exportFilter.PageSize = 100000;
+
         var (items, _) = await _unitOfWork.TradeTransactions.GetPagedAsync(
-            request.Status,
-            pageIndex: 1,
-            pageSize: 100000,
+            exportFilter,
             cancellationToken: cancellationToken);
 
         var rows = items.Select(t => new TradeExcelExportRow

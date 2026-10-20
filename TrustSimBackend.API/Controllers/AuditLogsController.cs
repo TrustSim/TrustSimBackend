@@ -5,6 +5,7 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -12,23 +13,14 @@ namespace TrustSimBackend.API.Controllers;
 public class AuditLogsController : BaseApiController
 {
     /// <summary>
-    /// [Admin] Tra cứu nhật ký kiểm toán hệ thống (phân trang, lọc theo tên bảng, actor, loại hành động, ngày tạo)
+    /// [Admin] Tra cứu nhật ký kiểm toán hệ thống (phân trang, sắp xếp, lọc đa tiêu chí)
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<AuditLogDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAuditLogs(
-        [FromQuery] string? entityName,
-        [FromQuery] Guid? entityId,
-        [FromQuery] Guid? actorId,
-        [FromQuery] ActionType? actionType,
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetAuditLogs([FromQuery] AuditLogQueryFilter filter)
     {
-        var query = new GetAuditLogsQuery(entityName, entityId, actorId, actionType, fromDate, toDate, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<AuditLogDto>>.SuccessResult(result, "Lấy danh sách nhật ký kiểm toán thành công."));
+        var result = await Mediator.Send(new GetAuditLogsQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách nhật ký kiểm toán thành công.");
     }
 
     /// <summary>

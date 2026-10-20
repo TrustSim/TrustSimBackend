@@ -18,10 +18,7 @@ public class AdminGetAllTransactionsQueryHandler : IRequestHandler<AdminGetAllTr
     public async Task<PagedResult<WalletTransactionDto>> Handle(AdminGetAllTransactionsQuery request, CancellationToken cancellationToken)
     {
         var (items, totalCount) = await _unitOfWork.WalletTransactions.GetPagedAllAsync(
-            request.Type,
-            request.Status,
-            request.PageIndex,
-            request.PageSize,
+            request.Filter,
             cancellationToken);
 
         var dtos = items.Select(t => new WalletTransactionDto
@@ -37,6 +34,6 @@ public class AdminGetAllTransactionsQueryHandler : IRequestHandler<AdminGetAllTr
             CreatedAt = t.CreatedDate
         }).ToList();
 
-        return new PagedResult<WalletTransactionDto>(dtos, totalCount, request.PageIndex, request.PageSize);
+        return new PagedResult<WalletTransactionDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

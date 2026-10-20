@@ -5,6 +5,7 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -63,31 +64,27 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy danh sách lịch sử tất cả các lần nộp hồ sơ KYC của người dùng hiện tại
+    /// Lấy danh sách lịch sử tất cả các lần nộp hồ sơ KYC của người dùng hiện tại (phân trang, sắp xếp)
     /// </summary>
     [HttpGet("kyc/history")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<IdentityVerificationDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyKycHistory()
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<IdentityVerificationDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyKycHistory([FromQuery] BaseQueryFilter<KycSortBy> filter)
     {
-        var result = await Mediator.Send(new GetMyKycHistoryQuery(CurrentUserId));
-        return Ok(ApiResponse<IReadOnlyList<IdentityVerificationDto>>.SuccessResult(result, "Lấy lịch sử xác minh KYC thành công."));
+        var result = await Mediator.Send(new GetMyKycHistoryQuery(CurrentUserId, filter));
+        return HandlePagedResult(result, "Lấy lịch sử xác minh KYC thành công.");
     }
 
     /// <summary>
-    /// [Admin] Lấy danh sách các hồ sơ KYC chờ duyệt (có phân trang và lọc theo trạng thái)
+    /// [Admin] Lấy danh sách các hồ sơ KYC (phân trang, sắp xếp, lọc đa tiêu chí)
     /// </summary>
     [HttpGet("admin/kyc")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<IdentityVerificationDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPendingKyc(
-        [FromQuery] VerificationStatus? status,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetPendingKyc([FromQuery] AdminKycQueryFilter filter)
     {
-        var query = new GetPendingKycQuery(status, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<IdentityVerificationDto>>.SuccessResult(result, "Lấy danh sách hồ sơ KYC thành công."));
+        var result = await Mediator.Send(new GetPendingKycQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách hồ sơ KYC thành công.");
     }
 
     /// <summary>
@@ -117,21 +114,15 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Lấy danh sách tài khoản thành viên trong hệ thống (phân trang, lọc theo vai trò, trạng thái, tìm kiếm tên/email/sđt)
+    /// [Admin] Lấy danh sách tài khoản thành viên trong hệ thống (phân trang, sắp xếp, lọc đa tiêu chí)
     /// </summary>
     [HttpGet("admin")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<AdminUserDetailDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminGetUsers(
-        [FromQuery] string? keyword,
-        [FromQuery] UserRole? role,
-        [FromQuery] bool? isActive,
-        [FromQuery] int pageIndex = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> AdminGetUsers([FromQuery] AdminUsersQueryFilter filter)
     {
-        var query = new AdminGetUsersQuery(keyword, role, isActive, pageIndex, pageSize);
-        var result = await Mediator.Send(query);
-        return Ok(ApiResponse<PagedResult<AdminUserDetailDto>>.SuccessResult(result, "Lấy danh sách người dùng thành công."));
+        var result = await Mediator.Send(new AdminGetUsersQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách người dùng thành công.");
     }
 
     /// <summary>
