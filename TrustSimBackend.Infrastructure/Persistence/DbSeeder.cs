@@ -40,7 +40,7 @@ public static class DbSeeder
         await SeedPhonePrefixesAsync(context);
 
         // 3. Level 0 & 1: Danh sách 10 Tài khoản, Hồ sơ, Cặp khóa PKI & Ví điện tử
-        await SeedAccountsProfilesAndWalletsAsync(context);
+        await SeedAccountsProfilesAndWalletsAsync(context, serviceProvider);
 
         // 4. Level 2 & 3: Kho SIM số đẹp, Phân loại danh mục & Quyền sở hữu ban đầu
         await SeedSimsAndOwnershipsAsync(context);
@@ -263,7 +263,7 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     //  3. Level 0 & 1: 10 Tài khoản, Hồ sơ, Cặp khóa PKI & Ví tiền
     // ─────────────────────────────────────────────────────────────
-    private static async Task SeedAccountsProfilesAndWalletsAsync(TrustSimDbContext context)
+    private static async Task SeedAccountsProfilesAndWalletsAsync(TrustSimDbContext context, IServiceProvider? serviceProvider = null)
     {
         // Tự động nâng cấp các tài khoản đang lưu mã băm BCrypt cũ sang chuẩn ASP.NET Core Identity
         var legacyUsers = await context.UserAccounts
@@ -423,7 +423,7 @@ public static class DbSeeder
         await context.SaveChangesAsync();
 
         // 3.1 Nạp chứng từ và mắt xích chuỗi khối Sổ cái Kép (Double-Entry Ledger Hash Chain) cho các số dư khởi tạo
-        await SeedInitialLedgerJournalsAndEntriesAsync(context, usersData);
+        await SeedInitialLedgerJournalsAndEntriesAsync(context, usersData, serviceProvider);
 
         // Identity Verifications
         var adminId = Guid.Parse("11000000-0000-0000-0000-000000000001");
@@ -520,9 +520,49 @@ public static class DbSeeder
     // ─────────────────────────────────────────────────────────────
     private static async Task SeedInitialLedgerJournalsAndEntriesAsync(
         TrustSimDbContext context,
-        IEnumerable<dynamic> usersData)
+        IEnumerable<dynamic> usersData,
+        IServiceProvider? serviceProvider = null)
     {
-        var signingService = new EcdsaFinancialSigningService(NullLogger<EcdsaFinancialSigningService>.Instance);
+        var signingService = serviceProvider?.GetService<IFinancialSigningService>()
+            ?? new EcdsaFinancialSigningService(NullLogger<EcdsaFinancialSigningService>.Instance);
+
+        // Self-Healing: Đối soát và tự động tái ký lại các bản ghi seed cũ nếu chữ ký không khớp với Master Key hiện tại của HSM
+        var existingSeedJournals = await context.LedgerJournals
+            .Include(j => j.Entries)
+            .Where(j => j.ReferenceType == "SeedInitialBalance")
+            .ToListAsync();
+
+        if (existingSeedJournals.Count > 0)
+        {
+            var needsSave = false;
+            foreach (var sj in existingSeedJournals)
+            {
+                foreach (var entry in sj.Entries)
+                {
+                    var isValid = await signingService.VerifySignatureAsync(entry.EntryHash, entry.Signature);
+                    if (!isValid)
+                    {
+                        entry.Signature = await signingService.SignHashAsync(entry.EntryHash);
+                        needsSave = true;
+                    }
+                }
+
+                var journalPayload = $"{sj.JournalCode}:{sj.TransactionType}:{sj.TotalAmount.ToString("F2", CultureInfo.InvariantCulture)}:{sj.PostedAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ss.ffffffZ}:{sj.Entries.Count}";
+                var expectedJournalHash = LedgerHashHelper.ComputeSha256Hex(journalPayload);
+                var isJournalSigValid = !string.IsNullOrWhiteSpace(sj.SignedHash) && await signingService.VerifySignatureAsync(expectedJournalHash, sj.SignedHash);
+                if (!isJournalSigValid)
+                {
+                    sj.SignedHash = await signingService.SignHashAsync(expectedJournalHash);
+                    needsSave = true;
+                }
+            }
+
+            if (needsSave)
+            {
+                await context.SaveChangesAsync();
+                Console.WriteLine("[DbSeeder] 🔄 Đã tự động đồng bộ (Self-Healing Re-sign) chữ ký số các bản ghi Seed sang Master Key của HSM.");
+            }
+        }
 
         // Tìm mắt xích LedgerEntry cuối cùng trong DB để nối chuỗi tiếp
         var lastEntry = await context.LedgerEntries.OrderByDescending(e => e.SequenceNumber).FirstOrDefaultAsync();

@@ -172,6 +172,11 @@ async function quickLogin(userName) {
     if (state.activeAuctionId) {
       await selectAuction(state.activeAuctionId);
     }
+
+    // Refresh owned SIMs if create auction modal is currently open
+    if (document.getElementById('createAuctionModal')?.style.display === 'flex') {
+      await loadUserOwnedSims(1);
+    }
   } catch (err) {
     addLog('SYSTEM', `❌ Lỗi đăng nhập: ${err.message}`);
     alert(`Lỗi đăng nhập: ${err.message}`);
@@ -1646,6 +1651,237 @@ function onStartingPriceBlur() {
   updateDutchPreview();
 }
 
+// ─── State Management for User's Owned SIMs Filter & Pagination ───
+const simOwnershipState = {
+  pageIndex: 1,
+  pageSize: 20,
+  keyword: '',
+  sortBy: 'CreatedDate',
+  sortOrder: 'Desc',
+  totalPages: 1,
+  totalCount: 0,
+  items: [],
+  selectedSim: null,
+  debounceTimer: null
+};
+
+function debounceFilterSims() {
+  const searchInput = document.getElementById('modalSimSearchInput');
+  const clearBtn = document.getElementById('modalSimClearSearch');
+  if (searchInput && clearBtn) {
+    clearBtn.style.display = searchInput.value ? 'block' : 'none';
+  }
+  clearTimeout(simOwnershipState.debounceTimer);
+  simOwnershipState.debounceTimer = setTimeout(() => {
+    simOwnershipState.keyword = (searchInput ? searchInput.value : '').trim();
+    loadUserOwnedSims(1);
+  }, 350);
+}
+
+function clearModalSimSearch() {
+  const searchInput = document.getElementById('modalSimSearchInput');
+  const clearBtn = document.getElementById('modalSimClearSearch');
+  if (searchInput) searchInput.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  simOwnershipState.keyword = '';
+  loadUserOwnedSims(1);
+}
+
+function onModalSimSortChange() {
+  const sortSelect = document.getElementById('modalSimSortSelect');
+  if (!sortSelect) return;
+  const val = sortSelect.value;
+  const parts = val.split('_');
+  simOwnershipState.sortBy = parts[0] || 'CreatedDate';
+  simOwnershipState.sortOrder = parts[1] || 'Desc';
+  loadUserOwnedSims(1);
+}
+
+function onModalSimPageSizeChange() {
+  const sizeSelect = document.getElementById('modalSimPageSizeSelect');
+  if (!sizeSelect) return;
+  simOwnershipState.pageSize = Number(sizeSelect.value) || 20;
+  loadUserOwnedSims(1);
+}
+
+function changeSimPage(delta) {
+  const newPage = simOwnershipState.pageIndex + delta;
+  if (newPage >= 1 && newPage <= simOwnershipState.totalPages) {
+    loadUserOwnedSims(newPage);
+  }
+}
+
+async function loadUserOwnedSims(pageIndex = 1) {
+  const select = document.getElementById('modalSimSelect');
+  const previewCard = document.getElementById('modalSelectedSimPreviewCard');
+  if (!select) return;
+
+  if (!state.currentUser?.token) {
+    select.innerHTML = `<option value="">⚠️ Vui lòng đăng nhập tài khoản Seller (seller_phuquy hoặc seller_daiphat)</option>`;
+    if (previewCard) previewCard.style.display = 'none';
+    updateSimPaginationControls(0, 0, 1, 1);
+    return;
+  }
+
+  simOwnershipState.pageIndex = pageIndex;
+  select.innerHTML = `<option value="">⏳ Đang tải danh sách SIM sở hữu (Trang ${pageIndex})...</option>`;
+
+  try {
+    const params = new URLSearchParams();
+    params.set('pageIndex', String(simOwnershipState.pageIndex));
+    params.set('pageSize', String(simOwnershipState.pageSize));
+    if (simOwnershipState.keyword) {
+      params.set('keyword', simOwnershipState.keyword);
+    }
+    if (simOwnershipState.sortBy) {
+      params.set('sortBy', simOwnershipState.sortBy);
+    }
+    if (simOwnershipState.sortOrder) {
+      params.set('sortOrder', simOwnershipState.sortOrder);
+    }
+
+    const res = await fetch(`${API_BASE_URL}/api/sims/my-ownerships?${params.toString()}`, {
+      headers: { 'Authorization': `Bearer ${state.currentUser.token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Lỗi khi tải danh sách SIM sở hữu');
+    }
+
+    const paged = data.data;
+    const items = paged?.items || (Array.isArray(paged) ? paged : []);
+    simOwnershipState.items = items;
+    simOwnershipState.pageIndex = paged?.pageIndex || pageIndex;
+    simOwnershipState.pageSize = paged?.pageSize || simOwnershipState.pageSize;
+    simOwnershipState.totalCount = typeof paged?.totalCount === 'number' ? paged.totalCount : items.length;
+    simOwnershipState.totalPages = typeof paged?.totalPages === 'number' ? Math.max(1, paged.totalPages) : 1;
+
+    updateSimPaginationControls(
+      simOwnershipState.totalCount,
+      items.length,
+      simOwnershipState.pageIndex,
+      simOwnershipState.totalPages
+    );
+
+    if (items.length === 0) {
+      const msg = simOwnershipState.keyword 
+        ? `Không tìm thấy SIM nào khớp từ khóa "${simOwnershipState.keyword}"`
+        : 'Bạn chưa có SIM nào trong tài khoản hoặc chưa sở hữu SIM hợp lệ';
+      select.innerHTML = `<option value="">${msg}</option>`;
+      if (previewCard) previewCard.style.display = 'none';
+      return;
+    }
+
+    let defaultSelectValue = '';
+    select.innerHTML = `<option value="">-- Chọn một số SIM để đưa vào phiên đấu giá (${items.length} SIM) --</option>` + 
+      items.map(o => {
+        const phone = formatSimNumber(o.phoneNumber || o.simNumber?.phoneNumber);
+        const carrier = o.carrierName || o.carrierCode || 'Viễn thông';
+        const price = o.price || o.simNumber?.price || 0;
+        const status = o.simStatus || o.simNumber?.simStatus || 'AVAILABLE';
+        const isAvail = status === 'AVAILABLE' || status === 1;
+        const statusTag = isAvail ? 'Khả dụng' : `Đang ${status}`;
+        const rhythm = o.formatRhythmName ? ` [${o.formatRhythmName}]` : '';
+
+        if (isAvail && !defaultSelectValue) {
+          defaultSelectValue = o.simNumberId;
+        }
+
+        const disabledAttr = isAvail ? '' : 'disabled';
+        const prefixIcon = isAvail ? '📱' : '⛔';
+
+        return `<option value="${o.simNumberId}" ${disabledAttr}>${prefixIcon} ${phone} (${carrier}${rhythm}) - ${formatVND(price)} [${statusTag}]</option>`;
+      }).join('');
+
+    if (defaultSelectValue) {
+      select.value = defaultSelectValue;
+    }
+
+    onModalSimSelected();
+  } catch (err) {
+    select.innerHTML = `<option value="">❌ Lỗi tải SIM: ${err.message}</option>`;
+    if (previewCard) previewCard.style.display = 'none';
+  }
+}
+
+function updateSimPaginationControls(totalCount, currentCount, pageIndex, totalPages) {
+  const badge = document.getElementById('modalSimTotalBadge');
+  if (badge) badge.textContent = `${totalCount} SIM`;
+
+  const info = document.getElementById('modalSimPageInfo');
+  if (info) {
+    info.textContent = `Trang ${pageIndex} / ${totalPages} (${totalCount} SIM)`;
+  }
+
+  const prevBtn = document.getElementById('btnPrevSimPage');
+  if (prevBtn) prevBtn.disabled = pageIndex <= 1;
+
+  const nextBtn = document.getElementById('btnNextSimPage');
+  if (nextBtn) nextBtn.disabled = pageIndex >= totalPages;
+}
+
+function onModalSimSelected() {
+  const select = document.getElementById('modalSimSelect');
+  const previewCard = document.getElementById('modalSelectedSimPreviewCard');
+  if (!select || !previewCard) return;
+
+  const simId = select.value;
+  if (!simId) {
+    previewCard.style.display = 'none';
+    simOwnershipState.selectedSim = null;
+    return;
+  }
+
+  const found = simOwnershipState.items.find(i => (i.simNumberId || i.id) === simId);
+  simOwnershipState.selectedSim = found;
+
+  if (found) {
+    previewCard.style.display = 'block';
+    const phone = formatSimNumber(found.phoneNumber || found.simNumber?.phoneNumber);
+    const carrier = found.carrierName || found.carrierCode || 'Viễn thông';
+    const price = found.price || found.simNumber?.price || 0;
+    const simStatus = found.simStatus || found.simNumber?.simStatus || 'AVAILABLE';
+    const isAvail = simStatus === 'AVAILABLE' || simStatus === 1;
+
+    const phoneEl = document.getElementById('previewSimNumberText');
+    if (phoneEl) phoneEl.textContent = phone;
+
+    const carrierBadge = document.getElementById('previewSimCarrierBadge');
+    if (carrierBadge) {
+      carrierBadge.textContent = carrier;
+      carrierBadge.className = `carrier-pill ${getCarrierClass(carrier)}`;
+    }
+
+    const statusBadge = document.getElementById('previewSimStatusBadge');
+    if (statusBadge) {
+      statusBadge.textContent = isAvail ? 'AVAILABLE' : simStatus;
+      statusBadge.style.background = isAvail ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+      statusBadge.style.color = isAvail ? '#16a34a' : '#dc2626';
+    }
+
+    const priceText = document.getElementById('previewSimPriceText');
+    if (priceText) {
+      priceText.textContent = formatVND(price);
+    }
+  } else {
+    previewCard.style.display = 'none';
+  }
+}
+
+function applySimPriceToStartingPrice() {
+  if (!simOwnershipState.selectedSim) return;
+  const price = simOwnershipState.selectedSim.price || simOwnershipState.selectedSim.simNumber?.price;
+  if (price && price > 0) {
+    const startInput = document.getElementById('modalStartingPrice');
+    if (startInput) {
+      startInput.value = formatVND(price).replace('₫', '').trim();
+      onStartingPriceChanged();
+      onStartingPriceBlur();
+      showToast(`Đã áp dụng giá SIM ${formatVND(price)} vào Giá Khởi Điểm!`, 'success');
+    }
+  }
+}
+
 async function openCreateAuctionModal() {
   const modal = document.getElementById('createAuctionModal');
   modal.style.display = 'flex';
@@ -1655,42 +1891,8 @@ async function openCreateAuctionModal() {
   toggleAuctionTypeFields();
   await fetchCalculatedSellerDeposit(startingPriceVal);
 
-  // Load user's owned SIMs
-  const select = document.getElementById('modalSimSelect');
-  select.innerHTML = `<option value="">-- Đang tải SIM sở hữu... --</option>`;
-
-  if (!state.currentUser?.token) {
-    select.innerHTML = `<option value="">Vui lòng đăng nhập tài khoản Seller (seller_phuquy hoặc seller_daiphat)</option>`;
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_BASE_URL}/api/sims/my-ownerships`, {
-      headers: { 'Authorization': `Bearer ${state.currentUser.token}` }
-    });
-    const data = await res.json();
-    const ownerships = data.data || [];
-
-    const availableSims = ownerships.filter(o => 
-      o.simStatus === 'AVAILABLE' || 
-      o.ownershipStatus === 'ACTIVE' || 
-      o.simNumber?.simStatus === 'AVAILABLE'
-    );
-
-    if (availableSims.length === 0) {
-      select.innerHTML = `<option value="">Bạn không có SIM khả dụng nào (Đăng nhập seller_phuquy hoặc seller_daiphat)</option>`;
-      return;
-    }
-
-    select.innerHTML = availableSims.map(o => {
-      const phone = formatSimNumber(o.phoneNumber || o.simNumber?.phoneNumber);
-      const carrier = o.carrierName || o.carrierCode || '';
-      const price = o.price || o.simNumber?.price || 0;
-      return `<option value="${o.simNumberId}">${phone} (${carrier}) - Giá gốc: ${formatVND(price)}</option>`;
-    }).join('');
-  } catch (err) {
-    select.innerHTML = `<option value="">Lỗi tải SIM: ${err.message}</option>`;
-  }
+  // Load user's owned SIMs via new filter and pagination API
+  await loadUserOwnedSims(1);
 }
 
 function closeCreateAuctionModal() {

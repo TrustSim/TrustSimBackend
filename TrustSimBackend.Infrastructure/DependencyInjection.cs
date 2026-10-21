@@ -17,6 +17,7 @@ using TrustSimBackend.Infrastructure.Services.Ai;
 using TrustSimBackend.Infrastructure.Services.Financial;
 using TrustSimBackend.Infrastructure.BackgroundServices;
 using TrustSimBackend.Application.Features.Auction.Services;
+using TrustSimBackend.Infrastructure.Services.Hsm;
 
 namespace TrustSimBackend.Infrastructure;
 
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.Configure<SellerDepositSettings>(configuration.GetSection(SellerDepositSettings.SectionName));
         services.Configure<TradeDeadlineSettings>(configuration.GetSection(TradeDeadlineSettings.SectionName));
         services.Configure<SupabaseSettings>(configuration.GetSection("Supabase"));
+        services.Configure<SoftHsmSettings>(configuration.GetSection(SoftHsmSettings.SectionName));
         services.AddHttpClient();
 
         // ─── 1.1. Cấu hình Redis ConnectionMultiplexer Singleton ───────────────────
@@ -150,8 +152,40 @@ public static class DependencyInjection
         services.AddScoped<ISePayService, SePayService>();
         services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
 
-        // Financial Integrity & Cryptographic Ledger Engine
-        services.AddSingleton<IFinancialSigningService, EcdsaFinancialSigningService>();
+        // Financial Integrity & Cryptographic Ledger Engine (Universal SoftHSMv2 or Local ECDSA Fallback)
+        var softHsmConfig = configuration.GetSection(SoftHsmSettings.SectionName).Get<SoftHsmSettings>();
+        var enableRemoteHsm = softHsmConfig?.EnableRemoteHsm ?? true;
+
+        if (enableRemoteHsm)
+        {
+            services.AddSingleton<IFinancialSigningService, SoftHsmFinancialSigningService>();
+        }
+        else
+        {
+            services.AddSingleton<IFinancialSigningService, EcdsaFinancialSigningService>();
+        }
+
+        // Universal SoftHSMv2 Microservice Client
+        services.AddHttpClient<ISoftHsmClient, SoftHsmClient>((sp, client) =>
+        {
+            var settings = sp.GetRequiredService<IOptions<SoftHsmSettings>>().Value;
+            if (!string.IsNullOrWhiteSpace(settings.BaseUrl))
+            {
+                client.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
+            }
+            client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds > 0 ? settings.TimeoutSeconds : 60);
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
+            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+            KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(5),
+            EnableMultipleHttp2Connections = true
+        });
+
+        // Anti-Sleep KeepAlive Worker for Cloud PaaS
+        services.AddHostedService<HsmKeepAliveBackgroundService>();
         services.AddScoped<ILedgerService, DoubleEntryLedgerService>();
         services.AddScoped<ILedgerIntegrityVerifier, LedgerIntegrityVerifier>();
         services.AddScoped<IIdempotencyService, IdempotencyService>();
