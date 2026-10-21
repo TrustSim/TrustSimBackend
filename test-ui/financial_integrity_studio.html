@@ -903,6 +903,81 @@
             font-size: 0.85rem;
             margin-top: 14px;
         }
+
+        /* Dynamic Table Filter & Pagination Toolbars */
+        .filter-toolbar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            margin-bottom: 14px;
+        }
+
+        .filter-toolbar input.form-control,
+        .filter-toolbar select.form-control {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            height: 36px;
+        }
+
+        .pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            margin-top: 14px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .pagination-bar .page-info {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .pagination-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notif-filter-pills {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .notif-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .notif-pill:hover {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .notif-pill.active {
+            background: var(--primary-gradient);
+            border-color: var(--primary);
+            color: #fff;
+        }
     </style>
 </head>
 
@@ -1325,7 +1400,20 @@
                         Sổ cái Chứng từ Kế toán Ghi kép (10 Nghiệp vụ Sàn)
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <select id="journalTypeFilter" class="form-control" style="width: auto; padding: 4px 10px; font-size: 0.8rem;" onchange="loadLedgerJournals()">
+                        <span id="journalsTotalBadge" class="badge badge-purple">0 Chứng từ</span>
+                        <button class="btn btn-outline btn-sm" onclick="loadLedgerJournals(1)">
+                            <i class="fa-solid fa-rotate"></i> Làm mới
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bộ lọc đa tiêu chí LedgerJournalQueryFilter -->
+                <div class="filter-toolbar">
+                    <div style="flex: 1.5; min-width: 220px;">
+                        <input type="text" id="journalSearchKeyword" class="form-control" placeholder="🔍 Tìm mã chứng từ (JRN-...), mô tả..." oninput="debounceFilterJournals()">
+                    </div>
+                    <div style="flex: 1.2; min-width: 180px;">
+                        <select id="journalTypeFilter" class="form-control" onchange="loadLedgerJournals(1)">
                             <option value="">-- Tất cả 10 nghiệp vụ --</option>
                             <option value="TOP_UP">NV 1: Nạp tiền (TOP_UP)</option>
                             <option value="WITHDRAW_LOCK">NV 2: Khóa rút Pha 1 (WITHDRAW_LOCK)</option>
@@ -1338,9 +1426,15 @@
                             <option value="ESCROW_RELEASE">NV 9: Giải ngân Escrow bán SIM (ESCROW_RELEASE)</option>
                             <option value="ESCROW_REFUND">NV 10: Hoàn Escrow về Buyer (ESCROW_REFUND)</option>
                         </select>
-                        <button class="btn btn-outline btn-sm" onclick="loadLedgerJournals()">
-                            <i class="fa-solid fa-rotate"></i> Làm mới
-                        </button>
+                    </div>
+                    <div style="flex: 1; min-width: 170px;">
+                        <select id="journalSortSelect" class="form-control" onchange="loadLedgerJournals(1)" title="Tiêu chí sắp xếp LedgerJournalSortBy">
+                            <option value="CreatedDate_Desc" selected>Ngày ghi sổ (Mới nhất)</option>
+                            <option value="CreatedDate_Asc">Ngày ghi sổ (Cũ nhất)</option>
+                            <option value="TotalAmount_Desc">Tổng tiền (Lớn nhất)</option>
+                            <option value="TotalAmount_Asc">Tổng tiền (Nhỏ nhất)</option>
+                            <option value="JournalCode_Asc">Mã chứng từ (A-Z)</option>
+                        </select>
                     </div>
                 </div>
 
@@ -1359,11 +1453,30 @@
                         </thead>
                         <tbody id="journalsTableBody">
                             <tr>
-                                <td colspan="7" style="text-align: center; color: var(--text-dim);">Đang tải dữ liệu
-                                    chứng từ...</td>
+                                <td colspan="7" style="text-align: center; color: var(--text-dim);">Đang tải dữ liệu chứng từ...</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Phân trang Sổ Cái -->
+                <div class="pagination-bar" id="journalsPaginationBar">
+                    <div class="page-info" id="journalsPageInfo">Trang 1 / 1 (0 Chứng từ)</div>
+                    <div class="pagination-actions">
+                        <button type="button" id="btnPrevJournalPage" class="btn btn-outline btn-sm" onclick="changeJournalPage(-1)" disabled>
+                            <i class="fa-solid fa-chevron-left"></i> Trước
+                        </button>
+                        <button type="button" id="btnNextJournalPage" class="btn btn-outline btn-sm" onclick="changeJournalPage(1)" disabled>
+                            Sau <i class="fa-solid fa-chevron-right"></i>
+                        </button>
+                        <span style="margin-left: 8px;">Hiển thị:</span>
+                        <select id="journalPageSizeSelect" class="form-control" style="width: auto; padding: 4px 8px; font-size: 0.78rem;" onchange="loadLedgerJournals(1)">
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="30" selected>30</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
