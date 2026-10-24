@@ -74,7 +74,7 @@ public class SimOwnershipRepository : ISimOwnershipRepository
 
     public async Task<(IReadOnlyList<SimOwnership> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
-        BaseQueryFilter<SimOwnershipSortBy> filter,
+        SimOwnershipQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.SimOwnerships
@@ -86,6 +86,16 @@ public class SimOwnershipRepository : ISimOwnershipRepository
             .Include(o => o.SimVerifications)
             .AsNoTracking()
             .Where(o => o.UserAccountId == userId);
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(o => o.OwnershipStatus == filter.Status.Value);
+        }
+
+        if (filter.SimId.HasValue)
+        {
+            query = query.Where(o => o.SimNumberId == filter.SimId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {

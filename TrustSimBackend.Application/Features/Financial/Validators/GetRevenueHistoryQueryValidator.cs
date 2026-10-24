@@ -16,5 +16,11 @@ public class GetRevenueHistoryQueryValidator : AbstractValidator<GetRevenueHisto
         RuleFor(x => x.Filter)
             .Must(f => !f.FromDate.HasValue || !f.ToDate.HasValue || f.FromDate <= f.ToDate)
             .WithMessage("Ngày bắt đầu (fromDate) phải nhỏ hơn hoặc bằng ngày kết thúc (toDate).");
+
+        RuleFor(x => x.Filter.TransactionType)
+            .Must(t => !t.HasValue || (t.Value == Domain.Enums.LedgerTransactionType.ESCROW_RELEASE ||
+                                       t.Value == Domain.Enums.LedgerTransactionType.AUCTION_DEPOSIT_FORFEITED ||
+                                       t.Value == Domain.Enums.LedgerTransactionType.ADMIN_PROFIT_WITHDRAW))
+            .WithMessage("Loại giao dịch không hợp lệ cho lịch sử doanh thu sàn. Chỉ chấp nhận ESCROW_RELEASE, AUCTION_DEPOSIT_FORFEITED hoặc ADMIN_PROFIT_WITHDRAW.");
     }
 }

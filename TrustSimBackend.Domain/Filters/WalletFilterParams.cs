@@ -37,6 +37,11 @@ public class AdminWalletTransactionsFilter : WalletTransactionQueryFilter
     /// Lọc theo người dùng cụ thể.
     /// </summary>
     public Guid? UserId { get; set; }
+
+    /// <summary>
+    /// Lọc theo ví cụ thể.
+    /// </summary>
+    public Guid? WalletId { get; set; }
 }
 
 /// <summary>
@@ -45,9 +50,24 @@ public class AdminWalletTransactionsFilter : WalletTransactionQueryFilter
 public class UnifiedStatementQueryFilter : BaseQueryFilter<WalletTransactionSortBy>
 {
     /// <summary>
-    /// Nguồn biến động: WALLET, AUCTION_DEPOSIT, ESCROW, COMPENSATION hoặc null (tất cả).
+    /// Nguồn biến động: WALLET, AUCTION, AUCTION_DEPOSIT, ESCROW, COMPENSATION hoặc null (tất cả).
     /// </summary>
     public string? SourceType { get; set; }
+
+    /// <summary>
+    /// Hướng biến động dòng tiền: CREDIT (+), DEBIT (-), LOCK (tạm khóa).
+    /// </summary>
+    public string? Direction { get; set; }
+
+    /// <summary>
+    /// Trạng thái giao dịch (PENDING, SUCCESS, FAILED...).
+    /// </summary>
+    public TransactionStatus? Status { get; set; }
+
+    /// <summary>
+    /// Phân loại nghiệp vụ chi tiết (TOP_UP, WITHDRAW, AUCTION_DEPOSIT_LOCK, ESCROW_HOLD...).
+    /// </summary>
+    public string? TransactionType { get; set; }
 
     /// <summary>
     /// Số tiền biến động tối thiểu (VNĐ).
@@ -65,6 +85,16 @@ public class UnifiedStatementQueryFilter : BaseQueryFilter<WalletTransactionSort
 /// </summary>
 public class AdminWithdrawalQueryFilter : BaseQueryFilter<WalletTransactionSortBy>
 {
+    /// <summary>
+    /// Lọc theo người dùng cụ thể.
+    /// </summary>
+    public Guid? UserId { get; set; }
+
+    /// <summary>
+    /// Lọc theo ví cụ thể.
+    /// </summary>
+    public Guid? WalletId { get; set; }
+
     /// <summary>
     /// Trạng thái yêu cầu rút tiền (PENDING, SUCCESS, FAILED...).
     /// </summary>
@@ -111,6 +141,11 @@ public class LedgerJournalQueryFilter : BaseQueryFilter<LedgerJournalSortBy>
     /// Loại nghiệp vụ kế toán (Nạp, Rút, Escrow, Phạt cọc, Doanh thu sàn...).
     /// </summary>
     public LedgerTransactionType? TransactionType { get; set; }
+
+    /// <summary>
+    /// Danh sách các loại nghiệp vụ kế toán cần lọc kết hợp.
+    /// </summary>
+    public IEnumerable<LedgerTransactionType>? TransactionTypes { get; set; }
 
     /// <summary>
     /// Giá trị chứng từ tối thiểu (VNĐ).

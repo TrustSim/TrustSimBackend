@@ -135,6 +135,11 @@ public class WalletTransactionRepository : IWalletTransactionRepository
             query = query.Where(t => t.Wallet != null && t.Wallet.UserAccountId == filter.UserId.Value);
         }
 
+        if (filter.WalletId.HasValue)
+        {
+            query = query.Where(t => t.WalletId == filter.WalletId.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
             var clean = filter.Keyword.Trim();
@@ -178,6 +183,16 @@ public class WalletTransactionRepository : IWalletTransactionRepository
             .Include(t => t.Wallet)
                 .ThenInclude(w => w!.UserAccount)
             .Where(t => t.WalletTransactionType == WalletTransactionType.WITHDRAW);
+
+        if (filter.UserId.HasValue)
+        {
+            query = query.Where(t => t.Wallet != null && t.Wallet.UserAccountId == filter.UserId.Value);
+        }
+
+        if (filter.WalletId.HasValue)
+        {
+            query = query.Where(t => t.WalletId == filter.WalletId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {

@@ -19,12 +19,9 @@ public class AdminExportKycQueryHandler : IRequestHandler<AdminExportKycQuery, b
 
     public async Task<byte[]> Handle(AdminExportKycQuery request, CancellationToken cancellationToken)
     {
-        var filter = new AdminKycQueryFilter
-        {
-            Status = request.Status,
-            PageIndex = 1,
-            PageSize = 100000
-        };
+        var filter = request.Filter ?? new AdminKycQueryFilter();
+        filter.PageIndex = 1;
+        filter.PageSize = 100000;
 
         var (items, _) = await _unitOfWork.IdentityVerifications.GetPagedAsync(
             filter,

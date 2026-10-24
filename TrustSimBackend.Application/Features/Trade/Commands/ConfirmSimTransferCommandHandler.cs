@@ -296,6 +296,7 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             PlatformFeeAmount: platformFeeAmount,
             NetSellerPayout: netSellerPayout,
             CompletedAt: now,
+            LiquidationDocumentUrl: trade.TransferContract?.LiquidationDocumentUrl,
             Message: $"Chúc mừng! Đã hoàn tất chuyển quyền sở hữu SIM và giải ngân thành công {netSellerPayout:N0} VNĐ về ví người bán."
         );
     }

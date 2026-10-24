@@ -15,7 +15,7 @@ public interface IIdentityVerificationRepository
     Task<IReadOnlyList<IdentityVerification>> GetHistoryByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedHistoryByUserIdAsync(
         Guid userId,
-        BaseQueryFilter<KycSortBy> filter,
+        UserKycHistoryQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedAsync(
         AdminKycQueryFilter filter,

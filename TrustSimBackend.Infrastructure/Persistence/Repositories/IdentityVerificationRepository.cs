@@ -56,7 +56,7 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
 
     public async Task<(IReadOnlyList<IdentityVerification> Items, int TotalCount)> GetPagedHistoryByUserIdAsync(
         Guid userId,
-        BaseQueryFilter<KycSortBy> filter,
+        UserKycHistoryQueryFilter filter,
         CancellationToken cancellationToken = default)
     {
         var query = _context.IdentityVerifications
@@ -64,6 +64,11 @@ public class IdentityVerificationRepository : IIdentityVerificationRepository
             .Include(v => v.VerifiedByUser)
             .AsNoTracking()
             .Where(v => v.UserProfile != null && v.UserProfile.UserAccountId == userId);
+
+        if (filter.Status.HasValue)
+        {
+            query = query.Where(v => v.VerificationStatus == filter.Status.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {

@@ -1,5 +1,6 @@
 using TrustSimBackend.Domain.Entities.System;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Domain.Repositories;
 
@@ -9,6 +10,7 @@ namespace TrustSimBackend.Domain.Repositories;
 public interface IDocumentRepository
 {
     Task<IReadOnlyList<Document>> GetAllAsync(bool activeOnly = true, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Document> Items, int TotalCount)> GetPagedAsync(DocumentQueryFilter filter, CancellationToken cancellationToken = default);
     Task<Document?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Document?> GetByIdWithChunksAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Document>> GetByStatusAsync(DocumentStatus status, CancellationToken cancellationToken = default);

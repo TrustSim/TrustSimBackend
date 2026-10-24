@@ -73,13 +73,13 @@ public class GlobalExceptionMiddleware
                 var details = string.Join(" | ", vEx.Errors.SelectMany(x => x.Value.Select(err => $"{x.Key}: {err}")));
                 _logger.LogWarning("[GlobalExceptionMiddleware] Lỗi ValidationException chi tiết: {Errors}", details);
             }
-            else if (ex is BadRequestException || ex is NotFoundException || ex is UnauthorizedException)
+            else if (_exceptionHandlers.ContainsKey(ex.GetType()) || _exceptionHandlers.Keys.Any(k => k.IsAssignableFrom(ex.GetType())))
             {
-                _logger.LogWarning("[GlobalExceptionMiddleware] Lỗi nghiệp vụ ({Type}): {Message}", ex.GetType().Name, ex.Message);
+                _logger.LogWarning("[GlobalExceptionMiddleware] Lỗi quy tắc nghiệp vụ ({Type}): {Message}", ex.GetType().Name, ex.Message);
             }
             else
             {
-                _logger.LogError(ex, "[GlobalExceptionMiddleware] Lỗi chưa được xử lý: {Message}", ex.Message);
+                _logger.LogError(ex, "[GlobalExceptionMiddleware] Lỗi hệ thống chưa được xử lý: {Message}", ex.Message);
             }
 
             await HandleExceptionAsync(context, ex);

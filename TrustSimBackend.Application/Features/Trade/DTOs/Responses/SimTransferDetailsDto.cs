@@ -24,5 +24,6 @@ public record SimTransferDetailsDto(
     decimal PlatformFeeAmount,
     decimal NetSellerPayout,
     DateTime? CompletedAt,
+    string? LiquidationDocumentUrl = null,
     string? Message = null
 );

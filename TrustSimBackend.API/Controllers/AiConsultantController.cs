@@ -9,6 +9,7 @@ using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.Ai;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.API.Controllers;
@@ -171,26 +172,26 @@ public class AiConsultantController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy danh sách các phiên tư vấn của người dùng hiện tại
+    /// Lấy danh sách các phiên tư vấn của người dùng hiện tại (tìm kiếm, sắp xếp, phân trang)
     /// </summary>
     [HttpGet("sessions")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ConsultationSessionDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetSessions()
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<ConsultationSessionDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSessions([FromQuery] ConsultationSessionQueryFilter filter)
     {
-        var result = await Mediator.Send(new GetConsultationSessionsQuery(CurrentUserId));
-        return Ok(ApiResponse<IReadOnlyList<ConsultationSessionDto>>.SuccessResult(result, "Lấy danh sách phiên tư vấn thành công."));
+        var result = await Mediator.Send(new GetConsultationSessionsQuery(CurrentUserId, filter));
+        return HandlePagedResult(result, "Lấy danh sách phiên tư vấn thành công.");
     }
 
     /// <summary>
-    /// Lấy toàn bộ tin nhắn trong một phiên tư vấn
+    /// Lấy danh sách tin nhắn trong một phiên tư vấn (lọc theo người gửi, phân trang)
     /// </summary>
     [HttpGet("sessions/{sessionId:guid}/messages")]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<ConsultationMessageDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<ConsultationMessageDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetMessages([FromRoute] Guid sessionId)
+    public async Task<IActionResult> GetMessages([FromRoute] Guid sessionId, [FromQuery] ConsultationMessageQueryFilter filter)
     {
-        var result = await Mediator.Send(new GetConsultationMessagesQuery(sessionId));
-        return Ok(ApiResponse<IReadOnlyList<ConsultationMessageDto>>.SuccessResult(result, "Lấy danh sách tin nhắn thành công."));
+        var result = await Mediator.Send(new GetConsultationMessagesQuery(sessionId, filter));
+        return HandlePagedResult(result, "Lấy danh sách tin nhắn thành công.");
     }
 }

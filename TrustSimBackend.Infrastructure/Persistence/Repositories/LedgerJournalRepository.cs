@@ -69,6 +69,11 @@ public class LedgerJournalRepository : ILedgerJournalRepository
             query = query.Where(j => j.TransactionType == filter.TransactionType.Value);
         }
 
+        if (filter.TransactionTypes != null && filter.TransactionTypes.Any())
+        {
+            query = query.Where(j => filter.TransactionTypes.Contains(j.TransactionType));
+        }
+
         if (filter.MinAmount.HasValue)
         {
             query = query.Where(j => j.Entries.Any(e => e.Amount >= filter.MinAmount.Value));

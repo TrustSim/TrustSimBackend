@@ -1,11 +1,12 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Ai.Queries;
 
-public class GetConsultationSessionsQueryHandler : IRequestHandler<GetConsultationSessionsQuery, IReadOnlyList<ConsultationSessionDto>>
+public class GetConsultationSessionsQueryHandler : IRequestHandler<GetConsultationSessionsQuery, PagedResult<ConsultationSessionDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -14,11 +15,14 @@ public class GetConsultationSessionsQueryHandler : IRequestHandler<GetConsultati
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<ConsultationSessionDto>> Handle(GetConsultationSessionsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<ConsultationSessionDto>> Handle(GetConsultationSessionsQuery request, CancellationToken cancellationToken)
     {
-        var sessions = await _unitOfWork.AiConsultationSessions.GetByUserIdAsync(request.UserId, cancellationToken);
+        var (sessions, totalCount) = await _unitOfWork.AiConsultationSessions.GetPagedSessionsByUserIdAsync(
+            request.UserId,
+            request.Filter,
+            cancellationToken);
 
-        return sessions.Select(s => new ConsultationSessionDto
+        var dtos = sessions.Select(s => new ConsultationSessionDto
         {
             Id = s.Id,
             SessionTitle = s.SessionTitle,
@@ -30,5 +34,7 @@ public class GetConsultationSessionsQueryHandler : IRequestHandler<GetConsultati
             CreatedDate = s.CreatedDate,
             MessageCount = s.Messages.Count
         }).ToList();
+
+        return new PagedResult<ConsultationSessionDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

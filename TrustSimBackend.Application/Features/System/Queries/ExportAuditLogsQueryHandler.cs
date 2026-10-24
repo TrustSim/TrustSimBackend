@@ -20,15 +20,9 @@ public class ExportAuditLogsQueryHandler : IRequestHandler<ExportAuditLogsQuery,
 
     public async Task<byte[]> Handle(ExportAuditLogsQuery request, CancellationToken cancellationToken)
     {
-        var filter = new AuditLogQueryFilter
-        {
-            EntityName = request.EntityName,
-            ActionType = request.ActionType,
-            FromDate = request.FromDate,
-            ToDate = request.ToDate,
-            PageIndex = 1,
-            PageSize = 100000
-        };
+        var filter = request.Filter ?? new AuditLogQueryFilter();
+        filter.PageIndex = 1;
+        filter.PageSize = 100000;
 
         var (items, _) = await _unitOfWork.AuditLogs.GetPagedAsync(
             filter,

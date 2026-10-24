@@ -19,6 +19,17 @@ public class AdminKycQueryFilter : BaseQueryFilter<KycSortBy>
 }
 
 /// <summary>
+/// Bộ lọc tra cứu lịch sử nộp hồ sơ eKYC của người dùng hiện tại (kyc/history).
+/// </summary>
+public class UserKycHistoryQueryFilter : BaseQueryFilter<KycSortBy>
+{
+    /// <summary>
+    /// Trạng thái xác minh (PENDING, APPROVED, REJECTED...).
+    /// </summary>
+    public VerificationStatus? Status { get; set; }
+}
+
+/// <summary>
 /// Bộ lọc truy vấn danh sách tài khoản thành viên hệ thống dành cho Quản trị viên.
 /// </summary>
 public class AdminUsersQueryFilter : BaseQueryFilter<UserAccountSortBy>

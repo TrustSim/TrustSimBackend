@@ -6,6 +6,7 @@ using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -16,14 +17,14 @@ public class DocumentsController : BaseApiController
     // ─────────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Lấy danh sách tài liệu / quy chế sàn / chính sách (Công khai)
+    /// Lấy danh sách tài liệu / quy chế sàn / chính sách (Công khai, hỗ trợ lọc, tìm kiếm, phân trang)
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<DocumentDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll([FromQuery] bool activeOnly = true)
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<DocumentDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll([FromQuery] DocumentQueryFilter filter)
     {
-        var result = await Mediator.Send(new GetDocumentsQuery(activeOnly));
-        return Ok(ApiResponse<IReadOnlyList<DocumentDto>>.SuccessResult(result, "Lấy danh sách văn bản thành công."));
+        var result = await Mediator.Send(new GetDocumentsQuery(filter));
+        return HandlePagedResult(result, "Lấy danh sách văn bản thành công.");
     }
 
     /// <summary>
@@ -84,9 +85,9 @@ public class DocumentsController : BaseApiController
     [HttpGet("export")]
     [Authorize(Roles = "ADMIN,Admin")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Export([FromQuery] bool? activeOnly)
+    public async Task<IActionResult> Export([FromQuery] DocumentQueryFilter filter)
     {
-        var bytes = await Mediator.Send(new ExportDocumentsQuery(activeOnly));
+        var bytes = await Mediator.Send(new ExportDocumentsQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Documents_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 

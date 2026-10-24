@@ -20,12 +20,9 @@ public class AdminExportDisputesQueryHandler : IRequestHandler<AdminExportDisput
 
     public async Task<byte[]> Handle(AdminExportDisputesQuery request, CancellationToken cancellationToken)
     {
-        var filter = new DisputeQueryFilter
-        {
-            Status = request.Status,
-            PageIndex = 1,
-            PageSize = 100000
-        };
+        var filter = request.Filter ?? new DisputeQueryFilter();
+        filter.PageIndex = 1;
+        filter.PageSize = 100000;
 
         var (items, _) = await _unitOfWork.DisputeTickets.GetPagedAsync(
             null,

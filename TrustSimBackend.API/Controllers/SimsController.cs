@@ -53,12 +53,12 @@ public class SimsController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy danh sách các số SIM đang thuộc quyền sở hữu của người dùng hiện tại (phân trang, sắp xếp, tìm kiếm).
+    /// Lấy danh sách các số SIM đang thuộc quyền sở hữu của người dùng hiện tại (lọc theo trạng thái, simId, phân trang, sắp xếp, tìm kiếm).
     /// </summary>
     [HttpGet("my-ownerships")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<SimOwnershipDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyOwnerships([FromQuery] BaseQueryFilter<SimOwnershipSortBy> filter, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetMyOwnerships([FromQuery] SimOwnershipQueryFilter filter, CancellationToken cancellationToken)
     {
         var query = new GetMySimOwnershipsQuery(CurrentUserId, filter);
         var result = await Mediator.Send(query, cancellationToken);
@@ -205,14 +205,9 @@ public class SimsController : BaseApiController
     /// </summary>
     [HttpGet("export")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Export(
-        [FromQuery] string? keyword,
-        [FromQuery] Guid? carrierId,
-        [FromQuery] Guid? categoryId,
-        [FromQuery] Guid? prefixId,
-        [FromQuery] SimStatus? status)
+    public async Task<IActionResult> Export([FromQuery] AdminSimsQueryFilter filter)
     {
-        var query = new ExportSimsQuery(keyword, carrierId, categoryId, prefixId, status);
+        var query = new ExportSimsQuery(filter);
         var bytes = await Mediator.Send(query);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"SimNumbers_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }

@@ -17,7 +17,8 @@ public static class SimSortMappings
         {
             [SimSortBy.CreatedDate] = s => s.CreatedDate,
             [SimSortBy.Price] = s => s.Price,
-            [SimSortBy.PhoneNumber] = s => s.PhoneNumber
+            [SimSortBy.PhoneNumber] = s => s.PhoneNumber,
+            [SimSortBy.Status] = s => s.SimStatus
         };
 
     /// <summary>
@@ -40,7 +41,7 @@ public static class SimSortMappings
         {
             [SimOwnershipSortBy.CreatedDate] = o => o.CreatedDate,
             [SimOwnershipSortBy.AssignedDate] = o => o.CreatedDate,
-            [SimOwnershipSortBy.Status] = o => o.OwnershipStatus
+            [SimOwnershipSortBy.Status] = o => o.SimNumber!.SimStatus
         };
 
     /// <summary>

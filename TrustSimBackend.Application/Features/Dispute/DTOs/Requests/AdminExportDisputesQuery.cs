@@ -1,6 +1,6 @@
 using MediatR;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Dispute.DTOs.Requests;
 
-public record AdminExportDisputesQuery(DisputeStatus? Status = null) : IRequest<byte[]>;
+public record AdminExportDisputesQuery(DisputeQueryFilter? Filter = null) : IRequest<byte[]>;

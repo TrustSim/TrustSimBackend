@@ -1,11 +1,12 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Ai.Queries;
 
-public class GetSimValuationHistoryQueryHandler : IRequestHandler<GetSimValuationHistoryQuery, IReadOnlyList<SimValuationResponseDto>>
+public class GetSimValuationHistoryQueryHandler : IRequestHandler<GetSimValuationHistoryQuery, PagedResult<SimValuationResponseDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -14,11 +15,14 @@ public class GetSimValuationHistoryQueryHandler : IRequestHandler<GetSimValuatio
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<SimValuationResponseDto>> Handle(GetSimValuationHistoryQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<SimValuationResponseDto>> Handle(GetSimValuationHistoryQuery request, CancellationToken cancellationToken)
     {
-        var history = await _unitOfWork.SimValuations.GetHistoryBySimNumberIdAsync(request.SimNumberId, cancellationToken);
+        var (history, totalCount) = await _unitOfWork.SimValuations.GetPagedHistoryBySimNumberIdAsync(
+            request.SimNumberId,
+            request.Filter,
+            cancellationToken);
 
-        return history.Select(v => new SimValuationResponseDto
+        var dtos = history.Select(v => new SimValuationResponseDto
         {
             ValuationId = v.Id,
             SimNumberId = v.SimNumberId,
@@ -35,5 +39,7 @@ public class GetSimValuationHistoryQueryHandler : IRequestHandler<GetSimValuatio
             AppliedToSim = v.AppliedToSim,
             CreatedDate = v.CreatedDate
         }).ToList();
+
+        return new PagedResult<SimValuationResponseDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

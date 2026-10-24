@@ -37,15 +37,15 @@ public class AuctionsController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy danh sách các giao dịch / phiên đấu giá đang cần người dùng xử lý quyết định hoặc thanh toán (Pending Settlements)
+    /// Lấy danh sách các giao dịch / phiên đấu giá đang cần người dùng xử lý quyết định hoặc thanh toán (Pending Settlements, hỗ trợ lọc, sắp xếp, phân trang)
     /// </summary>
     [HttpGet("my-pending-settlements")]
     [Authorize]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<PendingSettlementDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyPendingSettlements()
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<PendingSettlementDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyPendingSettlements([FromQuery] PendingSettlementQueryFilter filter)
     {
-        var result = await Mediator.Send(new GetMyPendingSettlementsQuery(CurrentUserId));
-        return Ok(ApiResponse<IReadOnlyList<PendingSettlementDto>>.SuccessResult(result, "Lấy danh sách phiên chờ xử lý thành công."));
+        var result = await Mediator.Send(new GetMyPendingSettlementsQuery(CurrentUserId, filter));
+        return HandlePagedResult(result, "Lấy danh sách phiên chờ xử lý thành công.");
     }
 
     /// <summary>
@@ -61,14 +61,14 @@ public class AuctionsController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy lịch sử các lượt trả giá (Bids) của một phiên đấu giá
+    /// Lấy lịch sử các lượt trả giá (Bids) của một phiên đấu giá (lọc trạng thái, khoảng giá, ngày đặt, phân trang)
     /// </summary>
     [HttpGet("{id:guid}/bids")]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<BidDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBids([FromRoute] Guid id, [FromQuery] int top = 50)
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<BidDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBids([FromRoute] Guid id, [FromQuery] AuctionBidQueryFilter filter)
     {
-        var result = await Mediator.Send(new GetAuctionBidsQuery(id, top));
-        return Ok(ApiResponse<IReadOnlyList<BidDto>>.SuccessResult(result, "Lấy lịch sử trả giá thành công."));
+        var result = await Mediator.Send(new GetAuctionBidsQuery(id, filter));
+        return HandlePagedResult(result, "Lấy lịch sử trả giá thành công.");
     }
 
     /// <summary>
@@ -221,12 +221,9 @@ public class AuctionsController : BaseApiController
     [HttpGet("export")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminExportAuctions(
-        [FromQuery] string? keyword,
-        [FromQuery] AuctionStatus? status,
-        [FromQuery] AuctionType? type)
+    public async Task<IActionResult> AdminExportAuctions([FromQuery] AuctionQueryFilter filter)
     {
-        var bytes = await Mediator.Send(new AdminExportAuctionsQuery(keyword, status, type));
+        var bytes = await Mediator.Send(new AdminExportAuctionsQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Auctions_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 }
