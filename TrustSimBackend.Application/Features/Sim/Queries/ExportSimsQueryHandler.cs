@@ -20,18 +20,11 @@ public class ExportSimsQueryHandler : IRequestHandler<ExportSimsQuery, byte[]>
 
     public async Task<byte[]> Handle(ExportSimsQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _unitOfWork.SimNumbers.GetPagedAsync(
-            new SimPublicQueryFilter
-            {
-                Keyword = request.Keyword,
-                CarrierId = request.CarrierId,
-                CategoryId = request.CategoryId,
-                PrefixId = request.PrefixId,
-                Status = request.Status,
-                PageIndex = 1,
-                PageSize = 100000
-            },
-            cancellationToken);
+        var filter = request.Filter ?? new AdminSimsQueryFilter();
+        filter.PageIndex = 1;
+        filter.PageSize = 100000;
+
+        var (items, _) = await _unitOfWork.Sims.GetAdminSimsPagedAsync(filter, cancellationToken);
 
         var exportRows = items.Select(s => new SimExcelExportRow
         {

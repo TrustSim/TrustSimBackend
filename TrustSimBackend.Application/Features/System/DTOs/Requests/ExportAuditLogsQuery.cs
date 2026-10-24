@@ -1,11 +1,6 @@
 using MediatR;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.System.DTOs.Requests;
 
-public record ExportAuditLogsQuery(
-    string? EntityName = null,
-    ActionType? ActionType = null,
-    DateTime? FromDate = null,
-    DateTime? ToDate = null
-) : IRequest<byte[]>;
+public record ExportAuditLogsQuery(AuditLogQueryFilter? Filter = null) : IRequest<byte[]>;

@@ -20,16 +20,11 @@ public class AdminExportAuctionsQueryHandler : IRequestHandler<AdminExportAuctio
 
     public async Task<byte[]> Handle(AdminExportAuctionsQuery request, CancellationToken cancellationToken)
     {
-        var (items, _) = await _unitOfWork.Auctions.GetPagedAsync(
-            new AuctionQueryFilter
-            {
-                Keyword = request.Keyword,
-                Status = request.Status,
-                Type = request.Type,
-                PageIndex = 1,
-                PageSize = 100000
-            },
-            cancellationToken);
+        var filter = request.Filter ?? new AuctionQueryFilter();
+        filter.PageIndex = 1;
+        filter.PageSize = 100000;
+
+        var (items, _) = await _unitOfWork.Auctions.GetPagedAsync(filter, cancellationToken);
 
         var rows = items.Select(a => new AuctionExcelExportRow
         {

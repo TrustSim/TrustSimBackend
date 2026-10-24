@@ -1,6 +1,11 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 
-public record GetConsultationSessionsQuery(Guid UserId) : IRequest<IReadOnlyList<ConsultationSessionDto>>;
+public record GetConsultationSessionsQuery(
+    Guid UserId,
+    ConsultationSessionQueryFilter Filter
+) : IRequest<PagedResult<ConsultationSessionDto>>;

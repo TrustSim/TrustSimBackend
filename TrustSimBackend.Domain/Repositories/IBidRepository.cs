@@ -8,6 +8,7 @@ namespace TrustSimBackend.Domain.Repositories;
 public interface IBidRepository
 {
     Task<IReadOnlyList<Bid>> GetBidsByAuctionIdAsync(Guid auctionId, int top = 50, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Bid> Items, int TotalCount)> GetPagedBidsByAuctionIdAsync(Guid auctionId, Filters.AuctionBidQueryFilter filter, CancellationToken cancellationToken = default);
     Task<Bid?> GetHighestBidAsync(Guid auctionId, CancellationToken cancellationToken = default);
     Task AddAsync(Bid bid, CancellationToken cancellationToken = default);
     void Update(Bid bid);

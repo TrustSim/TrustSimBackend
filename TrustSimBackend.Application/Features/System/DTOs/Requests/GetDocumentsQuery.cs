@@ -1,6 +1,8 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.System.DTOs.Requests;
 
-public record GetDocumentsQuery(bool ActiveOnly = true) : IRequest<IReadOnlyList<DocumentDto>>;
+public record GetDocumentsQuery(DocumentQueryFilter Filter) : IRequest<PagedResult<DocumentDto>>;

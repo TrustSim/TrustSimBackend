@@ -64,14 +64,14 @@ public class DisputesController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Xuất báo cáo khiếu nại và tranh chấp ra file Excel (.xlsx)
+    /// [Admin] Xuất báo cáo khiếu nại và tranh chấp ra file Excel (.xlsx) theo bộ lọc
     /// </summary>
     [HttpGet("export")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminExportDisputes([FromQuery] DisputeStatus? status)
+    public async Task<IActionResult> AdminExportDisputes([FromQuery] DisputeQueryFilter filter)
     {
-        var bytes = await Mediator.Send(new AdminExportDisputesQuery(status));
+        var bytes = await Mediator.Send(new AdminExportDisputesQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Disputes_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 }

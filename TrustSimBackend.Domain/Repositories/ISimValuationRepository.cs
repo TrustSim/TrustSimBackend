@@ -10,6 +10,7 @@ public interface ISimValuationRepository
     Task<SimValuation?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<SimValuation?> GetLatestBySimNumberIdAsync(Guid simNumberId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SimValuation>> GetHistoryBySimNumberIdAsync(Guid simNumberId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<SimValuation> Items, int TotalCount)> GetPagedHistoryBySimNumberIdAsync(Guid simNumberId, Filters.SimValuationQueryFilter filter, CancellationToken cancellationToken = default);
     Task AddAsync(SimValuation valuation, CancellationToken cancellationToken = default);
     void Update(SimValuation valuation);
 }

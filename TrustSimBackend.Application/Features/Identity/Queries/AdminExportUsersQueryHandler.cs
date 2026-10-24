@@ -20,14 +20,9 @@ public class AdminExportUsersQueryHandler : IRequestHandler<AdminExportUsersQuer
 
     public async Task<byte[]> Handle(AdminExportUsersQuery request, CancellationToken cancellationToken)
     {
-        var filter = new AdminUsersQueryFilter
-        {
-            Keyword = request.Keyword,
-            Role = request.Role,
-            IsActive = request.IsActive,
-            PageIndex = 1,
-            PageSize = 100000
-        };
+        var filter = request.Filter ?? new AdminUsersQueryFilter();
+        filter.PageIndex = 1;
+        filter.PageSize = 100000;
 
         var (users, _) = await _unitOfWork.Users.GetPagedAsync(
             filter,

@@ -1,11 +1,12 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Auction.Queries;
 
-public class GetAuctionBidsQueryHandler : IRequestHandler<GetAuctionBidsQuery, IReadOnlyList<BidDto>>
+public class GetAuctionBidsQueryHandler : IRequestHandler<GetAuctionBidsQuery, PagedResult<BidDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -14,10 +15,14 @@ public class GetAuctionBidsQueryHandler : IRequestHandler<GetAuctionBidsQuery, I
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<BidDto>> Handle(GetAuctionBidsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<BidDto>> Handle(GetAuctionBidsQuery request, CancellationToken cancellationToken)
     {
-        var bids = await _unitOfWork.Bids.GetBidsByAuctionIdAsync(request.AuctionId, request.Top, cancellationToken);
-        return bids.Select(b => new BidDto
+        var (bids, totalCount) = await _unitOfWork.Bids.GetPagedBidsByAuctionIdAsync(
+            request.AuctionId,
+            request.Filter,
+            cancellationToken);
+
+        var dtos = bids.Select(b => new BidDto
         {
             Id = b.Id,
             AuctionId = b.AuctionId,
@@ -30,5 +35,7 @@ public class GetAuctionBidsQueryHandler : IRequestHandler<GetAuctionBidsQuery, I
             PlacedAt = b.PlacedAt,
             Status = b.Status
         }).ToList();
+
+        return new PagedResult<BidDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

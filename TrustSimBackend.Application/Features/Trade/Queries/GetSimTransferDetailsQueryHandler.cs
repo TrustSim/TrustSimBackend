@@ -109,6 +109,7 @@ public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferD
             PlatformFeeAmount: platformFeeAmount,
             NetSellerPayout: netSellerPayout,
             CompletedAt: trade.TradeTransactionStatus == TradeTransactionStatus.Completed ? trade.CompletedAt : null,
+            LiquidationDocumentUrl: trade.TransferContract?.LiquidationDocumentUrl,
             Message: "Lấy thông tin tiến trình bàn giao SIM thành công."
         );
     }

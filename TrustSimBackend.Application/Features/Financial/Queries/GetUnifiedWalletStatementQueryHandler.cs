@@ -30,17 +30,24 @@ public class GetUnifiedWalletStatementQueryHandler : IRequestHandler<GetUnifiedW
         var filter = request.Filter;
         var unifiedList = new List<UnifiedWalletTransactionDto>();
 
-        var loadWallet = string.IsNullOrWhiteSpace(filter.SourceType) ||
-                         string.Equals(filter.SourceType, "WALLET", StringComparison.OrdinalIgnoreCase);
-
-        var loadAuction = string.IsNullOrWhiteSpace(filter.SourceType) ||
-                          !string.Equals(filter.SourceType, "WALLET", StringComparison.OrdinalIgnoreCase);
+        var normalizedSource = filter.SourceType?.Trim().ToUpperInvariant();
+        var loadWallet = string.IsNullOrWhiteSpace(normalizedSource) || normalizedSource == "WALLET";
+        var loadAuction = string.IsNullOrWhiteSpace(normalizedSource) ||
+                          normalizedSource == "AUCTION" ||
+                          normalizedSource == "AUCTION_DEPOSIT" ||
+                          normalizedSource == "ESCROW" ||
+                          normalizedSource == "COMPENSATION";
 
         if (loadWallet)
         {
             var walletTxs = await _unitOfWork.WalletTransactions.GetListByWalletIdAsync(wallet.Id, filter.FromDate, filter.ToDate, cancellationToken);
             foreach (var w in walletTxs)
             {
+                if (filter.Status.HasValue && w.TransactionStatus != filter.Status.Value)
+                {
+                    continue;
+                }
+
                 var direction = w.WalletTransactionType switch
                 {
                     WalletTransactionType.TOP_UP => "CREDIT",
@@ -70,6 +77,33 @@ public class GetUnifiedWalletStatementQueryHandler : IRequestHandler<GetUnifiedW
             var auctionTxs = await _unitOfWork.AuctionTransactions.GetByWalletIdAsync(wallet.Id, filter.FromDate, filter.ToDate, cancellationToken);
             foreach (var a in auctionTxs)
             {
+                if (filter.Status.HasValue && a.TransactionStatus != filter.Status.Value)
+                {
+                    continue;
+                }
+
+                // Lọc theo phân nhóm subtype nếu source là AUCTION_DEPOSIT, ESCROW, COMPENSATION
+                if (normalizedSource == "AUCTION_DEPOSIT")
+                {
+                    var isDeposit = a.AuctionTransactionType is AuctionTransactionType.AUCTION_DEPOSIT_LOCK
+                        or AuctionTransactionType.AUCTION_PROGRESSIVE_DEPOSIT_LOCK
+                        or AuctionTransactionType.AUCTION_DEPOSIT_RELEASED
+                        or AuctionTransactionType.AUCTION_DEPOSIT_FORFEITED;
+                    if (!isDeposit) continue;
+                }
+                else if (normalizedSource == "ESCROW")
+                {
+                    var isEscrow = a.AuctionTransactionType is AuctionTransactionType.ESCROW_HOLD
+                        or AuctionTransactionType.ESCROW_DEBIT
+                        or AuctionTransactionType.ESCROW_REFUNDED
+                        or AuctionTransactionType.SELLER_PAYOUT;
+                    if (!isEscrow) continue;
+                }
+                else if (normalizedSource == "COMPENSATION")
+                {
+                    if (a.AuctionTransactionType != AuctionTransactionType.AUCTION_COMPENSATION) continue;
+                }
+
                 var direction = a.AuctionTransactionType switch
                 {
                     AuctionTransactionType.AUCTION_DEPOSIT_LOCK => "LOCK",
@@ -105,6 +139,18 @@ public class GetUnifiedWalletStatementQueryHandler : IRequestHandler<GetUnifiedW
 
         var query = unifiedList.AsEnumerable();
 
+        if (!string.IsNullOrWhiteSpace(filter.Direction))
+        {
+            var cleanDir = filter.Direction.Trim();
+            query = query.Where(x => string.Equals(x.Direction, cleanDir, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TransactionType))
+        {
+            var cleanType = filter.TransactionType.Trim();
+            query = query.Where(x => string.Equals(x.TransactionType, cleanType, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
         {
             var clean = filter.Keyword.Trim();
@@ -126,14 +172,14 @@ public class GetUnifiedWalletStatementQueryHandler : IRequestHandler<GetUnifiedW
         if (filter.SortBy == WalletTransactionSortBy.Amount)
         {
             query = filter.SortOrder == SortOrder.Asc
-                ? query.OrderBy(x => x.Amount)
-                : query.OrderByDescending(x => x.Amount);
+                ? query.OrderBy(x => x.Amount).ThenByDescending(x => x.CreatedAt)
+                : query.OrderByDescending(x => x.Amount).ThenByDescending(x => x.CreatedAt);
         }
         else
         {
             query = filter.SortOrder == SortOrder.Asc
-                ? query.OrderBy(x => x.CreatedAt)
-                : query.OrderByDescending(x => x.CreatedAt);
+                ? query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)
+                : query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id);
         }
 
         var totalCount = query.Count();

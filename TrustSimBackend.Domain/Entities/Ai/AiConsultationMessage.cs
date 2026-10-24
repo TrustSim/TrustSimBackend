@@ -19,7 +19,7 @@ public class AiConsultationMessage : FullAuditableEntity
     public string MessageContent { get; set; } = string.Empty;
 
     /// <summary>Danh sách các số SIM trong kho TrustSim được AI đề xuất (lưu dưới dạng JSON Array các SimNumber IDs và lý do).</summary>
-    public string? RecommendedSimIds { get; set; }
+    public string? RecommendedSimIds { get; set; } 
 
     /// <summary>Danh sách các DocumentChunk IDs được trích xuất ngữ cảnh RAG (JSON Array).</summary>
     public string? ReferencedChunkIds { get; set; }

@@ -4,6 +4,7 @@ using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.API.Controllers;
 
@@ -38,13 +39,13 @@ public class AiValuationController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy lịch sử tất cả các lần định giá của một số SIM
+    /// Lấy lịch sử tất cả các lần định giá của một số SIM (lọc theo model AI, trạng thái áp dụng, phân trang)
     /// </summary>
     [HttpGet("sim/{simNumberId:guid}/history")]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SimValuationResponseDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetValuationHistory([FromRoute] Guid simNumberId)
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<SimValuationResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetValuationHistory([FromRoute] Guid simNumberId, [FromQuery] SimValuationQueryFilter filter)
     {
-        var result = await Mediator.Send(new GetSimValuationHistoryQuery(simNumberId));
-        return Ok(ApiResponse<IReadOnlyList<SimValuationResponseDto>>.SuccessResult(result, "Lấy lịch sử định giá SIM thành công."));
+        var result = await Mediator.Send(new GetSimValuationHistoryQuery(simNumberId, filter));
+        return HandlePagedResult(result, "Lấy lịch sử định giá SIM thành công.");
     }
 }

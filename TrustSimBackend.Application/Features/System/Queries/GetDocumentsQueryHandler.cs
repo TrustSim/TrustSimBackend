@@ -1,11 +1,12 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.System.Queries;
 
-public class GetDocumentsQueryHandler : IRequestHandler<GetDocumentsQuery, IReadOnlyList<DocumentDto>>
+public class GetDocumentsQueryHandler : IRequestHandler<GetDocumentsQuery, PagedResult<DocumentDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -14,10 +15,10 @@ public class GetDocumentsQueryHandler : IRequestHandler<GetDocumentsQuery, IRead
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<DocumentDto>> Handle(GetDocumentsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<DocumentDto>> Handle(GetDocumentsQuery request, CancellationToken cancellationToken)
     {
-        var docs = await _unitOfWork.Documents.GetAllAsync(request.ActiveOnly, cancellationToken);
-        return docs.Select(d => new DocumentDto
+        var (docs, totalCount) = await _unitOfWork.Documents.GetPagedAsync(request.Filter, cancellationToken);
+        var dtos = docs.Select(d => new DocumentDto
         {
             Id = d.Id,
             DocumentName = d.DocumentName,
@@ -37,5 +38,7 @@ public class GetDocumentsQueryHandler : IRequestHandler<GetDocumentsQuery, IRead
             DeletedDate = d.DeletedDate,
             DeletedBy = d.DeletedBy
         }).ToList();
+
+        return new PagedResult<DocumentDto>(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);
     }
 }

@@ -2,6 +2,7 @@ using MediatR;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.System.DTOs.Requests;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.System.Queries;
@@ -19,12 +20,16 @@ public class ExportDocumentsQueryHandler : IRequestHandler<ExportDocumentsQuery,
 
     public async Task<byte[]> Handle(ExportDocumentsQuery request, CancellationToken cancellationToken)
     {
-        var docs = await _unitOfWork.Documents.GetAllAsync(request.ActiveOnly ?? false, cancellationToken);
+        var exportFilter = request.Filter ?? new DocumentQueryFilter();
+        exportFilter.PageIndex = 1;
+        exportFilter.PageSize = 100000;
+
+        var (docs, _) = await _unitOfWork.Documents.GetPagedAsync(exportFilter, cancellationToken);
         var rows = docs.Select(d => new DocumentExcelExportRow
         {
             DocumentName = d.DocumentName,
             LinkUrl = d.LinkUrl,
-            Status = d.IsDeleted ? "Đã xóa" : "Hoạt động",
+            Status = d.Status.ToString(),
             CreatedDate = d.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")
         }).ToList();
 

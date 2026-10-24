@@ -64,12 +64,12 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
-    /// Lấy danh sách lịch sử tất cả các lần nộp hồ sơ KYC của người dùng hiện tại (phân trang, sắp xếp)
+    /// Lấy danh sách lịch sử tất cả các lần nộp hồ sơ KYC của người dùng hiện tại (lọc trạng thái, phân trang, sắp xếp)
     /// </summary>
     [HttpGet("kyc/history")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<PagedResult<IdentityVerificationDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyKycHistory([FromQuery] BaseQueryFilter<KycSortBy> filter)
+    public async Task<IActionResult> GetMyKycHistory([FromQuery] UserKycHistoryQueryFilter filter)
     {
         var result = await Mediator.Send(new GetMyKycHistoryQuery(CurrentUserId, filter));
         return HandlePagedResult(result, "Lấy lịch sử xác minh KYC thành công.");
@@ -179,29 +179,26 @@ public class UsersController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Xuất danh sách người dùng ra file Excel (.xlsx)
+    /// [Admin] Xuất danh sách người dùng ra file Excel (.xlsx) theo bộ lọc
     /// </summary>
     [HttpGet("admin/export")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminExportUsers(
-        [FromQuery] string? keyword,
-        [FromQuery] UserRole? role,
-        [FromQuery] bool? isActive)
+    public async Task<IActionResult> AdminExportUsers([FromQuery] AdminUsersQueryFilter filter)
     {
-        var bytes = await Mediator.Send(new AdminExportUsersQuery(keyword, role, isActive));
+        var bytes = await Mediator.Send(new AdminExportUsersQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"Users_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 
     /// <summary>
-    /// [Admin] Xuất danh sách báo cáo thẩm định KYC ra file Excel (.xlsx)
+    /// [Admin] Xuất danh sách báo cáo thẩm định KYC ra file Excel (.xlsx) theo bộ lọc
     /// </summary>
     [HttpGet("admin/kyc/export")]
     [Authorize(Roles = "ADMIN")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> AdminExportKyc([FromQuery] VerificationStatus? status)
+    public async Task<IActionResult> AdminExportKyc([FromQuery] AdminKycQueryFilter filter)
     {
-        var bytes = await Mediator.Send(new AdminExportKycQuery(status));
+        var bytes = await Mediator.Send(new AdminExportKycQuery(filter));
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"KYC_Verifications_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 }

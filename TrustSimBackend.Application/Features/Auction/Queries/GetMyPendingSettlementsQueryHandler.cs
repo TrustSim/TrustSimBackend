@@ -1,15 +1,17 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Application.Features.Auction.Queries;
 
 /// <summary>
-/// Query Handler lấy danh sách các giao dịch / phiên đấu giá đang cần người dùng xử lý quyết định hoặc thanh toán.
+/// Query Handler lấy danh sách các giao dịch / phiên đấu giá đang cần người dùng xử lý quyết định hoặc thanh toán (phân trang, lọc, sắp xếp).
 /// </summary>
-public class GetMyPendingSettlementsQueryHandler : IRequestHandler<GetMyPendingSettlementsQuery, IReadOnlyList<PendingSettlementDto>>
+public class GetMyPendingSettlementsQueryHandler : IRequestHandler<GetMyPendingSettlementsQuery, PagedResult<PendingSettlementDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
 
@@ -18,7 +20,7 @@ public class GetMyPendingSettlementsQueryHandler : IRequestHandler<GetMyPendingS
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<IReadOnlyList<PendingSettlementDto>> Handle(GetMyPendingSettlementsQuery request, CancellationToken cancellationToken)
+    public async Task<PagedResult<PendingSettlementDto>> Handle(GetMyPendingSettlementsQuery request, CancellationToken cancellationToken)
     {
         var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
         var availableBalance = wallet?.AvailableBalance ?? 0m;
@@ -101,6 +103,65 @@ public class GetMyPendingSettlementsQueryHandler : IRequestHandler<GetMyPendingS
             }
         }
 
-        return dtos;
+        var filter = request.Filter;
+        var query = dtos.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(filter.Role))
+        {
+            var cleanRole = filter.Role.Trim();
+            query = query.Where(d => string.Equals(d.Role, cleanRole, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ActionRequired))
+        {
+            var cleanAction = filter.ActionRequired.Trim();
+            query = query.Where(d => string.Equals(d.ActionRequired, cleanAction, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Keyword))
+        {
+            var cleanKeyword = filter.Keyword.Trim();
+            query = query.Where(d =>
+                (d.AuctionCode != null && d.AuctionCode.Contains(cleanKeyword, StringComparison.OrdinalIgnoreCase)) ||
+                (d.SimPhoneNumber != null && d.SimPhoneNumber.Contains(cleanKeyword, StringComparison.OrdinalIgnoreCase)) ||
+                (d.CarrierName != null && d.CarrierName.Contains(cleanKeyword, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        if (filter.FromDate.HasValue)
+        {
+            query = query.Where(d => d.Deadline.HasValue && d.Deadline.Value >= filter.FromDate.Value);
+        }
+
+        if (filter.ToDate.HasValue)
+        {
+            query = query.Where(d => d.Deadline.HasValue && d.Deadline.Value <= filter.ToDate.Value);
+        }
+
+        if (filter.SortBy == PendingSettlementSortBy.RemainingPaymentRequired)
+        {
+            query = filter.SortOrder == SortOrder.Asc
+                ? query.OrderBy(d => d.RemainingPaymentRequired)
+                : query.OrderByDescending(d => d.RemainingPaymentRequired);
+        }
+        else if (filter.SortBy == PendingSettlementSortBy.FinalPrice)
+        {
+            query = filter.SortOrder == SortOrder.Asc
+                ? query.OrderBy(d => d.FinalPrice)
+                : query.OrderByDescending(d => d.FinalPrice);
+        }
+        else
+        {
+            query = filter.SortOrder == SortOrder.Asc
+                ? query.OrderBy(d => d.Deadline ?? DateTime.MaxValue)
+                : query.OrderByDescending(d => d.Deadline ?? DateTime.MinValue);
+        }
+
+        var totalCount = query.Count();
+        var pagedItems = query
+            .Skip((filter.PageIndex - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToList();
+
+        return new PagedResult<PendingSettlementDto>(pagedItems, totalCount, filter.PageIndex, filter.PageSize);
     }
 }

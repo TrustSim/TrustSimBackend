@@ -29,9 +29,16 @@ public class GetRevenueHistoryQueryHandler : IRequestHandler<GetRevenueHistoryQu
 
     public async Task<PagedResult<PlatformRevenueHistoryDto>> Handle(GetRevenueHistoryQuery request, CancellationToken cancellationToken)
     {
+        var isSpecificType = request.Filter.TransactionType.HasValue;
+        var targetTypes = isSpecificType
+            ? (RevenueTransactionTypes.Contains(request.Filter.TransactionType!.Value)
+                ? new[] { request.Filter.TransactionType.Value }
+                : Array.Empty<LedgerTransactionType>())
+            : RevenueTransactionTypes.ToArray();
+
         var ledgerFilter = new LedgerJournalQueryFilter
         {
-            TransactionType = request.Filter.TransactionType,
+            TransactionTypes = targetTypes,
             FromDate = request.Filter.FromDate,
             ToDate = request.Filter.ToDate,
             Keyword = request.Filter.Keyword,
@@ -41,14 +48,9 @@ public class GetRevenueHistoryQueryHandler : IRequestHandler<GetRevenueHistoryQu
             PageSize = request.Filter.PageSize
         };
 
-        var (journals, totalCount) = await _unitOfWork.LedgerJournals.GetPagedAsync(
+        var (revenueJournals, totalCount) = await _unitOfWork.LedgerJournals.GetPagedAsync(
             ledgerFilter,
             cancellationToken);
-
-        // Lọc các chứng từ liên quan đến doanh thu nếu không chỉ định loại cụ thể
-        var revenueJournals = request.Filter.TransactionType.HasValue
-            ? journals
-            : journals.Where(j => RevenueTransactionTypes.Contains(j.TransactionType)).ToList();
 
         var dtos = new List<PlatformRevenueHistoryDto>();
 

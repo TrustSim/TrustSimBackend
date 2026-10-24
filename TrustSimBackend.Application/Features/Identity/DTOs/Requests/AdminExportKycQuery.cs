@@ -1,8 +1,6 @@
 using MediatR;
-using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 
-public record AdminExportKycQuery(
-    VerificationStatus? Status = null
-) : IRequest<byte[]>;
+public record AdminExportKycQuery(AdminKycQueryFilter? Filter = null) : IRequest<byte[]>;

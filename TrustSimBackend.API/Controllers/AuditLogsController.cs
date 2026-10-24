@@ -36,17 +36,13 @@ public class AuditLogsController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Xuất nhật ký kiểm toán ra file Excel (.xlsx)
+    /// [Admin] Xuất nhật ký kiểm toán ra file Excel (.xlsx) theo bộ lọc
     /// </summary>
     [HttpGet("export")]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Export(
-        [FromQuery] string? entityName,
-        [FromQuery] ActionType? actionType,
-        [FromQuery] DateTime? fromDate,
-        [FromQuery] DateTime? toDate)
+    public async Task<IActionResult> Export([FromQuery] AuditLogQueryFilter filter)
     {
-        var query = new ExportAuditLogsQuery(entityName, actionType, fromDate, toDate);
+        var query = new ExportAuditLogsQuery(filter);
         var bytes = await Mediator.Send(query);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"AuditLogs_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }

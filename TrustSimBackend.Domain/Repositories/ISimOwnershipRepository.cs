@@ -16,7 +16,7 @@ public interface ISimOwnershipRepository
     Task<IReadOnlyList<SimOwnership>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<SimOwnership> Items, int TotalCount)> GetPagedByUserIdAsync(
         Guid userId,
-        BaseQueryFilter<SimOwnershipSortBy> filter,
+        SimOwnershipQueryFilter filter,
         CancellationToken cancellationToken = default);
     Task<bool> HasActiveOwnershipAsync(string phoneNumber, Guid? excludeUserId = null, CancellationToken cancellationToken = default);
     Task AddAsync(SimOwnership ownership, CancellationToken cancellationToken = default);

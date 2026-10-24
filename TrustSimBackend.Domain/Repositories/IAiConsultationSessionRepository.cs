@@ -9,6 +9,8 @@ public interface IAiConsultationSessionRepository
 {
     Task<AiConsultationSession?> GetByIdAsync(Guid id, bool includeMessages = true, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AiConsultationSession>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AiConsultationSession> Items, int TotalCount)> GetPagedSessionsByUserIdAsync(Guid userId, Filters.ConsultationSessionQueryFilter filter, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<AiConsultationMessage> Items, int TotalCount)> GetPagedMessagesAsync(Guid sessionId, Filters.ConsultationMessageQueryFilter filter, CancellationToken cancellationToken = default);
     Task AddSessionAsync(AiConsultationSession session, CancellationToken cancellationToken = default);
     Task AddMessageAsync(AiConsultationMessage message, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AiConsultationMessage>> GetRecentMessagesAsync(Guid sessionId, int count = 10, CancellationToken cancellationToken = default);

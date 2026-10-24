@@ -1,6 +1,11 @@
 using MediatR;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
+using TrustSimBackend.Domain.Filters;
 
 namespace TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 
-public record GetSimValuationHistoryQuery(Guid SimNumberId) : IRequest<IReadOnlyList<SimValuationResponseDto>>;
+public record GetSimValuationHistoryQuery(
+    Guid SimNumberId,
+    SimValuationQueryFilter Filter
+) : IRequest<PagedResult<SimValuationResponseDto>>;
