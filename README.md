@@ -46,8 +46,7 @@ TrustSimBackend/
 ├── .agents/                         # Cấu hình Rules & Skills dành cho AI Agent
 ├── docker-compose.yml               # Cấu hình Docker Compose trọn gói (Postgres, pgAdmin, Redis, Backend API)
 ├── Dockerfile                       # Dockerfile đa tầng build & run TrustSimBackend.API trên .NET 8
-├── .dockerignore                    # Danh sách loại trừ khi build Docker image
-└── init-db.sql                      # Script khởi tạo extension vector & uuid cho PostgreSQL
+└── .dockerignore                    # Danh sách loại trừ khi build Docker image
 ```
 
 ---
