@@ -10,10 +10,15 @@ Dự án được xây dựng theo kiến trúc **Clean Architecture** kết h�
 1. [Yêu Cầu Hệ Thống (Prerequisites)](#-yêu-cầu-hệ-thống-prerequisites)
 2. [Cấu Trúc Giải Pháp (Solution Architecture)](#-cấu-trúc-giải-pháp-solution-architecture)
 3. [Hướng Dẫn Khởi Chạy Dự Án (Getting Started)](#-hướng-dẫn-khởi-chạy-dự-án-getting-started)
+   - [Cách 1: Khởi Chạy Trọn Gói Bằng Docker Compose (Khuyến nghị)](#-cách-1-khởi-chạy-trọn-gói-bằng-docker-compose-khuyến-nghị)
+   - [Cách 2: Chạy Database Trên Docker + Khởi Chạy BE Cục Bộ](#-cách-2-chạy-database-trên-docker--khởi-chạy-be-cục-bộ-dành-cho-lập-trình--debug)
+   - [Truy Cập Giao Diện Quản Lý (Management UIs)](#-truy-cập-giao-diện-quản-lý-dịch-vụ-management-uis)
+   - [Các Lệnh Tiện Ích Cho Docker](#5-các-lệnh-tiện-ích-cho-docker)
 4. [Quản Lý Cơ Sở Dữ Liệu (EF Core Migrations)](#-quản-lý-cơ-sở-dữ-liệu-ef-core-migrations)
 5. [Các Lệnh Tự Động Hóa & AI Scripts](#-các-lệnh-tự-động-hóa--ai-scripts)
    - [Sinh Architecture Repo Map (Aider Algorithm)](#1-sinh-architecture-repo-map-cho-ai-agent)
    - [Nạp Dữ Liệu RAG Knowledge Ingestion](#2-tự-động-nạp-dữ-liệu-rag-tri-thức)
+   - [Quản Lý Codebase Knowledge Graph (Graphify)](#3-quản-lý-codebase-knowledge-graph-graphify)
 6. [Quy Chuẩn Hoạt Động Của AI Agent](#-quy-chuẩn-hoạt-động-của-ai-agent)
 
 ---
@@ -21,7 +26,8 @@ Dự án được xây dựng theo kiến trúc **Clean Architecture** kết h�
 ## ⚙️ Yêu Cầu Hệ Thống (Prerequisites)
 
 - **.NET SDK**: `8.0.401` trở lên (xác thực qua [global.json](file:///d:/PersonalProject/TrustSim/TrustSimBackend/global.json))
-- **Cơ sở dữ liệu**: Microsoft SQL Server / LocalDB hoặc PostgreSQL (theo cấu hình `appsettings.json`)
+- **Docker & Docker Compose**: Dành cho môi trường cơ sở dữ liệu và lưu trữ cục bộ (PostgreSQL pgvector, Redis, Supabase Storage, pgAdmin, Redis Commander)
+- **Cơ sở dữ liệu**: PostgreSQL 16 (chạy qua Docker Compose) hoặc Microsoft SQL Server / LocalDB
 - **Python**: `3.10+` (dành cho các script AI và sinh Repo Map)
 - **PowerShell**: `5.1` hoặc `PowerShell 7+`
 
@@ -37,33 +43,116 @@ TrustSimBackend/
 ├── TrustSimBackend.API/             # Tầng giao diện API: Controllers, Filters, Middlewares, Program.cs
 ├── docs/                            # Tài liệu hệ thống, feedbacks, báo cáo & architecture repo map
 ├── scripts/                         # Script tự động hóa (Repo Map Generator, RAG Ingestion)
-└── .agents/                         # Cấu hình Rules & Skills dành cho AI Agent
+├── .agents/                         # Cấu hình Rules & Skills dành cho AI Agent
+├── docker-compose.yml               # Cấu hình Docker Compose trọn gói (Postgres, pgAdmin, Redis, Backend API)
+├── Dockerfile                       # Dockerfile đa tầng build & run TrustSimBackend.API trên .NET 8
+├── .dockerignore                    # Danh sách loại trừ khi build Docker image
+└── init-db.sql                      # Script khởi tạo extension vector & uuid cho PostgreSQL
 ```
 
 ---
 
 ## 🚀 Hướng Dẫn Khởi Chạy Dự Án (Getting Started)
 
-### 1. Khôi phục thư viện & Biên dịch dự án
+Dự án hỗ trợ 2 chế độ khởi chạy linh hoạt tùy theo nhu cầu:
+
+---
+
+### 👉 Cách 1: Khởi Chạy Trọn Gói Bằng Docker Compose (Khuyến nghị)
+
+Trong chế độ này, Docker Compose sẽ tự động thực hiện tuần tự:
+1. Khởi động **PostgreSQL (pgvector)** và **Redis**, kiểm tra trạng thái **Healthy**.
+2. Khởi chạy **TrustSimBackend.API** (`backend`), tự động chạy **EF Core Migrations** (`context.Database.MigrateAsync()`) và nạp dữ liệu ban đầu (**Seed Data**) vào database.
+3. Sau khi cập nhật database thành công, Backend API bắt đầu lắng nghe và phục vụ tại **cổng 5130**.
+
 ```powershell
-# Khôi phục các gói NuGet
-dotnet restore
+# Khởi chạy toàn bộ dịch vụ (tự động build Backend và chạy ngầm)
+docker compose up --build -d
 
-# Biên dịch toàn bộ solution
-dotnet build
-```
+# Kiểm tra trạng thái các container đang chạy
+docker compose ps
 
-### 2. Khởi chạy Web API
-```powershell
-# Chạy với cấu hình HTTP (Cổng mặc định: http://localhost:5130)
-dotnet run --project TrustSimBackend.API --launch-profile http
-
-# Hoặc chạy với cấu hình HTTPS (Cổng mặc định: https://localhost:7120)
-dotnet run --project TrustSimBackend.API --launch-profile https
+# Theo dõi logs tiến trình chạy migration và khởi động BE
+docker compose logs -f backend
 ```
 
 - **Swagger UI**: Mở trình duyệt tại [http://localhost:5130/swagger](http://localhost:5130/swagger)
 - **Health Check**: Truy cập [http://localhost:5130/health](http://localhost:5130/health)
+
+---
+
+### 👉 Cách 2: Chạy Database Trên Docker + Khởi Chạy BE Cục Bộ (Dành cho Lập Trình & Debug)
+
+Khi cần code, debug từng dòng hoặc sử dụng Hot Reload trực tiếp trong Visual Studio / VS Code:
+
+#### Bước 1: Khởi động Database & Cache bằng Docker Compose
+```powershell
+# Chỉ khởi động các dịch vụ cơ sở dữ liệu và giao diện quản trị
+docker compose up -d postgres redis pgadmin redis-commander
+```
+
+#### Bước 2: Cập nhật Migration vào Database
+```powershell
+# Chạy migration thủ công để tạo/cập nhật bảng vào database
+dotnet ef database update --project TrustSimBackend.Infrastructure --startup-project TrustSimBackend.API
+```
+
+#### Bước 3: Khởi chạy Backend API (Cổng 5130)
+```powershell
+# Khởi chạy Web API với profile HTTP (Cổng mặc định: http://localhost:5130)
+dotnet run --project TrustSimBackend.API --launch-profile http
+
+# Hoặc khởi chạy với profile HTTPS (Cổng mặc định: https://localhost:7120)
+dotnet run --project TrustSimBackend.API --launch-profile https
+```
+
+---
+
+### 🌐 Truy cập Giao diện Quản lý Dịch vụ (Management UIs)
+
+| Dịch vụ / Giao diện | Địa chỉ truy cập | Cổng | Tài khoản / Mật khẩu mặc định | Chức năng chính |
+| :--- | :--- | :--- | :--- | :--- |
+| **TrustSim Web API / Swagger** | [http://localhost:5130/swagger](http://localhost:5130/swagger) | **`5130`** | — | Giao diện kiểm thử toàn bộ API nghiệp vụ |
+| **pgAdmin 4 (Postgres UI)** | [http://localhost:5050](http://localhost:5050) | `5050` | `admin@trustsim.com` / `admin` | Quản lý bảng, dữ liệu, truy vấn SQL trên PostgreSQL |
+| **Redis Commander (Redis UI)**| [http://localhost:8081](http://localhost:8081) | `8081` | Không cần mật khẩu | Quản lý keys, xem cache và message queue của Redis |
+| **PostgreSQL Database** | `localhost:5433` | `5433` | `postgres` / `postgres` (DB: `trustsim_db`) | Kết nối trực tiếp qua DBeaver, DataGrip, VS Code |
+| **Redis Server** | `localhost:6379` | `6379` | Không mật khẩu | Kết nối trực tiếp từ Backend & Redis CLI |
+
+> 💡 **Hướng dẫn cấu hình pgAdmin kết nối vào Database**:
+> 1. Mở trình duyệt tại [http://localhost:5050](http://localhost:5050) và đăng nhập với `admin@trustsim.com` / `admin`.
+> 2. Chuột phải vào **Servers** $\rightarrow$ chọn **Register** $\rightarrow$ **Server...**:
+>    - Tab **General**: Nhập **Name**: `TrustSim Local`.
+>    - Tab **Connection**: 
+>      - **Host name/address**: `postgres` *(tên container trong mạng nội bộ docker)* hoặc `host.docker.internal`
+>      - **Port**: `5432`
+>      - **Maintenance database**: `trustsim_db`
+>      - **Username**: `postgres`
+>      - **Password**: `postgres`
+> 3. Bấm **Save** để kết nối và bắt đầu duyệt dữ liệu.
+
+---
+
+### 5. Các Lệnh Tiện Ích Cho Docker
+```powershell
+# Xem logs thời gian thực của toàn bộ dịch vụ
+docker compose logs -f
+
+# Xem logs của riêng một dịch vụ (ví dụ: postgres hoặc supabase-storage)
+docker compose logs -f postgres
+docker compose logs -f supabase-storage
+
+# Khởi động lại toàn bộ dịch vụ
+docker compose restart
+
+# Dừng toàn bộ dịch vụ (giữ nguyên container)
+docker compose stop
+
+# Dừng và giải phóng container (giữ nguyên dữ liệu trong Docker Volumes)
+docker compose down
+
+# Dừng và xóa sạch toàn bộ volumes (làm mới dữ liệu từ đầu)
+docker compose down -v
+```
 
 ---
 
@@ -136,6 +225,51 @@ powershell -ExecutionPolicy Bypass -File scripts/IngestKnowledgeDocs.ps1 `
 
 ---
 
+### 3. Quản Lý Codebase Knowledge Graph (Graphify)
+Dự án tích hợp **Graphify** để phân tích AST mã nguồn C#, xây dựng đồ thị tri thức (Knowledge Graph) phục vụ việc trực quan hóa kiến trúc và hỗ trợ AI Agent điều hướng, định vị quan hệ giữa các thành phần nghiệp vụ:
+
+#### A. Khởi tạo & Trích xuất Graph lần đầu
+```powershell
+# 1. Trích xuất AST & dựng đồ thị (Code-only, xử lý cục bộ, không tốn API key)
+graphify extract . --code-only
+
+# 2. Xuất giao diện trực quan hóa đồ thị HTML (xem tương tác trên trình duyệt)
+graphify export html
+
+# 3. Xuất tài liệu tóm tắt Markdown Wiki (cho phép AI Agent đọc nhanh với chi phí token tối ưu)
+graphify export wiki
+```
+> Kết quả được lưu tại thư mục: [graphify-out/](file:///d:/PersonalProject/TrustSim/TrustSimBackend/graphify-out) (gồm `graph.json`, `graph.html`, thư mục `wiki/`,...).
+
+#### B. Cập nhật Graph khi thay đổi code
+```powershell
+# Cập nhật nhanh các file C# vừa chỉnh sửa/thêm mới (AST incremental update cực nhanh)
+graphify update .
+
+# Làm mới lại giao diện trực quan hóa HTML sau khi update
+graphify export html
+```
+
+#### C. Tích hợp AI Agent (Google Antigravity & AI IDEs)
+```powershell
+# Tự động cấu hình Rule và Workflow chuẩn cho Antigravity AI Agent (.agents/rules/graphify.md)
+graphify antigravity install
+```
+
+#### D. Tra cứu nhanh dành cho Lập trình viên & Agent (CLI Traversal)
+```powershell
+# Tra cứu subgraph theo câu hỏi/chức năng (trả về dưới 2000 tokens)
+graphify query "AcceptDutchBuyCommandHandler"
+
+# Tìm luồng liên kết/đường đi phụ thuộc giữa 2 class hoặc interface
+graphify path "DoubleEntryLedgerService" "LedgerHashHelper"
+
+# Giải thích khái niệm/cụm thành phần tập trung
+graphify explain "AuctionDelayQueueDispatcher"
+```
+
+---
+
 ## 🛡️ Quy Chuẩn Hoạt Động Của AI Agent
 
 Khi làm việc trong workspace này, mọi AI Assistant phải tuân thủ nghiêm ngặt các quy tắc trong [AGENTS.md](file:///d:/PersonalProject/TrustSim/TrustSimBackend/AGENTS.md):
@@ -143,4 +277,4 @@ Khi làm việc trong workspace này, mọi AI Assistant phải tuân thủ nghi
 2. **Clean Architecture**: Tuân thủ hướng phụ thuộc một chiều `Domain` $\leftarrow$ `Application` $\leftarrow$ `Infrastructure` $\leftarrow$ `API`.
 3. **CQRS & MediatR**: Tách biệt luồng Commands và Queries.
 4. **Không dùng Fully Qualified Namespaces Inline**: Đưa toàn bộ namespace lên chỉ thị `using` ở đầu file.
-5. **Đọc Repo Map Trước Khi Khảo Sát**: Khuyến nghị đọc file [docs/architecture/repo_map.md](file:///d:/PersonalProject/TrustSim/TrustSimBackend/docs/architecture/repo_map.md) để nắm cấu trúc tổng thể trước khi tra cứu file.
+5. **Đọc Repo Map & Tra Cứu Graph Trước Khi Khảo Sát**: Sử dụng lệnh `graphify query` để nắm cấu trúc tổng thể và quan hệ phụ thuộc trước khi tra cứu file nguồn chi tiết.
