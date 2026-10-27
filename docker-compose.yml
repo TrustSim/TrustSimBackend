@@ -1,0 +1,110 @@
+services:
+  # ─── 1. POSTGRESQL WITH PGVECTOR ───────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: trustsim-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: trustsim_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - trustsim-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d trustsim_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # ─── 2. PGADMIN 4 (POSTGRES MANAGEMENT UI) ─────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: trustsim-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@trustsim.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - trustsim-net
+
+  # ─── 3. REDIS CACHE & QUEUE ────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: trustsim-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trustsim-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  # ─── 4. REDIS COMMANDER (REDIS MANAGEMENT UI) ──────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: trustsim-redis-commander
+    restart: unless-stopped
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - trustsim-net
+
+  # ─── 5. BACKEND API (.NET 8 + AUTO-MIGRATION) ──────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trustsim-backend-api
+    restart: unless-stopped
+    ports:
+      - "5130:5130"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5130
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=trustsim_db;Username=postgres;Password=postgres;Include Error Detail=true;
+      - ConnectionStrings__Redis=redis:6379,abortConnect=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - trustsim-net
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  trustsim-net:
+    driver: bridge

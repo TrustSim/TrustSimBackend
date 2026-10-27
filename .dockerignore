@@ -1,0 +1,12 @@
+**/.git
+**/.vs
+**/.idea
+**/.vscode
+**/bin
+**/obj
+**/.dotnet
+**/TestResults
+**/*.user
+docs/
+graphify-out/
+scripts/
