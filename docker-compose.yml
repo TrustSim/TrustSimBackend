@@ -83,11 +83,14 @@ services:
     restart: unless-stopped
     ports:
       - "5130:5130"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5130
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=trustsim_db;Username=postgres;Password=postgres;Include Error Detail=true;
       - ConnectionStrings__Redis=redis:6379,abortConnect=false
+      - SoftHsm__BaseUrl=http://host.docker.internal:8080
     depends_on:
       postgres:
         condition: service_healthy

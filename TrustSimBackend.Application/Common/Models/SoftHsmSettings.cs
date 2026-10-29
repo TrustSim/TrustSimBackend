@@ -8,7 +8,7 @@ public class SoftHsmSettings
     public const string SectionName = "SoftHsm";
 
     /// <summary>Địa chỉ gốc của dịch vụ SoftHSM (ví dụ: https://universal-crypto-softhsm.onrender.com)</summary>
-    public string BaseUrl { get; set; } = "https://universal-crypto-softhsm.onrender.com";
+    public string BaseUrl { get; set; } = "http://localhost:8080";
 
     /// <summary>Khóa API xác thực (truyền qua header X-API-Key)</summary>
     public string ApiKey { get; set; } = string.Empty;

@@ -84,7 +84,11 @@ public class SubmitEkycVerificationCommandHandler : IRequestHandler<SubmitEkycVe
 
         // 4. Gọi AWS Rekognition DetectText để OCR mặt trước thẻ căn cước
         var ocrResult = await _rekognitionService.ExtractDocumentTextAsync(frontBytes, cancellationToken);
-        if (!ocrResult.IsSuccess || string.IsNullOrWhiteSpace(ocrResult.IdentityNumber))
+        if (!ocrResult.IsSuccess)
+        {
+            throw new InvalidIdentityDocumentException($"Lỗi phân tích ảnh từ AI AWS ({ocrResult.RawJson}). Vui lòng thử lại.");
+        }
+        if (string.IsNullOrWhiteSpace(ocrResult.IdentityNumber))
         {
             throw new InvalidIdentityDocumentException("Không thể đọc được số CMND/CCCD từ hình ảnh cung cấp. Vui lòng chụp rõ nét hơn.");
         }

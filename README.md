@@ -117,17 +117,39 @@ dotnet run --project TrustSimBackend.API --launch-profile https
 | **PostgreSQL Database** | `localhost:5433` | `5433` | `postgres` / `postgres` (DB: `trustsim_db`) | Kết nối trực tiếp qua DBeaver, DataGrip, VS Code |
 | **Redis Server** | `localhost:6379` | `6379` | Không mật khẩu | Kết nối trực tiếp từ Backend & Redis CLI |
 
-> 💡 **Hướng dẫn cấu hình pgAdmin kết nối vào Database**:
-> 1. Mở trình duyệt tại [http://localhost:5050](http://localhost:5050) và đăng nhập với `admin@trustsim.com` / `admin`.
-> 2. Chuột phải vào **Servers** $\rightarrow$ chọn **Register** $\rightarrow$ **Server...**:
->    - Tab **General**: Nhập **Name**: `TrustSim Local`.
->    - Tab **Connection**: 
->      - **Host name/address**: `postgres` *(tên container trong mạng nội bộ docker)* hoặc `host.docker.internal`
->      - **Port**: `5432`
->      - **Maintenance database**: `trustsim_db`
->      - **Username**: `postgres`
->      - **Password**: `postgres`
-> 3. Bấm **Save** để kết nối và bắt đầu duyệt dữ liệu.
+#### 🔑 Hướng dẫn đăng nhập & cấu hình chi tiết:
+
+1. **pgAdmin 4 (Web UI & Kết nối Database)**:
+   - Mở trình duyệt tại [http://localhost:5050](http://localhost:5050) và đăng nhập với `admin@trustsim.com` / `admin`.
+   - Chuột phải vào **Servers** $\rightarrow$ chọn **Register** $\rightarrow$ **Server...**:
+     - Tab **General**: Nhập **Name**: `TrustSim Local`.
+     - Tab **Connection**: 
+       - **Host name/address**: `postgres` *(tên service trong mạng Docker `trustsim-net`)* hoặc `host.docker.internal`
+       - **Port**: `5432` *(cổng nội bộ mạng Docker)*
+       - **Maintenance database**: `trustsim_db`
+       - **Username**: `postgres`
+       - **Password**: `postgres`
+       - Tích chọn **Save password**
+     - Bấm **Save** để kết nối và bắt đầu duyệt dữ liệu.
+
+2. **Redis Commander (Web UI)**:
+   - Truy cập trực tiếp tại [http://localhost:8081](http://localhost:8081) (không cần tài khoản/mật khẩu).
+   - Hệ thống tự động kết nối cụm Redis tại `local:redis:6379`. Xem keys bên cây thư mục trái (`db0`) hoặc mở Redis Console ở chân trang để chạy lệnh CLI.
+
+3. **Lệnh truy cập Terminal / Shell trực tiếp vào Container (`docker exec`)**:
+   ```powershell
+   # Vào shell bên trong container pgAdmin:
+   docker exec -it trustsim-pgadmin /bin/sh
+
+   # Vào shell bên trong container Redis Commander:
+   docker exec -it trustsim-redis-commander /bin/sh
+
+   # Tiện ích: Vào thẳng PostgreSQL CLI (psql) trong container postgres:
+   docker exec -it trustsim-postgres psql -U postgres -d trustsim_db
+
+   # Tiện ích: Vào thẳng Redis CLI trong container redis:
+   docker exec -it trustsim-redis redis-cli
+   ```
 
 ---
 
