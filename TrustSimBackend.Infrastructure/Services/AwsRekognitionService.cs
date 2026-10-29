@@ -61,6 +61,21 @@ public class AwsRekognitionService : IAwsRekognitionService
 
             ParseVietnameseIdCard(lines, result);
 
+            // 2nd Fallback: Check WORD detections if LINE detection missed the ID number
+            if (string.IsNullOrEmpty(result.IdentityNumber))
+            {
+                var wordCandidate = response.TextDetections
+                    .Where(t => t.Type == TextTypes.WORD && t.Confidence >= 60.0f)
+                    .Select(t => Regex.Replace(t.DetectedText.Trim(), @"\D", ""))
+                    .FirstOrDefault(d => d.Length == 12 || d.Length == 9);
+
+                if (!string.IsNullOrEmpty(wordCandidate))
+                {
+                    result.IdentityNumber = wordCandidate;
+                    _logger.LogInformation("[AWS Rekognition] Tìm thấy số CCCD từ WORD fallback: {Id}", wordCandidate);
+                }
+            }
+
             var jsonOptions = new JsonSerializerOptions
             {
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
@@ -233,6 +248,15 @@ public class AwsRekognitionService : IAwsRekognitionService
                 if (match.Success)
                 {
                     result.IdentityNumber = match.Groups[1].Value;
+                }
+                else
+                {
+                    var cleanSpacedDigits = Regex.Replace(normalizedLine, @"(?<=\d)\s+(?=\d)", "");
+                    var spacedMatch = idRegex.Match(cleanSpacedDigits);
+                    if (spacedMatch.Success)
+                    {
+                        result.IdentityNumber = spacedMatch.Groups[1].Value;
+                    }
                 }
             }
 
