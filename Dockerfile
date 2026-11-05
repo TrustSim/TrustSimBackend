@@ -8,6 +8,7 @@ COPY TrustSimBackend.Domain/TrustSimBackend.Domain.csproj TrustSimBackend.Domain
 COPY TrustSimBackend.Application/TrustSimBackend.Application.csproj TrustSimBackend.Application/
 COPY TrustSimBackend.Infrastructure/TrustSimBackend.Infrastructure.csproj TrustSimBackend.Infrastructure/
 COPY TrustSimBackend.API/TrustSimBackend.API.csproj TrustSimBackend.API/
+COPY TrustSimBackend.Tests/TrustSimBackend.Tests.csproj TrustSimBackend.Tests/
 
 # Khôi phục dependencies
 RUN dotnet restore TrustSimBackend.sln
@@ -22,6 +23,12 @@ RUN dotnet publish TrustSimBackend.API.csproj -c Release -o /app/publish /p:UseA
 # ─── 2. Runtime Stage ────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
+
+# Cài đặt font tiếng Việt cho Linux Container (phục vụ sinh & hiển thị PDF chuẩn đa thiết bị)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    fonts-dejavu-core \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 5130
 ENV ASPNETCORE_URLS=http://+:5130

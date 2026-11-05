@@ -49,6 +49,8 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable, IDisposable
     public IPaymentIntentRepository PaymentIntents => _serviceProvider.GetRequiredService<IPaymentIntentRepository>();
     public IEscrowRepository Escrows => _serviceProvider.GetRequiredService<IEscrowRepository>();
     public IAuctionTransactionRepository AuctionTransactions => _serviceProvider.GetRequiredService<IAuctionTransactionRepository>();
+    public IChatConversationRepository ChatConversations => _serviceProvider.GetRequiredService<IChatConversationRepository>();
+    public IChatMessageRepository ChatMessages => _serviceProvider.GetRequiredService<IChatMessageRepository>();
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

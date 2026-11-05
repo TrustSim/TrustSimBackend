@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using TrustSimBackend.Domain.Entities.Ai;
 using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Domain.Entities.Chat;
 using TrustSimBackend.Domain.Entities.Dispute;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Identity;
@@ -78,10 +80,15 @@ public class TrustSimDbContext : IdentityDbContext<UserAccount, IdentityRole<Gui
     #endregion
 
     #region AI & RAG DbSets
-    public DbSet<TrustSimBackend.Domain.Entities.Ai.DocumentChunk> DocumentChunks => Set<TrustSimBackend.Domain.Entities.Ai.DocumentChunk>();
-    public DbSet<TrustSimBackend.Domain.Entities.Ai.SimValuation> SimValuations => Set<TrustSimBackend.Domain.Entities.Ai.SimValuation>();
-    public DbSet<TrustSimBackend.Domain.Entities.Ai.AiConsultationSession> AiConsultationSessions => Set<TrustSimBackend.Domain.Entities.Ai.AiConsultationSession>();
-    public DbSet<TrustSimBackend.Domain.Entities.Ai.AiConsultationMessage> AiConsultationMessages => Set<TrustSimBackend.Domain.Entities.Ai.AiConsultationMessage>();
+    public DbSet<DocumentChunk> DocumentChunks => Set<DocumentChunk>();
+    public DbSet<SimValuation> SimValuations => Set<SimValuation>();
+    public DbSet<AiConsultationSession> AiConsultationSessions => Set<AiConsultationSession>();
+    public DbSet<AiConsultationMessage> AiConsultationMessages => Set<AiConsultationMessage>();
+    #endregion
+
+    #region Chat DbSets
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

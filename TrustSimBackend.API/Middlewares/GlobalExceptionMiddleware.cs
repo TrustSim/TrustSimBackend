@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;
 
@@ -34,7 +35,7 @@ public class GlobalExceptionMiddleware
         [typeof(ArgumentNullException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(ArgumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(InvalidOperationException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
-        [typeof(Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException)] = ex => (StatusCodes.Status409Conflict, "Giao dịch tài chính đang được xử lý đồng thời bởi một luồng khác. Vui lòng thử lại sau giây lát.", null),
+        [typeof(DbUpdateConcurrencyException)] = ex => (StatusCodes.Status409Conflict, "Giao dịch tài chính đang được xử lý đồng thời bởi một luồng khác. Vui lòng thử lại sau giây lát.", null),
 
         // ─── Các Exception Nghiệp vụ eKYC / Identity Verification ──────────────
         [typeof(IdentityAlreadyVerifiedException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
@@ -45,13 +46,14 @@ public class GlobalExceptionMiddleware
         [typeof(InvalidIdentityDocumentException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(KycImageQualityException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
 
-        // ─── Các Exception Nghiệp vụ Xác thực Quyền Sở hữu SIM ──────────────────
+        // ─── Các Exception Nghiệp vụ Xác thực Quyền Sở hữu SIM & PDF ───────────
         [typeof(UserProfileNotVerifiedException)] = ex => (StatusCodes.Status403Forbidden, ex.Message, null),
         [typeof(UnsupportedCarrierException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
         [typeof(SimCarrierNotFoundException)] = ex => (StatusCodes.Status404NotFound, ex.Message, null),
         [typeof(SimAlreadyOwnedException)] = ex => (StatusCodes.Status409Conflict, ex.Message, null),
         [typeof(SimOwnershipVerificationFailedException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
-        [typeof(OtpVerificationFailedException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
+        [typeof(OtpVerificationFailedException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null),
+        [typeof(InvalidPdfFontException)] = ex => (StatusCodes.Status400BadRequest, ex.Message, null)
     };
 
     public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)

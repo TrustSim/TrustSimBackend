@@ -36,6 +36,8 @@ public interface IUnitOfWork
     IPaymentIntentRepository PaymentIntents { get; }
     IEscrowRepository Escrows { get; }
     IAuctionTransactionRepository AuctionTransactions { get; }
+    IChatConversationRepository ChatConversations { get; }
+    IChatMessageRepository ChatMessages { get; }
 
     // Lưu các thay đổi vào DB và trả về số dòng bị ảnh hưởng
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

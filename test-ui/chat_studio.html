@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrustSim · Chat Studio (Test UI)</title>
+  <link rel="stylesheet" href="chat_studio.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+</head>
+<body>
+  <!-- ═══ Top bar ═══ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">💬</span>
+      <div>
+        <div class="brand-title">TrustSim Chat Studio</div>
+        <div class="brand-sub">Direct · Support (Sàn) · Privacy Lock · PDF Font Check</div>
+      </div>
+    </div>
+    <div class="topbar-controls">
+      <label class="field-inline">Backend
+        <select id="backendSelect">
+          <option value="http://localhost:5130" selected>http://localhost:5130</option>
+          <option value="http://localhost:5000">http://localhost:5000</option>
+          <option value="https://localhost:7130">https://localhost:7130</option>
+        </select>
+      </label>
+      <label class="field-inline">Bố cục
+        <select id="layoutSelect">
+          <option value="dual" selected>2 phiên song song (A | B)</option>
+          <option value="single">1 phiên (A)</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <!-- ═══ Quick login bar ═══ -->
+  <section class="quickbar">
+    <div class="quickbar-target">
+      <span class="quickbar-label">Đăng nhập nhanh vào</span>
+      <div class="seg" id="targetSeg">
+        <button class="seg-btn active" data-target="A">Phiên A</button>
+        <button class="seg-btn" data-target="B">Phiên B</button>
+      </div>
+    </div>
+    <div class="quickbar-groups" id="quickGroups"><!-- rendered by JS --></div>
+  </section>
+
+  <!-- ═══ Main tabs ═══ -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="chat">💬 Chat (thủ công)</button>
+    <button class="tab" data-tab="runner">🧪 Scenario Runner</button>
+    <button class="tab" data-tab="pdf">📄 Kiểm định Font PDF</button>
+    <button class="tab" data-tab="log">📜 Nhật ký <span class="badge" id="logCount">0</span></button>
+  </nav>
+
+  <!-- ═══ Tab: Chat ═══ -->
+  <main class="tab-panel active" id="tab-chat">
+    <div class="sessions" id="sessions"><!-- panels rendered by JS --></div>
+  </main>
+
+  <!-- ═══ Tab: Scenario runner ═══ -->
+  <main class="tab-panel" id="tab-runner">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2>Scenario Runner — kiểm thử tự động qua REST API</h2>
+          <p class="muted">Mỗi kịch bản tự đăng nhập các tài khoản seed (mật khẩu <code>Password123@</code>) và đối chiếu mã HTTP với kết quả kỳ vọng trong kế hoạch test.</p>
+        </div>
+        <div class="row gap">
+          <button class="btn primary" id="runAllBtn">▶ Chạy tất cả</button>
+          <button class="btn ghost" id="clearRunnerBtn">Xóa kết quả</button>
+        </div>
+      </div>
+      <div class="scenario-list" id="scenarioList"></div>
+      <div class="summary" id="runnerSummary"></div>
+      <table class="result-table">
+        <thead><tr><th>Mã TC</th><th>Bước kiểm tra</th><th>Kỳ vọng</th><th>Thực tế</th><th>Kết quả</th></tr></thead>
+        <tbody id="runnerResults"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ═══ Tab: PDF font ═══ -->
+  <main class="tab-panel" id="tab-pdf">
+    <div class="card">
+      <h2>Kiểm định Font PDF đa thiết bị</h2>
+      <p class="muted">Gọi <code>POST /api/Documents/pdf/verify-fonts</code> bằng token của <b>Phiên A</b>.</p>
+      <div class="row gap wrap">
+        <input type="file" id="pdfFileInput" accept="application/pdf,.pdf" />
+        <button class="btn primary" id="verifyPdfBtn">🔍 Kiểm định tệp đã chọn</button>
+        <button class="btn" id="genBadPdfBtn">⚠️ Tạo & kiểm định PDF lỗi font (Helvetica không nhúng)</button>
+        <button class="btn" id="genFakePdfBtn">🧨 Kiểm định tệp giả mạo (không có %PDF)</button>
+        <button class="btn ghost" id="downloadBadPdfBtn">⬇ Tải PDF lỗi font mẫu</button>
+      </div>
+      <div id="pdfResult" class="pdf-result"></div>
+    </div>
+  </main>
+
+  <!-- ═══ Tab: Log ═══ -->
+  <main class="tab-panel" id="tab-log">
+    <div class="card">
+      <div class="card-head">
+        <h2>Nhật ký API & SignalR</h2>
+        <div class="row gap">
+          <select id="logFilter">
+            <option value="all">Tất cả</option>
+            <option value="api">API</option>
+            <option value="rt">SignalR</option>
+            <option value="error">Chỉ lỗi</option>
+          </select>
+          <button class="btn ghost" id="clearLogBtn">Xóa</button>
+        </div>
+      </div>
+      <div class="log" id="logBox"></div>
+    </div>
+  </main>
+
+  <div class="toasts" id="toasts"></div>
+
+  <!-- ═══ Session panel template ═══ -->
+  <template id="sessionTemplate">
+    <section class="session">
+      <div class="session-head">
+        <div class="session-tag"></div>
+        <div class="identity">
+          <div class="avatar">?</div>
+          <div class="identity-text">
+            <div class="identity-name">Chưa đăng nhập</div>
+            <div class="identity-meta muted">—</div>
+          </div>
+        </div>
+        <div class="session-actions">
+          <select class="account-select"></select>
+          <span class="rt-status off" title="Trạng thái SignalR">● Offline</span>
+          <button class="btn sm ghost logout-btn">Đăng xuất</button>
+        </div>
+      </div>
+
+      <div class="session-body">
+        <aside class="sidebar">
+          <div class="search-box">
+            <input class="search-input" placeholder="Tìm theo Email hoặc SĐT (vd: 0903444004)" />
+            <button class="btn sm search-btn">Tìm</button>
+          </div>
+          <div class="search-results"></div>
+
+          <div class="row gap sidebar-actions">
+            <button class="btn sm primary support-btn">🏢 Nhắn tin cho Sàn</button>
+            <button class="btn sm ghost refresh-btn">⟳</button>
+          </div>
+
+          <div class="filter-tabs">
+            <button class="ftab active" data-filter="all">Tất cả</button>
+            <button class="ftab" data-filter="DIRECT">Cá nhân</button>
+            <button class="ftab" data-filter="PENDING">Chờ duyệt</button>
+            <button class="ftab" data-filter="CLAIMED">Đã duyệt</button>
+          </div>
+          <div class="conv-list"></div>
+
+          <div class="open-by-id">
+            <input class="open-id-input" placeholder="Mở theo ID hội thoại (test IDOR)" />
+            <button class="btn sm open-id-btn">Mở</button>
+          </div>
+        </aside>
+
+        <div class="chat">
+          <div class="chat-head">
+            <div>
+              <div class="chat-title">Chọn một cuộc hội thoại</div>
+              <div class="chat-sub muted"></div>
+            </div>
+            <div class="row gap">
+              <button class="btn sm ghost copy-id-btn" hidden>📋 Copy ID</button>
+              <button class="btn sm ghost read-btn" hidden>✔ Đánh dấu đã đọc</button>
+              <button class="btn sm warn claim-btn" hidden>✋ Duyệt hỗ trợ</button>
+            </div>
+          </div>
+          <div class="messages"><div class="empty muted">Chưa có tin nhắn.</div></div>
+          <form class="composer">
+            <label class="attach" title="Đính kèm ảnh / PDF">📎<input type="file" class="attach-input" accept="image/*,application/pdf,.pdf" hidden /></label>
+            <span class="attach-name muted"></span>
+            <input class="msg-input" placeholder="Nhập tin nhắn..." autocomplete="off" />
+            <button type="submit" class="btn primary send-btn">Gửi</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <script src="chat_studio.js"></script>
+</body>
+</html>
