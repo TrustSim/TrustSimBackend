@@ -80,7 +80,7 @@ public class PdfContractService : IPdfContractService
         sb.Append("</div>");
 
         // Căn cứ pháp lý
-        sb.Append("<div style='font-size: 12.5px; color: #475569; font-style: italic; margin-bottom: 20px; line-height: 1.5; background: #f8fafc; padding: 12px 16px; border-radius: 6px; border-left: 3px solid #3b82f6;'>");
+        sb.Append("<div style='font-size: 12.5px; color: #4755569; font-style: italic; margin-bottom: 20px; line-height: 1.5; background: #f8fafc; padding: 12px 16px; border-radius: 6px; border-left: 3px solid #3b82f6;'>");
         sb.Append("<p style='margin: 2px 0;'>- Căn cứ Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015;</p>");
         sb.Append("<p style='margin: 2px 0;'>- Căn cứ Luật Viễn thông số 24/2023/QH15 ngày 24/11/2023;</p>");
         sb.Append("<p style='margin: 2px 0;'>- Căn cứ Luật Giao dịch điện tử số 20/2023/QH15 ngày 22/06/2023;</p>");
@@ -859,42 +859,70 @@ public class PdfContractService : IPdfContractService
     {
         try
         {
+            var bundledFontsDir = Path.Combine(AppContext.BaseDirectory, "Resources", "Fonts");
+
             var regularCandidates = new[]
             {
+                Path.Combine(bundledFontsDir, "times.ttf"),
+                Path.Combine(bundledFontsDir, "DejaVuSans.ttf"),
+                Path.Combine(bundledFontsDir, "Roboto-Regular.ttf"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "times.ttf"),
                 @"C:\Windows\Fonts\times.ttf",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arial.ttf"),
                 @"C:\Windows\Fonts\arial.ttf",
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
+                "/System/Library/Fonts/Supplemental/Arial.ttf"
             };
 
             var boldCandidates = new[]
             {
+                Path.Combine(bundledFontsDir, "timesbd.ttf"),
+                Path.Combine(bundledFontsDir, "DejaVuSans-Bold.ttf"),
+                Path.Combine(bundledFontsDir, "Roboto-Bold.ttf"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "timesbd.ttf"),
                 @"C:\Windows\Fonts\timesbd.ttf",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "arialbd.ttf"),
                 @"C:\Windows\Fonts\arialbd.ttf",
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf",
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
             };
 
             var italicCandidates = new[]
             {
+                Path.Combine(bundledFontsDir, "timesi.ttf"),
+                Path.Combine(bundledFontsDir, "DejaVuSans-Oblique.ttf"),
+                Path.Combine(bundledFontsDir, "Roboto-Italic.ttf"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "timesi.ttf"),
                 @"C:\Windows\Fonts\timesi.ttf",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "ariali.ttf"),
                 @"C:\Windows\Fonts\ariali.ttf",
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf"
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+                "/System/Library/Fonts/Supplemental/Times New Roman Italic.ttf",
+                "/System/Library/Fonts/Supplemental/Arial Italic.ttf"
             };
 
             string? regPath = regularCandidates.FirstOrDefault(p => File.Exists(p));
             string? boldPath = boldCandidates.FirstOrDefault(p => File.Exists(p));
             string? italicPath = italicCandidates.FirstOrDefault(p => File.Exists(p));
 
-            PdfFont? regular = regPath != null ? PdfFontFactory.CreateFont(regPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED) : null;
-            PdfFont? bold = boldPath != null ? PdfFontFactory.CreateFont(boldPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED) : regular;
-            PdfFont? italic = italicPath != null ? PdfFontFactory.CreateFont(italicPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED) : regular;
+            PdfFont? regular = regPath != null
+                ? PdfFontFactory.CreateFont(regPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED)
+                : null;
+            regular?.SetSubset(true);
+
+            PdfFont? bold = boldPath != null
+                ? PdfFontFactory.CreateFont(boldPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED)
+                : regular;
+            bold?.SetSubset(true);
+
+            PdfFont? italic = italicPath != null
+                ? PdfFontFactory.CreateFont(italicPath, PdfEncodings.IDENTITY_H, PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED)
+                : regular;
+            italic?.SetSubset(true);
 
             return (regular, bold, italic);
         }

@@ -15,15 +15,18 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IPdfFontValidatorService _pdfFontValidatorService;
     private readonly ILogger<UploadDocumentCommandHandler> _logger;
 
     public UploadDocumentCommandHandler(
         IUnitOfWork unitOfWork,
         IServiceProvider serviceProvider,
+        IPdfFontValidatorService pdfFontValidatorService,
         ILogger<UploadDocumentCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _serviceProvider = serviceProvider;
+        _pdfFontValidatorService = pdfFontValidatorService;
         _logger = logger;
     }
 
@@ -47,6 +50,21 @@ public class UploadDocumentCommandHandler : IRequestHandler<UploadDocumentComman
         var memoryStream = new MemoryStream();
         await request.File.CopyToAsync(memoryStream, cancellationToken);
         memoryStream.Position = 0;
+
+        // Kiểm định tính tương thích Font chữ đa thiết bị nếu là tệp PDF
+        if (ext == ".pdf")
+        {
+            try
+            {
+                await _pdfFontValidatorService.EnsureCrossDeviceCompatibleAsync(memoryStream, fileName, cancellationToken);
+                memoryStream.Position = 0;
+            }
+            catch
+            {
+                await memoryStream.DisposeAsync();
+                throw;
+            }
+        }
 
         var doc = new Document
         {

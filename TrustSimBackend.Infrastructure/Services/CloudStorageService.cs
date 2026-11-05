@@ -1,4 +1,6 @@
-using System.Net.Http.Headers;
+using Amazon.S3;
+using Amazon.S3.Model;
+using Amazon.S3.Util;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -8,68 +10,25 @@ using TrustSimBackend.Application.Common.Models;
 namespace TrustSimBackend.Infrastructure.Services;
 
 /// <summary>
-/// Triển khai dịch vụ lưu trữ hình ảnh tài liệu eKYC và tệp Hợp đồng PDF (hỗ trợ Supabase Storage & Local Fallback).
+/// Triển khai dịch vụ lưu trữ hình ảnh tài liệu eKYC và tệp Hợp đồng PDF qua MinIO / AWS S3 Compatible Storage.
 /// </summary>
 public class CloudStorageService : ICloudStorageService
 {
+    private static bool _bucketInitialized;
+    private static readonly SemaphoreSlim _initLock = new(1, 1);
+
     private readonly ILogger<CloudStorageService> _logger;
-    private readonly HttpClient _httpClient;
-    private readonly SupabaseSettings _supabaseSettings;
-    private readonly string _baseStoragePath;
+    private readonly IAmazonS3 _s3Client;
+    private readonly MinioSettings _minioSettings;
 
     public CloudStorageService(
         ILogger<CloudStorageService> logger,
-        HttpClient httpClient,
-        IOptions<SupabaseSettings> supabaseOptions)
+        IAmazonS3 s3Client,
+        IOptions<MinioSettings> minioOptions)
     {
         _logger = logger;
-        _httpClient = httpClient;
-        _supabaseSettings = supabaseOptions.Value;
-        _baseStoragePath = ResolveBaseStoragePath();
-        if (!Directory.Exists(_baseStoragePath))
-        {
-            Directory.CreateDirectory(_baseStoragePath);
-        }
-    }
-
-    private static string ResolveBaseStoragePath()
-    {
-        var candidates = new[]
-        {
-            Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads"),
-            Path.Combine(Directory.GetCurrentDirectory(), "TrustSimBackend.API", "wwwroot", "uploads"),
-            Path.Combine(AppContext.BaseDirectory, "wwwroot", "uploads"),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "TrustSimBackend.API", "wwwroot", "uploads"),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "TrustSimBackend.API", "wwwroot", "uploads")
-        };
-
-        foreach (var path in candidates)
-        {
-            try
-            {
-                var fullPath = Path.GetFullPath(path);
-                var parentDir = Directory.GetParent(fullPath)?.FullName;
-                if (Directory.Exists(fullPath) || (parentDir != null && Directory.Exists(parentDir)))
-                {
-                    if (!Directory.Exists(fullPath))
-                    {
-                        Directory.CreateDirectory(fullPath);
-                    }
-                    return fullPath;
-                }
-            }
-            catch
-            {
-                // Ignore invalid path probes
-            }
-        }
-
-        var defaultPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-        if (!Directory.Exists(defaultPath))
-        {
-            Directory.CreateDirectory(defaultPath);
-        }
-        return defaultPath;
+        _s3Client = s3Client;
+        _minioSettings = minioOptions.Value;
     }
 
     public async Task<string> UploadImageAsync(IFormFile file, string folder, CancellationToken cancellationToken = default)
@@ -84,30 +43,22 @@ public class CloudStorageService : ICloudStorageService
         var fileName = $"{Guid.NewGuid():N}{ext}";
         var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType;
 
-        // Tối ưu hóa: Stream trực tiếp từ file thay vì cấp phát MemoryStream gây tốn RAM và GC
         await using var stream = file.OpenReadStream();
-        return await UploadStreamToSupabaseAsync(stream, fileName, folder, contentType, cancellationToken);
+        return await UploadStreamToS3Async(stream, fileName, folder, contentType, cancellationToken);
     }
 
-    public async Task<string> UploadImageBytesAsync(byte[] imageBytes, string fileName, string folder, string contentType = "image/jpeg", CancellationToken cancellationToken = default)
+    public async Task<string> UploadImageBytesAsync(
+        byte[] imageBytes, 
+        string fileName, 
+        string folder, 
+        string contentType = "image/jpeg", 
+        CancellationToken cancellationToken = default)
     {
-        var cleanFileName = SanitizeFileName(fileName);
-
-        // Luôn tải trực tiếp 100% lên Cloud Supabase Storage, không lưu ổ cứng BE
-        if (!string.IsNullOrWhiteSpace(_supabaseSettings.Url) && !string.IsNullOrWhiteSpace(_supabaseSettings.AnonKey))
-        {
-            var supabasePublicUrl = await UploadToSupabaseAsync(imageBytes, cleanFileName, folder, contentType, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(supabasePublicUrl))
-            {
-                _logger.LogInformation("[Storage] ✅ Đã tải tệp lên Supabase Storage thành công: {Url}", supabasePublicUrl);
-                return supabasePublicUrl;
-            }
-        }
-
-        throw new InvalidOperationException("Chưa cấu hình Supabase Storage hoặc thông tin Supabase không hợp lệ. Hệ thống được cấu hình không lưu trữ tệp trên máy chủ nội bộ.");
+        using var stream = new MemoryStream(imageBytes);
+        return await UploadStreamToS3Async(stream, fileName, folder, contentType, cancellationToken);
     }
 
-    private async Task<string> UploadStreamToSupabaseAsync(
+    private async Task<string> UploadStreamToS3Async(
         Stream stream,
         string fileName,
         string folder,
@@ -115,65 +66,123 @@ public class CloudStorageService : ICloudStorageService
         CancellationToken cancellationToken)
     {
         var cleanFileName = SanitizeFileName(fileName);
-        var baseUrl = _supabaseSettings.Url.TrimEnd('/');
-        var bucket = string.IsNullOrWhiteSpace(_supabaseSettings.Bucket) ? "pdf-files" : _supabaseSettings.Bucket;
+        var bucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
+        var objectKey = string.IsNullOrWhiteSpace(folder) ? cleanFileName : $"{folder.Trim('/')}/{cleanFileName}";
 
-        var objectPath = string.IsNullOrWhiteSpace(folder) ? cleanFileName : $"{folder.Trim('/')}/{cleanFileName}";
-        var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
+        await EnsureBucketReadyAsync(bucket, cancellationToken);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
-        request.Headers.Add("apikey", _supabaseSettings.AnonKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSettings.AnonKey);
-        request.Headers.Add("x-upsert", "true");
-
-        using var streamContent = new StreamContent(stream);
-        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-        request.Content = streamContent;
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var publicUrl = $"{baseUrl}/storage/v1/object/public/{bucket}/{objectPath}";
-            _logger.LogInformation("[Storage] ✅ Đã stream tệp lên Supabase Storage thành công: {Url}", publicUrl);
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = bucket,
+                Key = objectKey,
+                InputStream = stream,
+                ContentType = contentType
+            };
+
+            await _s3Client.PutObjectAsync(putRequest, cancellationToken);
+
+            var publicBase = _minioSettings.PublicUrl.TrimEnd('/');
+            var publicUrl = $"{publicBase}/{bucket}/{objectKey}";
+            _logger.LogInformation("[MinIO Storage] ✅ Đã tải tệp lên S3 Storage thành công: {Url}", publicUrl);
             return publicUrl;
         }
-
-        var errorMsg = await response.Content.ReadAsStringAsync(cancellationToken);
-        _logger.LogError("[Storage] ❌ Supabase Storage phản hồi mã lỗi {StatusCode}: {Error}.", response.StatusCode, errorMsg);
-        throw new InvalidOperationException($"Không thể tải tệp lên Supabase Storage ({response.StatusCode}): {errorMsg}");
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[MinIO Storage] ❌ Không thể tải tệp lên MinIO S3 Bucket '{Bucket}', Key '{Key}'", bucket, objectKey);
+            throw;
+        }
     }
 
-    private async Task<string?> UploadToSupabaseAsync(
-        byte[] fileBytes,
-        string fileName,
-        string folder,
-        string contentType,
-        CancellationToken cancellationToken)
+    private async Task EnsureBucketReadyAsync(string bucket, CancellationToken cancellationToken)
     {
-        var baseUrl = _supabaseSettings.Url.TrimEnd('/');
-        var bucket = string.IsNullOrWhiteSpace(_supabaseSettings.Bucket) ? "pdf-files" : _supabaseSettings.Bucket;
+        if (_bucketInitialized) return;
 
-        var objectPath = string.IsNullOrWhiteSpace(folder) ? fileName : $"{folder.Trim('/')}/{fileName}";
-        var uploadUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, uploadUrl);
-        request.Headers.Add("apikey", _supabaseSettings.AnonKey);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSettings.AnonKey);
-        request.Headers.Add("x-upsert", "true");
-
-        var byteContent = new ByteArrayContent(fileBytes);
-        byteContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
-        request.Content = byteContent;
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        if (response.IsSuccessStatusCode)
+        await _initLock.WaitAsync(cancellationToken);
+        try
         {
-            return $"{baseUrl}/storage/v1/object/public/{bucket}/{objectPath}";
+            if (_bucketInitialized) return;
+
+            var exists = await AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucket);
+            if (!exists)
+            {
+                await _s3Client.PutBucketAsync(new PutBucketRequest { BucketName = bucket }, cancellationToken);
+                _logger.LogInformation("[MinIO Storage] ✅ Đã tự động tạo Bucket '{Bucket}'", bucket);
+
+                var policy = $@"{{
+  ""Version"": ""2012-10-17"",
+  ""Statement"": [
+    {{
+      ""Effect"": ""Allow"",
+      ""Principal"": ""*"",
+      ""Action"": [""s3:GetObject""],
+      ""Resource"": [""arn:aws:s3:::{bucket}/*""]
+    }}
+  ]
+}}";
+                await _s3Client.PutBucketPolicyAsync(new PutBucketPolicyRequest
+                {
+                    BucketName = bucket,
+                    Policy = policy
+                }, cancellationToken);
+                _logger.LogInformation("[MinIO Storage] ✅ Đã cấu hình Public Read Policy cho Bucket '{Bucket}'", bucket);
+            }
+
+            _bucketInitialized = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[MinIO Storage] Cảnh báo khi kiểm tra/tạo bucket '{Bucket}'", bucket);
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    public async Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrl)) return false;
+
+        try
+        {
+            var bucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
+            var objectKey = ExtractObjectKey(fileUrl, bucket);
+            if (string.IsNullOrWhiteSpace(objectKey)) return false;
+
+            var deleteRequest = new DeleteObjectRequest
+            {
+                BucketName = bucket,
+                Key = objectKey
+            };
+
+            await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
+            _logger.LogInformation("[MinIO Storage] ✅ Đã xóa tệp trên MinIO thành công: {Key}", objectKey);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[MinIO Storage] ⚠️ Lỗi khi xóa tệp MinIO: {Url}", fileUrl);
+            return false;
+        }
+    }
+
+    public Task<int> CleanAllTempUploadsAsync(string folder = "kyc", CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(0);
+    }
+
+    private string? ExtractObjectKey(string fileUrl, string bucket)
+    {
+        var prefix = $"/{bucket}/";
+        var idx = fileUrl.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
+        if (idx >= 0)
+        {
+            return fileUrl.Substring(idx + prefix.Length);
         }
 
-        var errorMsg = await response.Content.ReadAsStringAsync(cancellationToken);
-        _logger.LogError("[Storage] ❌ Supabase Storage phản hồi mã lỗi {StatusCode}: {Error}.", response.StatusCode, errorMsg);
-        throw new InvalidOperationException($"Không thể tải tệp lên Supabase Storage ({response.StatusCode}): {errorMsg}");
+        return Path.GetFileName(fileUrl);
     }
 
     private static string SanitizeFileName(string fileName, string defaultExt = ".jpg")
@@ -192,138 +201,5 @@ public class CloudStorageService : ICloudStorageService
         var clean = new string(cleanChars).Trim();
 
         return string.IsNullOrWhiteSpace(clean) ? $"{Guid.NewGuid():N}{ext}" : $"{clean}{ext}";
-    }
-
-    public async Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(fileUrl)) return false;
-
-            // 1. Kiểm tra và xử lý xóa trên Cloud Supabase Storage
-            var baseUrl = _supabaseSettings.Url.TrimEnd('/');
-            var publicPrefix = $"{baseUrl}/storage/v1/object/public/";
-
-            if (fileUrl.StartsWith(publicPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                var remaining = fileUrl.Substring(publicPrefix.Length);
-                var slashIndex = remaining.IndexOf('/');
-                if (slashIndex > 0)
-                {
-                    var bucket = remaining.Substring(0, slashIndex);
-                    var objectPath = remaining.Substring(slashIndex + 1);
-
-                    var deleteUrl = $"{baseUrl}/storage/v1/object/{bucket}/{objectPath}";
-
-                    using var request = new HttpRequestMessage(HttpMethod.Delete, deleteUrl);
-                    request.Headers.Add("apikey", _supabaseSettings.AnonKey);
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _supabaseSettings.AnonKey);
-
-                    var response = await _httpClient.SendAsync(request, cancellationToken);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        _logger.LogInformation("[Storage] ✅ Đã xóa tệp trên Supabase Storage thành công: {ObjectPath}", objectPath);
-                        return true;
-                    }
-
-                    _logger.LogWarning("[Storage] ⚠️ Supabase Storage phản hồi không thể xóa ({StatusCode}): {Url}", response.StatusCode, fileUrl);
-                    return false;
-                }
-            }
-
-            // 2. Fallback xóa tệp cục bộ nếu là file local cũ
-            var normalized = fileUrl.Replace('\\', '/').TrimStart('/');
-            if (normalized.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
-            {
-                normalized = normalized.Substring("uploads/".Length);
-            }
-
-            var relativeFilePath = normalized.Replace('/', Path.DirectorySeparatorChar);
-            var candidatePaths = new List<string>
-            {
-                Path.Combine(_baseStoragePath, relativeFilePath),
-                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", relativeFilePath),
-                Path.Combine(Directory.GetCurrentDirectory(), "TrustSimBackend.API", "wwwroot", "uploads", relativeFilePath),
-                Path.Combine(AppContext.BaseDirectory, "wwwroot", "uploads", relativeFilePath),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "TrustSimBackend.API", "wwwroot", "uploads", relativeFilePath),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "TrustSimBackend.API", "wwwroot", "uploads", relativeFilePath)
-            };
-
-            bool deleted = false;
-            foreach (var path in candidatePaths)
-            {
-                try
-                {
-                    var fullPath = Path.GetFullPath(path);
-                    if (File.Exists(fullPath))
-                    {
-                        File.Delete(fullPath);
-                        _logger.LogInformation("[Storage] Đã xóa thành công tệp ảnh eKYC sau xác thực: {Path}", fullPath);
-                        deleted = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[Storage] Cảnh báo khi xóa tệp tại: {Path}", path);
-                }
-            }
-
-            return deleted;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[Storage] Lỗi khi xử lý xóa tệp eKYC: {Url}", fileUrl);
-            return false;
-        }
-    }
-
-    public Task<int> CleanAllTempUploadsAsync(string folder = "kyc", CancellationToken cancellationToken = default)
-    {
-        int deletedCount = 0;
-        try
-        {
-            var candidateDirs = new[]
-            {
-                Path.Combine(_baseStoragePath, folder),
-                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", folder),
-                Path.Combine(Directory.GetCurrentDirectory(), "TrustSimBackend.API", "wwwroot", "uploads", folder),
-                Path.Combine(AppContext.BaseDirectory, "wwwroot", "uploads", folder)
-            };
-
-            foreach (var dir in candidateDirs)
-            {
-                try
-                {
-                    var fullDir = Path.GetFullPath(dir);
-                    if (Directory.Exists(fullDir))
-                    {
-                        var files = Directory.GetFiles(fullDir, "*.*", SearchOption.AllDirectories);
-                        foreach (var file in files)
-                        {
-                            try
-                            {
-                                File.Delete(file);
-                                deletedCount++;
-                                _logger.LogInformation("[Storage] Quét dọn tệp rác eKYC: {File}", file);
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "[Storage] Không thể xóa tệp: {File}", file);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[Storage] Lỗi quét thư mục: {Dir}", dir);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[Storage] Lỗi khi dọn dẹp thư mục tạm {Folder}", folder);
-        }
-
-        return Task.FromResult(deletedCount);
     }
 }

@@ -74,7 +74,24 @@ services:
     networks:
       - trustsim-net
 
-  # ─── 5. BACKEND API (.NET 8 + AUTO-MIGRATION) ──────────
+  # ─── 5. MINIO S3 OBJECT STORAGE & MANAGEMENT CONSOLE ───
+  minio:
+    image: cgr.dev/chainguard/minio:latest
+    container_name: trustsim-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - trustsim-net
+
+  # ─── 6. BACKEND API (.NET 8 + AUTO-MIGRATION) ──────────
   backend:
     build:
       context: .
@@ -91,11 +108,15 @@ services:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=trustsim_db;Username=postgres;Password=postgres;Include Error Detail=true;
       - ConnectionStrings__Redis=redis:6379,abortConnect=false
       - SoftHsm__BaseUrl=http://host.docker.internal:8080
+      - Minio__Endpoint=http://minio:9000
+      - Minio__PublicUrl=http://localhost:9000
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
     networks:
       - trustsim-net
 
@@ -105,6 +126,8 @@ volumes:
   pgadmin_data:
     driver: local
   redis_data:
+    driver: local
+  minio_data:
     driver: local
 
 networks:

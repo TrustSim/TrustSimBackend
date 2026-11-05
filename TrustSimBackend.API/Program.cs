@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +10,7 @@ using TrustSimBackend.API.Hubs;
 using TrustSimBackend.API.Middlewares;
 using TrustSimBackend.API.Services;
 using TrustSimBackend.Application;
+using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Infrastructure;
 using TrustSimBackend.Infrastructure.Persistence;
@@ -132,12 +134,13 @@ builder.Services.AddSignalR(options =>
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);
 });
 builder.Services.AddScoped<IAuctionRealtimeNotifier, AuctionRealtimeNotifier>();
+builder.Services.AddScoped<IChatRealtimeService, SignalRChatRealtimeService>();
 
 // ─── 4. Controllers và Swagger với hỗ trợ JWT Bearer, Cookie & XML Comments ──────
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -211,7 +214,7 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// CORS phải đặt TRƯỜC UseHttpsRedirection để preflight OPTIONS request không bị redirect trước khi có CORS header
+// CORS phải đặt TRƯỚC UseHttpsRedirection để preflight OPTIONS request không bị redirect trước khi có CORS header
 app.UseCors("AllowTrustSimClients");
 
 app.UseHttpsRedirection();
@@ -224,5 +227,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<AuctionHub>("/hubs/auction");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.Run();

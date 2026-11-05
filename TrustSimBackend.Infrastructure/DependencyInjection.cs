@@ -1,3 +1,4 @@
+using Amazon.S3;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -39,6 +40,7 @@ public static class DependencyInjection
         services.Configure<SellerDepositSettings>(configuration.GetSection(SellerDepositSettings.SectionName));
         services.Configure<TradeDeadlineSettings>(configuration.GetSection(TradeDeadlineSettings.SectionName));
         services.Configure<SupabaseSettings>(configuration.GetSection("Supabase"));
+        services.Configure<MinioSettings>(configuration.GetSection(MinioSettings.SectionName));
         services.Configure<SoftHsmSettings>(configuration.GetSection(SoftHsmSettings.SectionName));
         services.AddHttpClient();
 
@@ -142,6 +144,10 @@ public static class DependencyInjection
         services.AddScoped<IEscrowRepository, EscrowRepository>();
         services.AddScoped<IAuctionTransactionRepository, AuctionTransactionRepository>();
 
+        // Enterprise Chat Repositories (Direct & Support)
+        services.AddScoped<IChatConversationRepository, ChatConversationRepository>();
+        services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+
         // ─── 5. Infrastructure Services ──────────────────────────────
         services.AddHttpContextAccessor();
         services.AddScoped<ITelcoVerificationService, MockTelcoVerificationService>();
@@ -203,9 +209,10 @@ public static class DependencyInjection
         // Multi-Channel Notification Dispatcher
         services.AddScoped<INotificationService, NotificationService>();
 
-        // Digital Contract & PAdES Signing Services
+        // Digital Contract, PAdES Signing & Cross-Device PDF Font Validator Services
         services.AddScoped<IPdfContractService, PdfContractService>();
         services.AddScoped<IPdfSigningService, PdfSigningService>();
+        services.AddScoped<IPdfFontValidatorService, PdfFontValidatorService>();
         services.AddScoped<IContractSigningQueueService, ContractSigningQueueService>();
         services.AddHostedService<PdfSigningBackgroundWorker>();
 
@@ -221,25 +228,20 @@ public static class DependencyInjection
         services.AddHttpClient<ISpeedSmsService, SpeedSmsService>();
         services.AddScoped<IOtpService, OtpService>();
 
-        // ─── 9. AWS Rekognition & Storage Services (eKYC) ────────────
+        // ─── 9. AWS Rekognition & MinIO S3 Storage Services ────────────
         services.AddScoped<IAwsRekognitionService, AwsRekognitionService>();
-        services.AddHttpClient<ICloudStorageService, CloudStorageService>((sp, client) =>
+        services.AddSingleton<IAmazonS3>(sp =>
         {
-            var settings = sp.GetRequiredService<IOptions<SupabaseSettings>>().Value;
-            if (!string.IsNullOrWhiteSpace(settings.Url))
+            var minioSettings = sp.GetRequiredService<IOptions<MinioSettings>>().Value;
+            var s3Config = new AmazonS3Config
             {
-                client.BaseAddress = new Uri(settings.Url.TrimEnd('/') + "/");
-            }
-            client.Timeout = TimeSpan.FromSeconds(30);
-        })
-        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
-        {
-            PooledConnectionLifetime = TimeSpan.FromMinutes(15),
-            PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
-            KeepAlivePingDelay = TimeSpan.FromSeconds(30),
-            KeepAlivePingTimeout = TimeSpan.FromSeconds(5),
-            EnableMultipleHttp2Connections = true
+                ServiceURL = minioSettings.Endpoint,
+                ForcePathStyle = true,
+                UseHttp = !minioSettings.UseSsl
+            };
+            return new AmazonS3Client(minioSettings.AccessKey, minioSettings.SecretKey, s3Config);
         });
+        services.AddScoped<ICloudStorageService, CloudStorageService>();
         services.AddScoped<IPkiKeyService, PkiKeyService>();
 
         // ─── 10. AI & RAG Pipeline Services (Semantic Kernel & Gemini) ───────────

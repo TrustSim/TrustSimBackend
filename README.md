@@ -116,6 +116,8 @@ dotnet run --project TrustSimBackend.API --launch-profile https
 | **Redis Commander (Redis UI)**| [http://localhost:8081](http://localhost:8081) | `8081` | Không cần mật khẩu | Quản lý keys, xem cache và message queue của Redis |
 | **PostgreSQL Database** | `localhost:5433` | `5433` | `postgres` / `postgres` (DB: `trustsim_db`) | Kết nối trực tiếp qua DBeaver, DataGrip, VS Code |
 | **Redis Server** | `localhost:6379` | `6379` | Không mật khẩu | Kết nối trực tiếp từ Backend & Redis CLI |
+| **MinIO Console (S3 UI)** | [http://localhost:9001](http://localhost:9001) | `9001` | `minioadmin` / `minioadmin` | Giao diện quản lý Bucket, tệp hợp đồng PDF, ảnh eKYC |
+| **MinIO S3 API Endpoint** | `http://localhost:9000` | `9000` | `minioadmin` / `minioadmin` | Endpoint S3 API để tải lên & tải về file trực tiếp |
 
 #### 🔑 Hướng dẫn đăng nhập & cấu hình chi tiết:
 
@@ -136,7 +138,20 @@ dotnet run --project TrustSimBackend.API --launch-profile https
    - Truy cập trực tiếp tại [http://localhost:8081](http://localhost:8081) (không cần tài khoản/mật khẩu).
    - Hệ thống tự động kết nối cụm Redis tại `local:redis:6379`. Xem keys bên cây thư mục trái (`db0`) hoặc mở Redis Console ở chân trang để chạy lệnh CLI.
 
-3. **Lệnh truy cập Terminal / Shell trực tiếp vào Container (`docker exec`)**:
+3. **MinIO Console (Quản trị Tệp tin PDF & S3 Object Storage)**:
+   - Truy cập giao diện quản trị tại [http://localhost:9001](http://localhost:9001).
+   - Đăng nhập với tài khoản:
+     - **Username**: `minioadmin`
+     - **Password**: `minioadmin`
+   - **Cấu trúc lưu trữ**:
+     - Bucket chính: **`pdf-files`** (Hệ thống tự động khởi tạo và cấp quyền **Public Read** khi Backend chạy).
+     - Thư mục **`contracts/`**: Lưu toàn bộ Văn bản 1 (Phiếu chốt giá trúng `PhieuChotGia_*.pdf`), Văn bản 2 (Hợp đồng chuyển nhượng điện tử `HopDong_*.pdf`), Văn bản 3 (Biên bản thanh lý `BienBanThanhLy_*.pdf`).
+     - Thư mục **`kyc/`**: Lưu trữ ảnh chân dung, CCCD/CMND phục vụ xác minh danh tính eKYC.
+   - **Xem & Tải trực tiếp file PDF**:
+     - Định dạng URL công khai: `http://localhost:9000/pdf-files/contracts/<ten-file>.pdf`.
+     - Trong MinIO Console, click vào bucket `pdf-files` $\rightarrow$ thư mục `contracts` $\rightarrow$ chọn file PDF để xem trước (Preview) hoặc tải về (Download).
+
+4. **Lệnh truy cập Terminal / Shell trực tiếp vào Container (`docker exec`)**:
    ```powershell
    # Vào shell bên trong container pgAdmin:
    docker exec -it trustsim-pgadmin /bin/sh

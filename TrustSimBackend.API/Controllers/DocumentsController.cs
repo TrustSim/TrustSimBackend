@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
+using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 using TrustSimBackend.Application.Features.Ai.DTOs.Responses;
@@ -162,6 +163,33 @@ public class DocumentsController : BaseApiController
         var result = await Mediator.Send(new GetDocumentIngestStatusQuery(id));
         return Ok(ApiResponse<IngestDocumentResponseDto>.SuccessResult(result, "Lấy trạng thái xử lý tài liệu thành công."));
     }
+
+    /// <summary>
+    /// Kiểm định tính tương thích Font chữ đa thiết bị (Embedded Fonts &amp; Unicode CMap) của tệp PDF tải lên.
+    /// </summary>
+    [HttpPost("pdf/verify-fonts")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<PdfFontAuditResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> VerifyPdfFonts(IFormFile file, CancellationToken cancellationToken)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(ApiResponse<object>.FailureResult("Vui lòng đính kèm tệp PDF cần kiểm định."));
+        }
+
+        var fontValidator = HttpContext.RequestServices.GetRequiredService<IPdfFontValidatorService>();
+        await using var stream = file.OpenReadStream();
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms, cancellationToken);
+        ms.Position = 0;
+
+        var auditResult = await fontValidator.AuditPdfStreamAsync(ms, cancellationToken);
+        var message = auditResult.IsCrossDeviceSafe
+            ? "Tệp PDF đạt chuẩn tương thích hiển thị đa thiết bị (100% Font nhúng và chuẩn Unicode)."
+            : "Tệp PDF có nguy cơ lỗi hiển thị tiếng Việt trên thiết bị khác do thiếu nhúng Font hoặc dùng bảng mã cũ.";
+
+        return Ok(ApiResponse<PdfFontAuditResultDto>.SuccessResult(auditResult, message));
+    }
 }
-
-
