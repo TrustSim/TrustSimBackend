@@ -8,5 +8,6 @@ namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 /// </summary>
 public record GetSimTransferDetailsQuery(
     Guid TradeId,
-    Guid UserId
+    Guid UserId,
+    bool IsAdmin = false
 ) : IRequest<SimTransferDetailsDto>;

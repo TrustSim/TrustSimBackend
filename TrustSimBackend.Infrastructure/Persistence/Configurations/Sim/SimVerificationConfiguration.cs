@@ -15,6 +15,7 @@ public class SimVerificationConfiguration : IEntityTypeConfiguration<SimVerifica
                .HasConversion<string>()
                .HasMaxLength(50);
 
+        builder.Property(x => x.VerificationMethod).HasMaxLength(100);
         builder.Property(x => x.RequestedAt).IsRequired();
         builder.Property(x => x.RejectionReason).HasMaxLength(500);
 

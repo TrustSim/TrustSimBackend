@@ -285,7 +285,7 @@ public static class DbSeeder
         var usersData = new[]
         {
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000001"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000001"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000001"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000001"), UserName = "admin",               Email = "admin@trustsim.vn",          Role = UserRole.ADMIN,      FullName = "Tổng Quản Trị Hệ Thống",          Phone = "0900000001", Identity = "001088000001", Dob = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000099"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000099"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000099"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000099"), UserName = "draflame",            Email = "phulam03@gmail.com",         Role = UserRole.ADMIN,      FullName = "Nguyễn Phú Lâm",                  Phone = "0899488041", Identity = "079203001234", Dob = new DateTime(2003, 5, 15, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 99999999999m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000099"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000099"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000099"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000099"), UserName = "draflame",            Email = "phulam03@gmail.com",         Role = UserRole.ADMIN,      FullName = "Lâm Ngọc Thanh Phú",              Phone = "0899488041", Identity = "087204005634", Dob = new DateTime(2004, 9, 3, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 99999999999m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000002"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000002"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000002"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000002"), UserName = "consultant_01",       Email = "consultant01@trustsim.vn",  Role = UserRole.CONSULTANT, FullName = "Lê Hoàng Chuyên Viên",              Phone = "0900000002", Identity = "079092000002", Dob = new DateTime(1992, 5, 15, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000003"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000003"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000003"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000003"), UserName = "seller_vip_phuquy",   Email = "supperidol6224@gmail.com",   Role = UserRole.USER,       FullName = "Trần Phú Quý (SIM Phú Quý)",       Phone = "0909999001", Identity = "001085009999", Dob = new DateTime(1985, 10, 20, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000004"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000004"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000004"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000004"), UserName = "seller_daiphat",      Email = "daiphat.telecom@gmail.com",  Role = UserRole.USER,       FullName = "Nguyễn Đại Phát (Đại Phát Telecom)",Phone = "0912333002", Identity = "079087008888", Dob = new DateTime(1987, 3, 12, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
@@ -297,13 +297,14 @@ public static class DbSeeder
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000013"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000013"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000013"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000013"), UserName = "bidder_moderate_funds", Email = "moderate@gmail.com",         Role = UserRole.USER,       FullName = "Trần Văn Cọc (Đấu Giá Viên Vừa Đủ Cọc)", Phone = "0984444555", Identity = "001097003333", Dob = new DateTime(1997, 7, 7, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 15000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000008"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000008"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000008"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000008"), UserName = "user_ekyc_pending",  Email = "thanhha.new@gmail.com",      Role = UserRole.USER,       FullName = "Bùi Thanh Hà",                     Phone = "0977111006", Identity = "001098004444", Dob = new DateTime(1998, 12, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.PENDING_VERIFICATION, Available = 0m, Locked = 0m, HasPki = false },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000009"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000009"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000009"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000009"), UserName = "user_ekyc_rejected", Email = "vietcuong.fake@gmail.com",     Role = UserRole.USER,       FullName = "Ngô Việt Cường",                    Phone = "0944222007", Identity = "040095003333", Dob = new DateTime(1995, 4, 4, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.REJECTED, Available = 0m, Locked = 0m, HasPki = false },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000010"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000010"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000010"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000010"), UserName = "user_suspicious_bot", Email = "spambidder99@botmail.com",   Role = UserRole.USER,       FullName = "Bot Nghi Vấn Spam",                Phone = "0966000008", Identity = "001200002222", Dob = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false }
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000010"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000010"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000010"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000010"), UserName = "user_suspicious_bot", Email = "spambidder99@botmail.com",   Role = UserRole.USER,       FullName = "Bot Nghi Vấn Spam",                Phone = "0966000008", Identity = "001200002222", Dob = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = false },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000014"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000014"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000014"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000014"), UserName = "nguyenquan",            Email = "nguyenquan06022004@gmail.com",Role = UserRole.USER,       FullName = "Nguyễn Nhật Quân",                      Phone = "0869192776", Identity = "082204016355", Dob = new DateTime(2004, 2, 6, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true }
         };
 
         foreach (var u in usersData)
         {
             var pwdHash = u.UserName == "draflame" ? DraflamePasswordHash : DefaultPasswordHash;
-            var existingUser = await context.UserAccounts.FirstOrDefaultAsync(x => x.Id == u.Id || x.UserName == u.UserName);
+            var existingUser = await context.UserAccounts.FirstOrDefaultAsync(x => x.Id == u.Id || x.UserName == u.UserName || x.Email == u.Email);
             if (existingUser == null)
             {
                 existingUser = new UserAccount
@@ -329,21 +330,22 @@ public static class DbSeeder
                 existingUser.PasswordHash = pwdHash;
                 existingUser.Role = u.Role;
                 existingUser.EmailConfirmed = true;
+                existingUser.IsActive = true;
             }
 
             // Bù đắp UserProfile nếu chưa có
-            var existingProfile = await context.UserProfiles.FirstOrDefaultAsync(p => p.Id == u.ProfileId || p.UserAccountId == u.Id);
+            var existingProfile = await context.UserProfiles.FirstOrDefaultAsync(p => p.Id == u.ProfileId || p.UserAccountId == existingUser.Id || p.IdentityNumber == u.Identity || p.PhoneNumber == u.Phone);
             if (existingProfile == null)
             {
                 var profile = new UserProfile
                 {
                     Id = u.ProfileId,
-                    UserAccountId = u.Id,
+                    UserAccountId = existingUser.Id,
                     FullName = u.FullName,
                     DateOfBirth = u.Dob,
                     Email = u.Email,
                     PhoneNumber = u.Phone,
-                    Address = "Hà Nội / TP.HCM",
+                    Address = u.UserName == "draflame" ? "Đồng Tháp / TP.HCM" : (u.Identity == "082204016355" ? "Tiền Giang / TP.HCM" : "Hà Nội / TP.HCM"),
                     IdentityNumber = u.Identity,
                     AvatarImg = "https://assets.trustsim.vn/avatars/default.png",
                     VerificationStatus = u.Status,
@@ -353,18 +355,24 @@ public static class DbSeeder
             }
             else
             {
+                existingProfile.FullName = u.FullName;
                 existingProfile.Email = u.Email;
+                existingProfile.PhoneNumber = u.Phone;
+                existingProfile.IdentityNumber = u.Identity;
+                existingProfile.DateOfBirth = u.Dob;
                 existingProfile.VerificationStatus = u.Status;
+                existingProfile.UserAccountId = existingUser.Id;
+                if (u.UserName == "draflame") existingProfile.Address = "Đồng Tháp / TP.HCM";
             }
 
             // Bù đắp Wallet nếu chưa có
-            var existingWallet = await context.Wallets.FirstOrDefaultAsync(w => w.Id == u.WalletId || w.UserAccountId == u.Id);
+            var existingWallet = await context.Wallets.FirstOrDefaultAsync(w => w.Id == u.WalletId || w.UserAccountId == existingUser.Id);
             if (existingWallet == null)
             {
                 var wallet = new Wallet
                 {
                     Id = u.WalletId,
-                    UserAccountId = u.Id,
+                    UserAccountId = existingUser.Id,
                     AvailableBalance = u.Available,
                     LockedBalance = u.Locked,
                     WalletStatus = u.UserName == "user_suspicious_bot" ? WalletStatus.FROZEN : WalletStatus.ACTIVE,
@@ -386,13 +394,13 @@ public static class DbSeeder
             // Bù đắp UserSecurityProfile nếu cần
             if (u.HasPki)
             {
-                var existingSec = await context.UserSecurityProfiles.FirstOrDefaultAsync(s => s.Id == u.SecurityId || s.UserAccountId == u.Id);
+                var existingSec = await context.UserSecurityProfiles.FirstOrDefaultAsync(s => s.Id == u.SecurityId || s.UserAccountId == existingUser.Id);
                 if (existingSec == null)
                 {
                     var sec = new UserSecurityProfile
                     {
                         Id = u.SecurityId,
-                        UserAccountId = u.Id,
+                        UserAccountId = existingUser.Id,
                         PublicKey = $"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA_{u.UserName}...",
                         EncryptedPrivateKey = $"U2FsdGVkX1+v_{u.UserName}_EncryptedPrivateKey...",
                         KeyHash = pwdHash,
@@ -402,18 +410,22 @@ public static class DbSeeder
                     };
                     await context.UserSecurityProfiles.AddAsync(sec);
                 }
+                else
+                {
+                    existingSec.UserSecurityProfileStatus = UserSecurityProfileStatus.ACTIVE;
+                }
             }
 
             // NẠP VÀ ĐỒNG BỘ BẢNG user_role (IdentityUserRole<Guid>)
             var roleKey = u.Role.ToString().ToUpperInvariant();
             if (roleDict.TryGetValue(roleKey, out var roleId))
             {
-                var hasUserRole = await context.UserRoles.AnyAsync(ur => ur.UserId == u.Id && ur.RoleId == roleId);
+                var hasUserRole = await context.UserRoles.AnyAsync(ur => ur.UserId == existingUser.Id && ur.RoleId == roleId);
                 if (!hasUserRole)
                 {
                     await context.UserRoles.AddAsync(new IdentityUserRole<Guid>
                     {
-                        UserId = u.Id,
+                        UserId = existingUser.Id,
                         RoleId = roleId
                     });
                 }
@@ -490,9 +502,11 @@ public static class DbSeeder
         {
             if ((VerificationStatus)u.Status == VerificationStatus.VERIFIED)
             {
-                Guid pId = u.ProfileId;
-                var hasIv = await context.IdentityVerifications.AnyAsync(iv => iv.UserProfileId == pId);
-                if (!hasIv)
+                var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.Id == u.ProfileId || p.IdentityNumber == u.Identity || p.PhoneNumber == u.Phone);
+                var pId = profile?.Id ?? u.ProfileId;
+                var existingIv = await context.IdentityVerifications.FirstOrDefaultAsync(iv => iv.UserProfileId == pId);
+                var origin = u.Identity == "082204016355" ? "Tiền Giang" : (u.Identity == "087204005634" ? "Đồng Tháp" : "Việt Nam");
+                if (existingIv == null)
                 {
                     await context.IdentityVerifications.AddAsync(new IdentityVerification
                     {
@@ -503,12 +517,18 @@ public static class DbSeeder
                         BackIdCardUrl = $"https://storage.trustsim.vn/ekyc/back_{u.UserName}.jpg",
                         FaceSelfieUrl = $"https://storage.trustsim.vn/ekyc/selfie_{u.UserName}.jpg",
                         FaceSimilarityScore = 98.8f,
-                        OcrRawData = $"{{\n  \"extractedInfo\": {{\n    \"identityNumber\": \"{u.Identity}\",\n    \"fullName\": \"{u.FullName}\",\n    \"dateOfBirth\": \"{((DateTime)u.Dob):dd/MM/yyyy}\",\n    \"gender\": \"Nam\",\n    \"nationality\": \"Việt Nam\",\n    \"placeOfOrigin\": \"Việt Nam\",\n    \"placeOfResidence\": \"Việt Nam\"\n  }},\n  \"confidenceScore\": 98.8\n}}",
+                        OcrRawData = $"{{\n  \"extractedInfo\": {{\n    \"identityNumber\": \"{u.Identity}\",\n    \"fullName\": \"{u.FullName}\",\n    \"dateOfBirth\": \"{((DateTime)u.Dob):dd/MM/yyyy}\",\n    \"gender\": \"Nam\",\n    \"nationality\": \"Việt Nam\",\n    \"placeOfOrigin\": \"{origin}\",\n    \"placeOfResidence\": \"{origin}\"\n  }},\n  \"confidenceScore\": 98.8\n}}",
                         VerificationMethod = "AUTOMATED_AWS_REKOGNITION",
                         VerificationStatus = VerificationStatus.VERIFIED,
                         SubmittedAt = DateTime.UtcNow.AddDays(-10),
                         VerifiedAt = DateTime.UtcNow.AddDays(-10)
                     });
+                }
+                else
+                {
+                    existingIv.VerificationStatus = VerificationStatus.VERIFIED;
+                    existingIv.VerifiedAt ??= DateTime.UtcNow.AddDays(-10);
+                    existingIv.OcrRawData = $"{{\n  \"extractedInfo\": {{\n    \"identityNumber\": \"{u.Identity}\",\n    \"fullName\": \"{u.FullName}\",\n    \"dateOfBirth\": \"{((DateTime)u.Dob):dd/MM/yyyy}\",\n    \"gender\": \"Nam\",\n    \"nationality\": \"Việt Nam\",\n    \"placeOfOrigin\": \"{origin}\",\n    \"placeOfResidence\": \"{origin}\"\n  }},\n  \"confidenceScore\": 98.8\n}}";
                 }
             }
         }
@@ -577,6 +597,15 @@ public static class DbSeeder
             Guid walletId = u.WalletId;
             string userName = u.UserName;
             string fullName = u.FullName;
+            Guid uId = u.Id;
+            string uEmail = u.Email;
+
+            var actualUser = await context.UserAccounts.FirstOrDefaultAsync(x => x.Id == uId || x.UserName == userName || x.Email == uEmail);
+            if (actualUser != null)
+            {
+                var actualWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == actualUser.Id);
+                if (actualWallet != null) walletId = actualWallet.Id;
+            }
 
             // Kiểm tra xem đã có LedgerEntry nạp tiền khởi tạo cho ví này chưa
             var hasExistingEntries = await context.LedgerEntries.AnyAsync(e => e.WalletId == walletId && e.AccountType == FinancialAccountType.USER_AVAILABLE);
@@ -714,6 +743,7 @@ public static class DbSeeder
         var sellerPhuQuy = Guid.Parse("11000000-0000-0000-0000-000000000003");
         var sellerDaiPhat = Guid.Parse("11000000-0000-0000-0000-000000000004");
         var userDraflame = Guid.Parse("11000000-0000-0000-0000-000000000099");
+        var userNguyenQuan = Guid.Parse("11000000-0000-0000-0000-000000000014");
 
         var simDefinitions = new[]
         {
@@ -724,7 +754,7 @@ public static class DbSeeder
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000005"), Phone = "0797979799", Price = 35000000m,   Status = SimStatus.TRANSFERRED,  Prefix = pr079, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caThanTaiLon } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000006"), Phone = "0966668888", Price = 120000000m,  Status = SimStatus.TRANSFERRED, Prefix = pr097, Rhythm = f244, Seller = sellerPhuQuy, Categories = new[] { caTuQuy, caKhongThatBat } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000007"), Phone = "0986868686", Price = 2200000000m, Status = SimStatus.IN_AUCTION, Prefix = pr098, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caDaiTaxi86, caLocPhat86, caKhongThatBat } },
-            new { Id = Guid.Parse("21000000-0000-0000-0000-000000000008"), Phone = "0869192776", Price = 450000m,       Status = SimStatus.AVAILABLE,  Prefix = pr086, Rhythm = f334, Seller = sellerDaiPhat, Categories = new[] { caGanhDao } },
+            new { Id = Guid.Parse("21000000-0000-0000-0000-000000000008"), Phone = "0869192776", Price = 450000m,       Status = SimStatus.AVAILABLE,  Prefix = pr086, Rhythm = f334, Seller = userNguyenQuan, Categories = new[] { caGanhDao } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000009"), Phone = "0903123678", Price = 2500000m,     Status = SimStatus.AVAILABLE,  Prefix = pr090, Rhythm = f334, Seller = sellerDaiPhat, Categories = new[] { caSanhTien } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000010"), Phone = "0977889900", Price = 8500000m,     Status = SimStatus.AVAILABLE,  Prefix = pr097, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caLapDoi } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000011"), Phone = "0339393939", Price = 18000000m,    Status = SimStatus.AVAILABLE,  Prefix = pr033, Rhythm = f22222, Seller = sellerPhuQuy, Categories = new[] { caThanTai } },
@@ -783,6 +813,12 @@ public static class DbSeeder
             var ownership = await context.SimOwnerships.FirstOrDefaultAsync(o => o.SimNumberId == sim.Id && o.UserAccountId == def.Seller);
             if (ownership == null)
             {
+                var otherActive = await context.SimOwnerships.FirstOrDefaultAsync(o => o.SimNumberId == sim.Id && o.OwnershipStatus == OwnershipStatus.ACTIVE && o.UserAccountId != def.Seller);
+                if (otherActive != null)
+                {
+                    otherActive.OwnershipStatus = OwnershipStatus.ENDED;
+                }
+
                 ownership = new SimOwnership
                 {
                     Id = Guid.NewGuid(),

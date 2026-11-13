@@ -82,6 +82,14 @@ public class SubmitTransferProofCommandHandler : IRequestHandler<SubmitTransferP
             throw new BadRequestException("Giao dịch chuyển nhượng SIM này đã bị hủy bỏ.");
         }
 
+        var hasApprovedSellerProof = trade.SimTransfer.TransferProofs
+            .Any(p => p.ProofType == TransferProofType.SELLER_HANDOVER && p.ProofStatus == ProofStatus.APPROVED);
+
+        if (hasApprovedSellerProof)
+        {
+            throw new BadRequestException("Bằng chứng sang tên của Người Bán đã được Ban Quản Trị phê duyệt, không thể nộp lại.");
+        }
+
         var proof = new TransferProof
         {
             Id = Guid.NewGuid(),
@@ -97,8 +105,8 @@ public class SubmitTransferProofCommandHandler : IRequestHandler<SubmitTransferP
         trade.SimTransfer.SimTransferStatus = SimTransferStatus.SELLER_PROOF_SUBMITTED;
 
         // Kích hoạt tuần tự mốc thời hạn Nghiệm thu & Thanh lý (LiquidationDeadline) kể từ khi Người Bán nộp biên bản
-        var liqHours = _deadlineSettings.LiquidationSigningDeadlineHours > 0 
-            ? _deadlineSettings.LiquidationSigningDeadlineHours 
+        var liqHours = _deadlineSettings.LiquidationSigningDeadlineHours > 0
+            ? _deadlineSettings.LiquidationSigningDeadlineHours
             : 72;
         var liquidationDeadline = DateTime.UtcNow.AddHours(liqHours);
         trade.LiquidationDeadline = liquidationDeadline;
@@ -140,7 +148,8 @@ public class SubmitTransferProofCommandHandler : IRequestHandler<SubmitTransferP
                 p.Description,
                 p.ProofStatus.ToString(),
                 p.VerifiedAt,
-                p.CreatedDate
+                p.CreatedDate,
+                p.ProofType.ToString()
             )).ToList();
 
         return new SimTransferDetailsDto(
@@ -163,6 +172,7 @@ public class SubmitTransferProofCommandHandler : IRequestHandler<SubmitTransferP
             PlatformFeeAmount: platformFeeAmount,
             NetSellerPayout: netSellerPayout,
             CompletedAt: null,
+            LiquidationDocumentUrl: trade.TransferContract?.LiquidationDocumentUrl,
             Message: "Đã nộp biên bản sang tên SIM thành công. Hệ thống đã thông báo cho Bên Mua kiểm tra và xác nhận."
         );
     }

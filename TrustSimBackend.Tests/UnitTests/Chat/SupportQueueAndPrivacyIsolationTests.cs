@@ -405,7 +405,6 @@ public class SupportQueueAndPrivacyIsolationTests
         _chatConvRepoMock.Setup(r => r.GetByIdWithDetailsAsync(convId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(pendingSnapshot);
 
-        // Giả lập Race Condition: Staff A vừa kịp duyệt ở mức DB ngay trước mili-giây Staff B gọi TryClaimSupportConversationAtomicallyAsync
         _chatConvRepoMock.Setup(r => r.TryClaimSupportConversationAtomicallyAsync(
                 convId, staffBId, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -421,6 +420,325 @@ public class SupportQueueAndPrivacyIsolationTests
         await act.Should().ThrowAsync<ForbiddenAccessException>()
             .WithMessage("*vừa được một nhân viên hoặc quản trị viên khác tiếp nhận*");
         _chatMsgRepoMock.Verify(r => r.AddAsync(It.IsAny<ChatMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetOrCreateSupportConversation_WhenPreviousConversationWasClaimedByStaffA_AndUserClicksChatWithPlatformAgain_ShouldResolveOldAndCreateNewPendingForStaffBToClaim()
+    {
+        // Arrange
+        using var dbContext = TestTrustSimDbContext.CreateInMemory();
+        var convRepo = new ChatConversationRepository(dbContext);
+        var msgRepo = new ChatMessageRepository(dbContext);
+        var userRepo = new UserAccountRepository(dbContext);
+
+        _uowMock.Setup(u => u.Users).Returns(userRepo);
+        _uowMock.Setup(u => u.ChatConversations).Returns(convRepo);
+        _uowMock.Setup(u => u.ChatMessages).Returns(msgRepo);
+        _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken ct) => dbContext.SaveChangesAsync(ct));
+        _uowMock.Setup(u => u.ClearChangeTracker())
+            .Callback(() => dbContext.ChangeTracker.Clear());
+
+        var customerId = Guid.NewGuid();
+        var staffAId = Guid.NewGuid();
+        var staffBId = Guid.NewGuid();
+        var oldConvId = Guid.NewGuid();
+
+        var customer = CreateAccount(customerId, "cust_resession", "Khách Hàng Cần Hỗ Trợ Lần 2", UserRole.USER, VerificationStatus.VERIFIED);
+        var staffA = CreateAccount(staffAId, "staff_a", "Chuyên Viên A", UserRole.CONSULTANT, VerificationStatus.VERIFIED);
+        var staffB = CreateAccount(staffBId, "staff_b", "Quản Trị Viên B", UserRole.ADMIN, VerificationStatus.VERIFIED);
+
+        var oldClaimedConv = new ChatConversation
+        {
+            Id = oldConvId,
+            Type = ConversationType.SUPPORT,
+            InitiatorUserId = customerId,
+            InitiatorUser = customer,
+            AssignedStaffId = staffAId,
+            AssignedStaff = staffA,
+            SupportStatus = SupportConversationStatus.CLAIMED,
+            ClaimedAt = DateTime.UtcNow.AddHours(-2),
+            CreatedDate = DateTime.UtcNow.AddHours(-3),
+            LastMessagePreview = "Đã tư vấn xong lần 1"
+        };
+
+        dbContext.UserAccounts.AddRange(customer, staffA, staffB);
+        dbContext.ChatConversations.Add(oldClaimedConv);
+        await dbContext.SaveChangesAsync();
+
+        var getOrCreateHandler = new GetOrCreateSupportConversationCommandHandler(_uowMock.Object, _realtimeMock.Object);
+        var claimHandler = new ClaimSupportConversationCommandHandler(_uowMock.Object, _realtimeMock.Object);
+        var listHandler = new GetUserConversationsQueryHandler(_uowMock.Object);
+
+        // Act 1: Khách hàng bấm "Chat với sàn" lại sau một khoảng thời gian
+        var newSessionDto = await getOrCreateHandler.Handle(
+            new GetOrCreateSupportConversationCommand(
+                CurrentUserId: customerId,
+                CurrentUserRole: UserRole.USER,
+                InitialMessage: "Tôi muốn hỏi thêm về thủ tục ký số hợp đồng SIM"),
+            CancellationToken.None);
+
+        // Act 2: Kiểm tra danh sách hàng đợi của Staff B và thực hiện Claim bởi Staff B
+        var staffBQueueBeforeClaim = await listHandler.Handle(
+            new GetUserConversationsQuery(staffBId, UserRole.ADMIN),
+            CancellationToken.None);
+
+        var claimedByStaffBDto = await claimHandler.Handle(
+            new ClaimSupportConversationCommand(newSessionDto.Id, staffBId, UserRole.ADMIN),
+            CancellationToken.None);
+
+        // Assert
+        newSessionDto.Id.Should().NotBe(oldConvId);
+        newSessionDto.SupportStatus.Should().Be(SupportConversationStatus.PENDING);
+        newSessionDto.AssignedStaff.Should().BeNull();
+
+        var reloadedOldConv = await convRepo.GetByIdWithDetailsAsync(oldConvId);
+        reloadedOldConv.Should().NotBeNull();
+        reloadedOldConv!.SupportStatus.Should().Be(SupportConversationStatus.RESOLVED);
+        reloadedOldConv.AssignedStaffId.Should().Be(staffAId);
+
+        staffBQueueBeforeClaim.Items.Should().ContainSingle(c => c.Id == newSessionDto.Id && c.CanClaim);
+        staffBQueueBeforeClaim.Items.Should().NotContain(c => c.Id == oldConvId);
+
+        claimedByStaffBDto.Id.Should().Be(newSessionDto.Id);
+        claimedByStaffBDto.SupportStatus.Should().Be(SupportConversationStatus.CLAIMED);
+        claimedByStaffBDto.AssignedStaff.Should().NotBeNull();
+        claimedByStaffBDto.AssignedStaff!.UserId.Should().Be(staffBId);
+
+        _realtimeMock.Verify(r => r.NotifyNewPendingSupportConversationAsync(
+            It.Is<ChatConversationSummaryDto>(dto => dto.Id == newSessionDto.Id && dto.SupportStatus == SupportConversationStatus.PENDING),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetOrCreateSupportConversation_WhenPendingUnclaimedConversationAlreadyExists_ShouldReuseSamePendingConversationWithoutCreatingDuplicate()
+    {
+        // Arrange
+        using var dbContext = TestTrustSimDbContext.CreateInMemory();
+        var convRepo = new ChatConversationRepository(dbContext);
+        var msgRepo = new ChatMessageRepository(dbContext);
+        var userRepo = new UserAccountRepository(dbContext);
+
+        _uowMock.Setup(u => u.Users).Returns(userRepo);
+        _uowMock.Setup(u => u.ChatConversations).Returns(convRepo);
+        _uowMock.Setup(u => u.ChatMessages).Returns(msgRepo);
+        _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken ct) => dbContext.SaveChangesAsync(ct));
+
+        var customerId = Guid.NewGuid();
+        var existingPendingId = Guid.NewGuid();
+        var customer = CreateAccount(customerId, "cust_pending", "Khách Hàng Đang Chờ", UserRole.USER, VerificationStatus.VERIFIED);
+
+        var existingPending = new ChatConversation
+        {
+            Id = existingPendingId,
+            Type = ConversationType.SUPPORT,
+            InitiatorUserId = customerId,
+            InitiatorUser = customer,
+            AssignedStaffId = null,
+            SupportStatus = SupportConversationStatus.PENDING,
+            CreatedDate = DateTime.UtcNow.AddMinutes(-5)
+        };
+
+        dbContext.UserAccounts.Add(customer);
+        dbContext.ChatConversations.Add(existingPending);
+        await dbContext.SaveChangesAsync();
+
+        var sut = new GetOrCreateSupportConversationCommandHandler(_uowMock.Object, _realtimeMock.Object);
+
+        // Act
+        var result = await sut.Handle(
+            new GetOrCreateSupportConversationCommand(customerId, UserRole.USER, "Tin nhắn bổ sung khi đang chờ"),
+            CancellationToken.None);
+
+        // Assert
+        result.Id.Should().Be(existingPendingId);
+        result.SupportStatus.Should().Be(SupportConversationStatus.PENDING);
+        dbContext.ChatConversations.Count().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ResolveSupportConversation_AndAttemptToSendMessageAfterResolved_ShouldTransitionToResolvedAndBlockFurtherMessages()
+    {
+        // Arrange
+        using var dbContext = TestTrustSimDbContext.CreateInMemory();
+        var convRepo = new ChatConversationRepository(dbContext);
+        var msgRepo = new ChatMessageRepository(dbContext);
+        var userRepo = new UserAccountRepository(dbContext);
+
+        _uowMock.Setup(u => u.Users).Returns(userRepo);
+        _uowMock.Setup(u => u.ChatConversations).Returns(convRepo);
+        _uowMock.Setup(u => u.ChatMessages).Returns(msgRepo);
+        _uowMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken ct) => dbContext.SaveChangesAsync(ct));
+
+        var customerId = Guid.NewGuid();
+        var staffAId = Guid.NewGuid();
+        var convId = Guid.NewGuid();
+
+        var customer = CreateAccount(customerId, "cust_resolve", "Khách Hàng Đóng Phiên", UserRole.USER, VerificationStatus.VERIFIED);
+        var staffA = CreateAccount(staffAId, "staff_resolve", "Chuyên Viên Đóng Phiên", UserRole.CONSULTANT, VerificationStatus.VERIFIED);
+
+        var claimedConv = new ChatConversation
+        {
+            Id = convId,
+            Type = ConversationType.SUPPORT,
+            InitiatorUserId = customerId,
+            InitiatorUser = customer,
+            AssignedStaffId = staffAId,
+            AssignedStaff = staffA,
+            SupportStatus = SupportConversationStatus.CLAIMED,
+            ClaimedAt = DateTime.UtcNow.AddMinutes(-15)
+        };
+
+        dbContext.UserAccounts.AddRange(customer, staffA);
+        dbContext.ChatConversations.Add(claimedConv);
+        await dbContext.SaveChangesAsync();
+
+        var resolveHandler = new ResolveSupportConversationCommandHandler(_uowMock.Object, _realtimeMock.Object);
+        var sendHandler = new SendChatMessageCommandHandler(
+            _uowMock.Object,
+            _cloudStorageMock.Object,
+            _pdfValidatorMock.Object,
+            _realtimeMock.Object);
+
+        // Act 1: Chuyên viên A kết thúc phiên hỗ trợ
+        var resolvedDto = await resolveHandler.Handle(
+            new ResolveSupportConversationCommand(convId, staffAId, UserRole.CONSULTANT),
+            CancellationToken.None);
+
+        // Act 2: Cố tình gửi tin nhắn vào phiên đã đóng
+        Func<Task> sendAfterResolvedAct = async () => await sendHandler.Handle(
+            new SendChatMessageCommand(convId, customerId, UserRole.USER, "Nhắn tiếp vào phiên đã đóng"),
+            CancellationToken.None);
+
+        // Assert
+        resolvedDto.SupportStatus.Should().Be(SupportConversationStatus.RESOLVED);
+        await sendAfterResolvedAct.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("*Phiên hỗ trợ này đã kết thúc*");
+    }
+
+    [Theory]
+    [InlineData(UserRole.CONSULTANT)]
+    [InlineData(UserRole.ADMIN)]
+    public async Task GetOrCreateSupportConversation_WhenConsultantOrAdminAttemptsToCreateSupportChat_ShouldThrowForbiddenAccessException(UserRole role)
+    {
+        // Arrange
+        var staffId = Guid.NewGuid();
+        var staffUser = CreateAccount(staffId, "staff_test", "Nhân Viên Sàn", role, VerificationStatus.VERIFIED);
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(staffId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(staffUser);
+
+        var handler = new GetOrCreateSupportConversationCommandHandler(_uowMock.Object, _realtimeMock.Object);
+        var command = new GetOrCreateSupportConversationCommand(
+            CurrentUserId: staffId,
+            CurrentUserRole: role,
+            InitialMessage: "Tôi là nhân viên nhưng muốn tạo chat với sàn");
+
+        // Act
+        Func<Task> act = async () => await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<ForbiddenAccessException>()
+            .WithMessage("*Nhân viên Sàn và Quản trị viên không được phép tạo cuộc hội thoại yêu cầu hỗ trợ với Sàn*");
+
+        _chatConvRepoMock.Verify(r => r.AddAsync(It.IsAny<ChatConversation>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ClaimSupportConversation_WhenStaffAttemptsToClaimTheirOwnSupportChat_ShouldThrowForbiddenAccessException()
+    {
+        // Arrange
+        var staffId = Guid.NewGuid();
+        var staffUser = CreateAccount(staffId, "staff_author", "Chuyên Viên Đã Khởi Tạo", UserRole.CONSULTANT, VerificationStatus.VERIFIED);
+
+        var convId = Guid.NewGuid();
+        var conv = new ChatConversation
+        {
+            Id = convId,
+            Type = ConversationType.SUPPORT,
+            SupportStatus = SupportConversationStatus.PENDING,
+            InitiatorUserId = staffId, // Do chính nhân viên này khởi tạo
+            AssignedStaffId = null
+        };
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(staffId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(staffUser);
+        _chatConvRepoMock.Setup(r => r.GetByIdWithDetailsAsync(convId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(conv);
+
+        var handler = new ClaimSupportConversationCommandHandler(_uowMock.Object, _realtimeMock.Object);
+        var command = new ClaimSupportConversationCommand(convId, staffId, UserRole.CONSULTANT);
+
+        // Act
+        Func<Task> act = async () => await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<ForbiddenAccessException>()
+            .WithMessage("*không thể tự duyệt cuộc hội thoại hỗ trợ do chính mình tạo ra*");
+
+        _chatConvRepoMock.Verify(r => r.TryClaimSupportConversationAtomicallyAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetUserConversations_WhenStaffViewsPendingQueue_ShouldNotShowConversationsInitiatedByThemselves()
+    {
+        // Arrange
+        using var dbContext = TestTrustSimDbContext.CreateInMemory();
+        var convRepo = new ChatConversationRepository(dbContext);
+        _uowMock.Setup(u => u.ChatConversations).Returns(convRepo);
+
+        var staffAId = Guid.NewGuid();
+        var customerBId = Guid.NewGuid();
+
+        var staffA = CreateAccount(staffAId, "staff_a", "Chuyên Viên A", UserRole.CONSULTANT, VerificationStatus.VERIFIED);
+        var customerB = CreateAccount(customerBId, "customer_b", "Khách Hàng B", UserRole.USER, VerificationStatus.VERIFIED);
+        dbContext.UserAccounts.AddRange(staffA, customerB);
+        await dbContext.SaveChangesAsync();
+
+        // 1 cuộc hội thoại PENDING do StaffA khởi tạo (nếu có tiền sử dữ liệu)
+        var pendingFromStaffA = new ChatConversation
+        {
+            Id = Guid.NewGuid(),
+            Type = ConversationType.SUPPORT,
+            SupportStatus = SupportConversationStatus.PENDING,
+            InitiatorUserId = staffAId,
+            AssignedStaffId = null,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        // 1 cuộc hội thoại PENDING chuẩn do CustomerB khởi tạo
+        var pendingFromCustomerB = new ChatConversation
+        {
+            Id = Guid.NewGuid(),
+            Type = ConversationType.SUPPORT,
+            SupportStatus = SupportConversationStatus.PENDING,
+            InitiatorUserId = customerBId,
+            AssignedStaffId = null,
+            CreatedDate = DateTime.UtcNow
+        };
+
+        dbContext.ChatConversations.AddRange(pendingFromStaffA, pendingFromCustomerB);
+        await dbContext.SaveChangesAsync();
+
+        var handler = new GetUserConversationsQueryHandler(_uowMock.Object);
+
+        // Act: StaffA xem danh sách hội thoại SUPPORT ở trạng thái PENDING (hàng đợi tiếp nhận)
+        var query = new GetUserConversationsQuery(
+            CurrentUserId: staffAId,
+            CurrentUserRole: UserRole.CONSULTANT,
+            Type: ConversationType.SUPPORT,
+            SupportStatus: SupportConversationStatus.PENDING,
+            PageIndex: 1,
+            PageSize: 10);
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        // Assert: Chỉ hiển thị cuộc hội thoại của CustomerB, không bao giờ hiển thị cuộc hội thoại do StaffA tự tạo trong hàng đợi duyệt
+        result.Items.Should().HaveCount(1);
+        result.Items.Single().Initiator.UserId.Should().Be(customerBId);
+        result.Items.Single().CanClaim.Should().BeTrue();
     }
 
     private static UserAccount CreateAccount(

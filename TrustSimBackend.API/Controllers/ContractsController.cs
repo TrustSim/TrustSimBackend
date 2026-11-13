@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TrustSimBackend.API.Controllers.Common;
+using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
@@ -10,7 +11,7 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.API.Controllers;
 
 /// <summary>
-/// Controller quản lý quy trình xem trước, cấp phát OTP và ký số hợp đồng điện tử chuyển nhượng SIM.
+/// Controller quản lý quy trình xem trước, cấp phát OTP, ký số hợp đồng điện tử chuyển nhượng SIM và tích hợp chữ ký số từ xa VNPT SmartCA.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -215,6 +216,114 @@ public class ContractsController : BaseApiController
             OtpCode: request.OtpCode,
             IpAddress: ipAddress,
             UserAgent: userAgent);
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<SignContractResultDto>.SuccessResult(result, result.Message));
+    }
+
+    /// <summary>
+    /// [VNPT SmartCA] Lấy danh sách chứng thư số đang hoạt động của thuê bao (v1/credentials/get_certificate).
+    /// </summary>
+    [HttpGet("{tradeId:guid}/smartca/certificates")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SmartCaCertificateDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetSmartCaCertificates(
+        [FromRoute] Guid tradeId,
+        [FromQuery] string? citizenId = null,
+        [FromQuery] string? serialNumber = null)
+    {
+        var query = new GetSmartCaCertificatesQuery(
+            TradeId: tradeId,
+            UserId: CurrentUserId,
+            CitizenId: citizenId,
+            SerialNumber: serialNumber);
+
+        var result = await Mediator.Send(query);
+        return Ok(ApiResponse<IReadOnlyList<SmartCaCertificateDto>>.SuccessResult(
+            result,
+            "Lấy danh sách chứng thư số VNPT SmartCA thành công."));
+    }
+
+    /// <summary>
+    /// [VNPT SmartCA] Khởi tạo giao dịch ký số hợp đồng điện tử chuyển nhượng SIM (v1/signatures/sign hoặc v2/signatures/sign).
+    /// </summary>
+    [HttpPost("{tradeId:guid}/smartca/sign")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<InitiateSmartCaContractSignResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> InitiateSmartCaContractSign(
+        [FromRoute] Guid tradeId,
+        [FromBody] InitiateSmartCaSignRequest? request)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
+
+        var command = new InitiateSmartCaContractSignCommand(
+            TradeId: tradeId,
+            UserId: CurrentUserId,
+            CitizenId: request?.CitizenId,
+            SerialNumber: request?.SerialNumber,
+            UserPassword: request?.Password,
+            Otp: request?.Otp,
+            IpAddress: ipAddress,
+            UserAgent: userAgent);
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<InitiateSmartCaContractSignResultDto>.SuccessResult(
+            result,
+            "Đã gửi yêu cầu ký số tới VNPT SmartCA. Vui lòng xác nhận trên ứng dụng VNPT SmartCA."));
+    }
+
+    /// <summary>
+    /// [VNPT SmartCA] Chủ động kiểm tra trạng thái giao dịch ký số và hoàn tất ghi nhận chữ ký khi người dùng đã xác nhận trên App.
+    /// </summary>
+    [HttpPost("{tradeId:guid}/smartca/sign/{tranCode}/check")]
+    [HttpPost("{tradeId:guid}/smartca/transactions/{tranCode}/check-status")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<SignContractResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CheckSmartCaSignStatus(
+        [FromRoute] Guid tradeId,
+        [FromRoute] string tranCode)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
+
+        var command = new CompleteSmartCaContractSignCommand(
+            TranCodeOrTransactionId: tranCode,
+            TradeId: tradeId,
+            UserId: CurrentUserId,
+            IpAddress: ipAddress,
+            UserAgent: userAgent);
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<SignContractResultDto>.SuccessResult(result, result.Message));
+    }
+
+    /// <summary>
+    /// [VNPT SmartCA Webhook] Nhận kết quả ký số bất đồng bộ từ máy chủ VNPT SmartCA sau khi thuê bao xác nhận trên App (Mục 3.5 Tài liệu SmartCA v4.0).
+    /// </summary>
+    [HttpPost("smartca/webhook")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<SignContractResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SmartCaWebhook([FromBody] SmartCaWebhookRequest request)
+    {
+        var key = !string.IsNullOrWhiteSpace(request.TranCode)
+            ? request.TranCode!
+            : (request.TransactionId ?? string.Empty);
+
+        var firstFile = request.SignedFiles?.FirstOrDefault();
+
+        var command = new CompleteSmartCaContractSignCommand(
+            TranCodeOrTransactionId: key,
+            WebhookSignatureValueBase64: firstFile?.SignatureValue,
+            WebhookDocId: firstFile?.DocId,
+            WebhookStatusCode: request.StatusCode,
+            IpAddress: HttpContext.Connection.RemoteIpAddress?.ToString() ?? "vnpt-smartca-webhook",
+            UserAgent: Request.Headers.UserAgent.ToString());
 
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<SignContractResultDto>.SuccessResult(result, result.Message));

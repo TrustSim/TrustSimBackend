@@ -31,7 +31,7 @@ public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferD
         var isBuyer = trade.BuyerId == request.UserId;
         var isSeller = trade.SellerId == request.UserId;
 
-        if (!isBuyer && !isSeller)
+        if (!isBuyer && !isSeller && !request.IsAdmin)
         {
             throw new ForbiddenAccessException("Bạn không có quyền truy cập thông tin bàn giao SIM của giao dịch này.");
         }
@@ -77,7 +77,8 @@ public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferD
                 p.Description,
                 p.ProofStatus.ToString(),
                 p.VerifiedAt,
-                p.CreatedDate
+                p.CreatedDate,
+                p.ProofType.ToString()
             )).ToList() ?? new List<TransferProofDto>();
 
         var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
@@ -86,8 +87,11 @@ public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferD
         var netSellerPayout = escrowAmount - platformFeeAmount;
 
         var transferStatus = simTransfer?.SimTransferStatus ?? SimTransferStatus.PENDING_SELLER_ACTION;
-        var canSubmitProof = isSeller && (transferStatus == SimTransferStatus.PENDING_SELLER_ACTION || transferStatus == SimTransferStatus.SELLER_PROOF_SUBMITTED);
-        var canConfirmTransfer = isBuyer && (transferStatus == SimTransferStatus.SELLER_PROOF_SUBMITTED || transferStatus == SimTransferStatus.PENDING_BUYER_ACTION);
+        var hasApprovedSellerProof = simTransfer?.TransferProofs?
+            .Any(p => p.ProofType == TransferProofType.SELLER_HANDOVER && p.ProofStatus == ProofStatus.APPROVED) == true;
+        var canSubmitProof = (isSeller && !hasApprovedSellerProof && (transferStatus == SimTransferStatus.PENDING_SELLER_ACTION || transferStatus == SimTransferStatus.SELLER_PROOF_SUBMITTED))
+            || (isBuyer && hasApprovedSellerProof && (transferStatus == SimTransferStatus.PENDING_BUYER_ACTION || transferStatus == SimTransferStatus.BUYER_PROOF_SUBMITTED));
+        var canConfirmTransfer = isBuyer && hasApprovedSellerProof && (transferStatus == SimTransferStatus.PENDING_BUYER_ACTION || transferStatus == SimTransferStatus.BUYER_PROOF_SUBMITTED);
 
         return new SimTransferDetailsDto(
             TradeId: trade.Id,

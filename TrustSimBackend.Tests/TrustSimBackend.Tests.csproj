@@ -24,6 +24,7 @@
     <ProjectReference Include="..\TrustSimBackend.Domain\TrustSimBackend.Domain.csproj" />
     <ProjectReference Include="..\TrustSimBackend.Application\TrustSimBackend.Application.csproj" />
     <ProjectReference Include="..\TrustSimBackend.Infrastructure\TrustSimBackend.Infrastructure.csproj" />
+    <ProjectReference Include="..\TrustSimBackend.API\TrustSimBackend.API.csproj" />
   </ItemGroup>
 
 </Project>

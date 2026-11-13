@@ -18,4 +18,6 @@ public record ChatMessageDto(
     string? AttachmentFileName,
     bool IsRead,
     DateTime? ReadAt,
-    DateTime CreatedDate);
+    DateTime CreatedDate,
+    DateTime? AttachmentExpiresAt = null,
+    bool IsAttachmentExpired = false);

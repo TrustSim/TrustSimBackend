@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrustSim - Gemini Multimodal Vision OCR Studio</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --bg-dark: #070b14;
+      --bg-card: rgba(15, 23, 42, 0.78);
+      --bg-card-hover: rgba(26, 38, 66, 0.90);
+      --bg-input: rgba(9, 14, 26, 0.88);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(56, 189, 248, 0.35);
+
+      --primary: #38bdf8;
+      --primary-glow: rgba(56, 189, 248, 0.35);
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.3);
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --purple: #8b5cf6;
+
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image:
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: var(--font-main);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: #fff;
+      box-shadow: 0 0 16px var(--primary-glow);
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .backend-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--emerald);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--emerald);
+    }
+
+    .main-container {
+      flex: 1;
+      padding: 24px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .main-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-body {
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+
+    /* Drop Zone */
+    .dropzone {
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      background: rgba(56, 189, 248, 0.03);
+      border-radius: var(--radius-sm);
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(56, 189, 248, 0.12);
+      transform: scale(1.01);
+    }
+
+    .dropzone-icon {
+      font-size: 38px;
+      color: var(--primary);
+      opacity: 0.85;
+    }
+
+    .dropzone-text {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .dropzone-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .preview-box {
+      border: 1px solid var(--border-subtle);
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: var(--radius-sm);
+      min-height: 280px;
+      max-height: 460px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-img {
+      max-width: 100%;
+      max-height: 460px;
+      object-fit: contain;
+      display: none;
+    }
+
+    .preview-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .file-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-copy {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .btn-copy:hover {
+      background: rgba(56, 189, 248, 0.2);
+    }
+
+    /* Tabs */
+    .tab-nav {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 8px;
+    }
+
+    .tab-btn {
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn.active {
+      color: #fff;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Full Text Box */
+    .full-text-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 320px;
+      max-height: 480px;
+      overflow-y: auto;
+      color: #e2e8f0;
+    }
+
+    /* Lines Table */
+    .lines-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .lines-table th {
+      text-align: left;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-dim);
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .lines-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+
+    .lines-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge-conf {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      display: inline-block;
+    }
+
+    .badge-conf.high {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-conf.med {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-conf.low {
+      background: rgba(244, 63, 94, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+
+    /* JSON Viewer */
+    .json-box {
+      background: #020617;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #7dd3fc;
+      max-height: 480px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Stats bar */
+    .stats-footer {
+      display: flex;
+      gap: 16px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-val {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      border: 1px solid var(--border-glow);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">
+        <i class="fa-solid fa-eye"></i>
+      </div>
+      <div>
+        <div class="brand-title">TrustSim OCR Studio</div>
+        <div class="brand-subtitle">Gemini Multimodal Vision OCR Engine</div>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="backend-badge">
+        <span class="status-dot"></span>
+        <select id="serverSelect" onchange="changeServer(this.value)" style="background: transparent; border: none; color: inherit; font: inherit; outline: none; cursor: pointer;">
+          <option value="http://localhost:5130" style="background:#0f172a;color:#f8fafc;">http://localhost:5130</option>
+          <option value="https://localhost:7120" style="background:#0f172a;color:#f8fafc;">https://localhost:7120</option>
+          <option value="http://localhost:5000" style="background:#0f172a;color:#f8fafc;">http://localhost:5000</option>
+        </select>
+      </div>
+      <a href="index.html" class="btn btn-secondary" style="font-size: 12px;">
+        <i class="fa-solid fa-gavel"></i> Arena
+      </a>
+      <a href="transfer_review_studio.html" class="btn btn-secondary" style="font-size: 12px; border-color: rgba(16, 185, 129, 0.4); color: #34d399;">
+        <i class="fa-solid fa-user-shield"></i> Duyệt Chuyển Nhượng
+      </a>
+      <a href="contract_studio.html" class="btn btn-secondary" style="font-size: 12px;">
+        <i class="fa-solid fa-file-contract"></i> E-Contract Studio
+      </a>
+    </div>
+  </header>
+
+  <!-- Main 2-Column Work Area -->
+  <main class="main-container">
+
+    <!-- Left Column: Image Input & Preview -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="fa-solid fa-image" style="color: var(--primary);"></i>
+          <span>Tải Hình Ảnh / Bằng Chứng Sang Tên</span>
+        </div>
+        <button class="btn btn-secondary" onclick="resetImage()" style="font-size: 11px; padding: 4px 10px;">
+          <i class="fa-solid fa-arrow-rotate-left"></i> Làm mới
+        </button>
+      </div>
+
+      <div class="panel-body">
+        <!-- Drag & Drop Zone -->
+        <div class="dropzone" id="dropZone" onclick="triggerFileInput()">
+          <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+          <div class="dropzone-text">Kéo thả ảnh vào đây hoặc bấm để chọn tệp</div>
+          <div class="dropzone-hint">Hỗ trợ JPG, PNG, WEBP • Dán ảnh từ Clipboard (Ctrl + V) trực tiếp</div>
+          <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFileChange(event)">
+        </div>
+
+        <!-- Image Preview Frame -->
+        <div class="preview-box" id="previewBox">
+          <img id="previewImage" class="preview-img" alt="Preview Image">
+          <div class="preview-placeholder" id="previewPlaceholder">
+            <i class="fa-regular fa-image" style="font-size: 36px;"></i>
+            <span>Chưa chọn hình ảnh</span>
+          </div>
+        </div>
+
+        <!-- Image Meta Bar -->
+        <div class="file-meta-bar" id="fileMetaBar" style="display: none;">
+          <span id="fileName">image.png</span>
+          <span id="fileSize">0 KB</span>
+          <span id="fileDims">0 x 0 px</span>
+        </div>
+
+        <!-- QA Quick Test Generators -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary" onclick="generateSampleProofImage()" style="flex: 1; font-size: 11px; padding: 8px;">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--emerald);"></i> Ảnh Biên Bản Mẫu
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="generateBlankImage()" style="flex: 1; font-size: 11px; padding: 8px;">
+            <i class="fa-regular fa-square" style="color: var(--amber);"></i> Ảnh Trắng (Empty Text)
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="testInvalidMagicBytesFile()" style="flex: 1; font-size: 11px; padding: 8px; border-color: rgba(244,63,94,0.35); color: #fda4af;">
+            <i class="fa-solid fa-shield-halved" style="color: var(--rose);"></i> File Giả Mạo (Magic Bytes)
+          </button>
+        </div>
+
+        <!-- Action Button -->
+        <button class="btn btn-primary" id="btnDetect" onclick="performOcr()" disabled style="padding: 14px;">
+          <i class="fa-solid fa-bolt" id="detectIcon"></i>
+          <span id="detectBtnText">Trích Xuất Văn Bản OCR (Gemini Vision)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column: OCR Results Studio -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="fa-solid fa-file-lines" style="color: var(--emerald);"></i>
+          <span>Kết Quả Nhận Diện Ký Tự Quang Học</span>
+        </div>
+
+        <button class="btn btn-copy" onclick="copyActiveTabContent()">
+          <i class="fa-regular fa-copy"></i> Copy
+        </button>
+      </div>
+
+      <div class="panel-body">
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+          <button class="tab-btn active" onclick="switchTab('fulltext')">
+            <i class="fa-solid fa-align-left"></i> Toàn bộ văn bản (Full Text)
+          </button>
+          <button class="tab-btn" onclick="switchTab('lines')">
+            <i class="fa-solid fa-list-ol"></i> Từng dòng (<span id="lineCountBadge">0</span>)
+          </button>
+          <button class="tab-btn" onclick="switchTab('rawjson')">
+            <i class="fa-solid fa-code"></i> JSON thô (Raw)
+          </button>
+        </div>
+
+        <!-- Tab 1: Full Text -->
+        <div class="tab-content active" id="tab-fulltext">
+          <div class="full-text-box" id="fullTextBox">
+            <span style="color: var(--text-dim); font-style: italic;">Chưa có dữ liệu OCR. Hãy tải ảnh và bấm "Trích Xuất Văn Bản".</span>
+          </div>
+        </div>
+
+        <!-- Tab 2: Lines Table -->
+        <div class="tab-content" id="tab-lines">
+          <div style="max-height: 480px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+            <table class="lines-table">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Nội dung dòng</th>
+                  <th style="width: 90px; text-align: right;">Độ tin cậy</th>
+                </tr>
+              </thead>
+              <tbody id="linesTableBody">
+                <tr>
+                  <td colspan="3" style="text-align: center; color: var(--text-dim); padding: 30px;">
+                    Chưa có dòng văn bản nào
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab 3: Raw JSON -->
+        <div class="tab-content" id="tab-rawjson">
+          <pre class="json-box" id="jsonBox">// Dữ liệu JSON thô trả về từ Gemini Multimodal Vision API sẽ hiển thị ở đây</pre>
+        </div>
+
+        <!-- Stats Footer -->
+        <div class="stats-footer">
+          <div class="stat-item">
+            <span style="color: var(--text-dim);">Số dòng:</span>
+            <span class="stat-val" id="statLines">0</span>
+          </div>
+          <div class="stat-item">
+            <span style="color: var(--text-dim);">Số ký tự:</span>
+            <span class="stat-val" id="statChars">0</span>
+          </div>
+          <div class="stat-item">
+            <span style="color: var(--text-dim);">Thời gian xử lý:</span>
+            <span class="stat-val" id="statDuration">0 ms</span>
+          </div>
+          <div class="stat-item" style="margin-left: auto;">
+            <span style="color: var(--text-dim);">Trạng thái:</span>
+            <span class="stat-val" id="statStatus" style="color: var(--emerald);">Sẵn sàng</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <i class="fa-solid fa-circle-check" style="color: var(--emerald);" id="toastIcon"></i>
+    <span id="toastMsg">Thành công</span>
+  </div>
+
+  <script>
+    let backendUrl = 'http://localhost:5130';
+    let selectedFile = null;
+    let currentOcrResult = null;
+    let activeTab = 'fulltext';
+
+    function changeServer(val) {
+      backendUrl = val;
+      showToast(`Đã đổi Backend API: ${val}`, 'success');
+    }
+
+    function generateSampleProofImage() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 920;
+      canvas.height = 520;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(20, 20, 880, 480);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 26px Arial';
+      ctx.fillText('CONG HOA XA HOI CHU NGHIA VIET NAM', 175, 72);
+      ctx.font = 'bold 22px Arial';
+      ctx.fillText('BIEN BAN XAC NHAN CHUYEN QUYEN SO HUU SIM', 145, 112);
+
+      ctx.font = '18px monospace';
+      ctx.fillText('So thue bao giao dich : 0988.888.888 (Viettel)', 60, 175);
+      ctx.fillText('Ben chuyen nhuong (Ban): Nguyen Van A - CCCD: 001090001122', 60, 215);
+      ctx.fillText('Ben nhan quyen (Mua)   : Tran Thi B   - CCCD: 001095003344', 60, 255);
+      ctx.fillText('Ma giao dich he thong  : TRD-20261112-TEST', 60, 295);
+      ctx.fillText('Trang thai xac thuc    : DA HOAN TAT SANG TEN CHINH CHU 1414', 60, 335);
+
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(610, 370, 240, 95);
+      ctx.fillStyle = '#dc2626';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText('DA KIEM DUYET TAI QUAY', 625, 412);
+      ctx.fillText('TRUSTSIM QA TEST STAMP', 625, 442);
+
+      canvas.toBlob((blob) => {
+        const file = new File([blob], 'sample_handover_proof.png', { type: 'image/png' });
+        processSelectedFile(file, 'sample_handover_proof.png');
+        showToast('Đã tạo ảnh biên bản mẫu (PNG)! Bấm Trích Xuất Văn Bản để test.', 'success');
+      }, 'image/png');
+    }
+
+    function generateBlankImage() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 240;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        const file = new File([blob], 'blank_test_empty.png', { type: 'image/png' });
+        processSelectedFile(file, 'blank_test_empty.png');
+        showToast('Đã tạo ảnh trắng tinh để test kết quả rỗng (HTTP 200, 0 dòng)!', 'success');
+      }, 'image/png');
+    }
+
+    async function testInvalidMagicBytesFile() {
+      const fakeFile = new File(
+        ['NOT_A_REAL_PNG_BINARY_CONTENT_MAGIC_BYTE_ATTACK'],
+        'malicious_fake.png',
+        { type: 'image/png' }
+      );
+      selectedFile = fakeFile;
+      document.getElementById('fileName').innerText = fakeFile.name;
+      document.getElementById('fileSize').innerText = `${fakeFile.size} B`;
+      document.getElementById('fileDims').innerText = 'Fake Header';
+      document.getElementById('fileMetaBar').style.display = 'flex';
+      document.getElementById('btnDetect').disabled = false;
+      await performOcr();
+    }
+
+    // Drag and Drop
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+
+    function triggerFileInput() {
+      fileInput.click();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files && files.length > 0) {
+        processSelectedFile(files[0]);
+      }
+    });
+
+    // Paste from clipboard (Ctrl + V)
+    window.addEventListener('paste', (e) => {
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          processSelectedFile(blob, 'clipboard-image.png');
+          showToast('Đã dán ảnh từ Clipboard!', 'success');
+          break;
+        }
+      }
+    });
+
+    function handleFileChange(event) {
+      const file = event.target.files && event.target.files[0];
+      if (file) {
+        processSelectedFile(file);
+      }
+    }
+
+    function processSelectedFile(file, customName) {
+      if (!file.type.startsWith('image/')) {
+        showToast('Vui lòng chọn tệp hình ảnh hợp lệ (JPG, PNG, WEBP)', 'error');
+        return;
+      }
+
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = document.getElementById('previewImage');
+        img.src = e.target.result;
+        img.style.display = 'block';
+        document.getElementById('previewPlaceholder').style.display = 'none';
+
+        img.onload = () => {
+          document.getElementById('fileDims').innerText = `${img.naturalWidth} x ${img.naturalHeight} px`;
+        };
+
+        const fileName = customName || file.name || 'image.png';
+        document.getElementById('fileName').innerText = fileName;
+        document.getElementById('fileSize').innerText = `${(file.size / 1024).toFixed(1)} KB`;
+        document.getElementById('fileMetaBar').style.display = 'flex';
+        document.getElementById('btnDetect').disabled = false;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetImage() {
+      selectedFile = null;
+      currentOcrResult = null;
+      fileInput.value = '';
+      document.getElementById('previewImage').style.display = 'none';
+      document.getElementById('previewImage').src = '';
+      document.getElementById('previewPlaceholder').style.display = 'flex';
+      document.getElementById('fileMetaBar').style.display = 'none';
+      document.getElementById('btnDetect').disabled = true;
+
+      document.getElementById('fullTextBox').innerHTML = '<span style="color: var(--text-dim); font-style: italic;">Chưa có dữ liệu OCR. Hãy tải ảnh và bấm "Trích Xuất Văn Bản".</span>';
+      document.getElementById('linesTableBody').innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-dim); padding: 30px;">Chưa có dòng văn bản nào</td></tr>';
+      document.getElementById('jsonBox').innerText = '// Dữ liệu JSON thô trả về từ Gemini Multimodal Vision API sẽ hiển thị ở đây';
+      document.getElementById('lineCountBadge').innerText = '0';
+      document.getElementById('statLines').innerText = '0';
+      document.getElementById('statChars').innerText = '0';
+      document.getElementById('statDuration').innerText = '0 ms';
+      document.getElementById('statStatus').innerText = 'Sẵn sàng';
+      document.getElementById('statStatus').style.color = 'var(--emerald)';
+    }
+
+    // Call Backend API
+    async function performOcr() {
+      if (!selectedFile) {
+        showToast('Vui lòng chọn hoặc dán hình ảnh trước!', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btnDetect');
+      const icon = document.getElementById('detectIcon');
+      const text = document.getElementById('detectBtnText');
+      const statStatus = document.getElementById('statStatus');
+
+      btn.disabled = true;
+      icon.className = 'fa-solid fa-spinner fa-spin';
+      text.innerText = 'Đang nhận diện Gemini Vision OCR...';
+      statStatus.innerText = 'Đang xử lý...';
+      statStatus.style.color = 'var(--primary)';
+
+      const startTime = performance.now();
+      const formData = new FormData();
+      formData.append('file', selectedFile, selectedFile.name || 'image.jpg');
+
+      try {
+        const response = await fetch(`${backendUrl}/api/Vision/ocr/detect-text`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const duration = Math.round(performance.now() - startTime);
+        document.getElementById('statDuration').innerText = `${duration} ms`;
+
+        const json = await response.json();
+
+        if (response.ok && json.success && json.data) {
+          currentOcrResult = json.data;
+          renderResults(json.data);
+          statStatus.innerText = `HTTP ${response.status} OK`;
+          statStatus.style.color = 'var(--emerald)';
+          showToast('Nhận diện văn bản Gemini OCR thành công!', 'success');
+        } else {
+          statStatus.innerText = `HTTP ${response.status} Lỗi`;
+          statStatus.style.color = 'var(--rose)';
+          const err = json.message || json.data?.errorMessage || 'Không thể trích xuất văn bản từ hình ảnh này';
+          showToast(`Lỗi (HTTP ${response.status}): ${err}`, 'error');
+          document.getElementById('fullTextBox').innerText = `Lỗi từ máy chủ (HTTP ${response.status}): ${err}`;
+          document.getElementById('jsonBox').innerText = JSON.stringify(json, null, 2);
+        }
+      } catch (err) {
+        console.error(err);
+        statStatus.innerText = 'Lỗi kết nối';
+        statStatus.style.color = 'var(--rose)';
+        showToast(`Lỗi kết nối máy chủ: ${err.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        icon.className = 'fa-solid fa-bolt';
+        text.innerText = 'Trích Xuất Văn Bản OCR (Gemini Vision)';
+      }
+    }
+
+    function renderResults(data) {
+      // 1. Full Text
+      const fullText = data.fullText || '';
+      document.getElementById('fullTextBox').innerText = fullText || '(Không có nội dung chữ nào được tìm thấy)';
+      document.getElementById('statChars').innerText = fullText.length;
+
+      // 2. Lines Table
+      const lines = data.lines || [];
+      document.getElementById('lineCountBadge').innerText = lines.length;
+      document.getElementById('statLines').innerText = lines.length;
+
+      const tbody = document.getElementById('linesTableBody');
+      if (lines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-dim); padding: 30px;">Không nhận diện được dòng nào</td></tr>';
+      } else {
+        tbody.innerHTML = lines.map(line => {
+          const confPercent = Math.round((line.confidence || 0) * 100);
+          let badgeClass = 'high';
+          if (confPercent < 60) badgeClass = 'low';
+          else if (confPercent < 80) badgeClass = 'med';
+
+          return `
+            <tr>
+              <td style="color: var(--text-dim); font-family: var(--font-mono);">${line.lineIndex}</td>
+              <td style="font-weight: 500; word-break: break-word;">${escapeHtml(line.text)}</td>
+              <td style="text-align: right;">
+                <span class="badge-conf ${badgeClass}">${confPercent}%</span>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // 3. Raw JSON
+      document.getElementById('jsonBox').innerText = data.rawJson || JSON.stringify(data, null, 2);
+    }
+
+    function switchTab(tabId) {
+      activeTab = tabId;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes(tabId));
+      });
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === `tab-${tabId}`);
+      });
+    }
+
+    function copyActiveTabContent() {
+      let textToCopy = '';
+      if (activeTab === 'fulltext') {
+        textToCopy = document.getElementById('fullTextBox').innerText;
+      } else if (activeTab === 'lines') {
+        if (currentOcrResult && currentOcrResult.lines) {
+          textToCopy = currentOcrResult.lines.map(l => `${l.lineIndex}. ${l.text}`).join('\n');
+        }
+      } else if (activeTab === 'rawjson') {
+        textToCopy = document.getElementById('jsonBox').innerText;
+      }
+
+      if (!textToCopy || textToCopy.startsWith('//') || textToCopy.startsWith('Chưa có')) {
+        showToast('Chưa có nội dung để sao chép', 'error');
+        return;
+      }
+
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast('Đã sao chép nội dung vào Clipboard!', 'success');
+      }).catch(err => {
+        prompt('Sao chép nội dung:', textToCopy);
+      });
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastIcon = document.getElementById('toastIcon');
+
+      toastMsg.innerText = msg;
+      if (type === 'success') {
+        toastIcon.className = 'fa-solid fa-circle-check';
+        toastIcon.style.color = 'var(--emerald)';
+      } else {
+        toastIcon.className = 'fa-solid fa-circle-exclamation';
+        toastIcon.style.color = 'var(--rose)';
+      }
+
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3500);
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+
+</html>

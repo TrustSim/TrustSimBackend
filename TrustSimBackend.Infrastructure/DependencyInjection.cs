@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.Configure<TradeDeadlineSettings>(configuration.GetSection(TradeDeadlineSettings.SectionName));
         services.Configure<SupabaseSettings>(configuration.GetSection("Supabase"));
         services.Configure<MinioSettings>(configuration.GetSection(MinioSettings.SectionName));
+        services.Configure<SmartCaSettings>(configuration.GetSection(SmartCaSettings.SectionName));
         services.Configure<SoftHsmSettings>(configuration.GetSection(SoftHsmSettings.SectionName));
         services.AddHttpClient();
 
@@ -96,7 +97,7 @@ public static class DependencyInjection
             // User Policy
             options.User.RequireUniqueEmail = true;
             options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+ " +
-                "aAàÀảẢãÃáÁạẠăĂằẰẳẲẵẴắẮặẶâÂầẦẩẨẫẪấẤậẬbBcCdDđĐeEèÈẻẺẽẼéÉẹẸêÊềỀểỂễỄếẾệỆfFgGhHiIìÌỉỈĩĨíÍịỊjJkKlLmMnNoOòÒỏỎõÕóÓọỌôÔồỒổỔỗỖốỐộỘơƠờỜởỞỡỠớỚợỢpPqQrRsStTuUùÙủỦũŨúÚụỤưƯừỪửỬữỮứỨựỰvVwWxXyYỳỲỷỶỹỸýÝỵỴzZ";
+                "aAàÀảẢãÃáÁạẠăĂằẰẳẲẵẴắẮặẶâÂầẦẩẨẫẪấẤậẬbBcCdDđĐeEèÈẻÈẽẼéÉẹẸêÊềỀểỂễỄếẾệỆfFgGhHiIìÌỉỈĩĨíÍịỊjJkKlLmMnNoOòÒỏỎõÕóÓọỌôÔồỒổỔỗỖốỐộỘơƠờỜởỞỡỠớỚợỢpPqQrRsStTuUùÙủỦũŨúÚụỤưƯừỪửỬữỮứỨựỰvVwWxXyYỳỲỷỶỹỸýÝỵỴzZ";
             options.SignIn.RequireConfirmedEmail = false;
         })
         .AddEntityFrameworkStores<TrustSimDbContext>()
@@ -209,12 +210,19 @@ public static class DependencyInjection
         // Multi-Channel Notification Dispatcher
         services.AddScoped<INotificationService, NotificationService>();
 
-        // Digital Contract, PAdES Signing & Cross-Device PDF Font Validator Services
+        // Digital Contract, PAdES Signing, VNPT SmartCA & Cross-Device PDF Font Validator Services
         services.AddScoped<IPdfContractService, PdfContractService>();
         services.AddScoped<IPdfSigningService, PdfSigningService>();
         services.AddScoped<IPdfFontValidatorService, PdfFontValidatorService>();
         services.AddScoped<IContractSigningQueueService, ContractSigningQueueService>();
         services.AddHostedService<PdfSigningBackgroundWorker>();
+
+        services.AddHttpClient<ISmartCaService, SmartCaService>((sp, client) =>
+        {
+            var settings = sp.GetRequiredService<IOptions<SmartCaSettings>>().Value;
+            var timeoutSeconds = settings.TimeoutSeconds > 0 ? settings.TimeoutSeconds : 15;
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        });
 
         // ─── 6. Bulk Operations & File Services (CSV/Excel) ──────────
         services.AddScoped<IBulkDataService, BulkDataService>();
@@ -228,8 +236,14 @@ public static class DependencyInjection
         services.AddHttpClient<ISpeedSmsService, SpeedSmsService>();
         services.AddScoped<IOtpService, OtpService>();
 
-        // ─── 9. AWS Rekognition & MinIO S3 Storage Services ────────────
+        // ─── 9. AWS Rekognition, Gemini Vision OCR & MinIO S3 Storage Services ───
         services.AddScoped<IAwsRekognitionService, AwsRekognitionService>();
+        services.AddHttpClient<IGoogleVisionService, GoogleVisionService>((sp, client) =>
+        {
+            var geminiSettings = sp.GetRequiredService<IOptions<GeminiSettings>>().Value;
+            var timeoutSeconds = geminiSettings.TimeoutSeconds > 0 ? geminiSettings.TimeoutSeconds : 60;
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        });
         services.AddSingleton<IAmazonS3>(sp =>
         {
             var minioSettings = sp.GetRequiredService<IOptions<MinioSettings>>().Value;
@@ -242,6 +256,7 @@ public static class DependencyInjection
             return new AmazonS3Client(minioSettings.AccessKey, minioSettings.SecretKey, s3Config);
         });
         services.AddScoped<ICloudStorageService, CloudStorageService>();
+        services.AddHostedService<ChatImageCleanupBackgroundService>();
         services.AddScoped<IPkiKeyService, PkiKeyService>();
 
         // ─── 10. AI & RAG Pipeline Services (Semantic Kernel & Gemini) ───────────

@@ -16,6 +16,9 @@ public class GeminiSettings
     /// <summary>Tên mô hình Chat chính (mặc định: gemini-3.1-flash-lite)</summary>
     public string ChatModel { get; set; } = "gemini-3.1-flash-lite";
 
+    /// <summary>Tên mô hình Multimodal Vision / OCR chính (mặc định: gemini-3-flash-preview)</summary>
+    public string VisionModel { get; set; } = "gemini-3-flash-preview";
+
     /// <summary>Tên mô hình Embedding chính (mặc định: text-embedding-004)</summary>
     public string EmbeddingModel { get; set; } = "text-embedding-004";
 
