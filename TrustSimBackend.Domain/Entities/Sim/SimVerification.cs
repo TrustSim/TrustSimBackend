@@ -10,9 +10,11 @@ namespace TrustSimBackend.Domain.Entities.Sim;
 /// </summary>
 public class SimVerification : AuditableEntity
 {
-
     /// <summary>Trạng thái xử lý của yêu cầu xác minh: PENDING_VERIFICATION, VERIFIED, REJECTED, EXPIRED.</summary>
     public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.PENDING_VERIFICATION;
+
+    /// <summary>Phương thức xác minh (ví dụ: OTP_CALL, TELCO_GATEWAY, AUCTION_TRANSFER_APPROVED).</summary>
+    public string? VerificationMethod { get; set; }
 
     /// <summary>Thời điểm người dùng gửi yêu cầu xác minh.</summary>
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;

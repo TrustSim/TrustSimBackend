@@ -69,6 +69,42 @@ public class ChatConversationRepository : IChatConversationRepository
                 cancellationToken);
     }
 
+    public async Task<ChatConversation?> GetPendingSupportConversationByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ChatConversations
+            .Include(c => c.InitiatorUser)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(c => c.AssignedStaff)
+                .ThenInclude(u => u!.UserProfile)
+            .OrderByDescending(c => c.CreatedDate)
+            .FirstOrDefaultAsync(
+                c => !c.IsDeleted
+                  && c.Type == ConversationType.SUPPORT
+                  && c.InitiatorUserId == userId
+                  && c.SupportStatus == SupportConversationStatus.PENDING
+                  && c.AssignedStaffId == null,
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ChatConversation>> GetClaimedSupportConversationsByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ChatConversations
+            .Include(c => c.InitiatorUser)
+                .ThenInclude(u => u!.UserProfile)
+            .Include(c => c.AssignedStaff)
+                .ThenInclude(u => u!.UserProfile)
+            .Where(c => !c.IsDeleted
+                     && c.Type == ConversationType.SUPPORT
+                     && c.InitiatorUserId == userId
+                     && c.SupportStatus == SupportConversationStatus.CLAIMED)
+            .OrderByDescending(c => c.CreatedDate)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyList<ChatConversation> Items, int TotalCount)> GetUserConversationsPagedAsync(
         Guid currentUserId,
         UserRole currentUserRole,
@@ -101,8 +137,7 @@ public class ChatConversationRepository : IChatConversationRepository
             query = query.Where(c =>
                 (c.Type == ConversationType.DIRECT && (c.InitiatorUserId == currentUserId || c.ParticipantUserId == currentUserId))
                 || (c.Type == ConversationType.SUPPORT && (
-                    c.InitiatorUserId == currentUserId
-                    || (c.SupportStatus == SupportConversationStatus.PENDING && c.AssignedStaffId == null)
+                    (c.SupportStatus == SupportConversationStatus.PENDING && c.AssignedStaffId == null && c.InitiatorUserId != currentUserId)
                     || (c.AssignedStaffId == currentUserId)
                 )));
         }

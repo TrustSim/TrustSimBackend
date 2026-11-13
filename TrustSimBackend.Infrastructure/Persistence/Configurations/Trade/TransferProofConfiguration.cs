@@ -18,6 +18,11 @@ public class TransferProofConfiguration : IEntityTypeConfiguration<TransferProof
                .HasConversion<string>()
                .HasMaxLength(50);
 
+        builder.Property(x => x.ProofType)
+               .IsRequired()
+               .HasConversion<string>()
+               .HasMaxLength(50);
+
         builder.HasOne(x => x.SimTransfer)
                .WithMany(s => s.TransferProofs)
                .HasForeignKey(x => x.SimTransferId)

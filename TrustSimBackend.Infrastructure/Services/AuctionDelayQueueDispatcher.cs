@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -243,7 +245,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
                 break;
 
             case AuctionDelayJobTypes.LIQUIDATION_DEADLINE:
-                await HandleLiquidationDeadlineAsync(job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
+                await HandleLiquidationDeadlineAsync(scope.ServiceProvider, job, context, realtimeNotifier, ledgerService, notificationService, cancellationToken);
                 break;
 
             default:
@@ -1981,6 +1983,7 @@ public class AuctionDelayQueueDispatcher : BackgroundService
     }
 
     private async Task HandleLiquidationDeadlineAsync(
+        IServiceProvider? serviceProvider,
         AuctionDelayJob job,
         TrustSimDbContext context,
         IAuctionRealtimeNotifier realtimeNotifier,
@@ -2043,6 +2046,22 @@ public class AuctionDelayQueueDispatcher : BackgroundService
             AcquistionType = AcquistionType.AUCTION_TRANSFER
         };
         await context.SimOwnerships.AddAsync(newBuyerOwnership, cancellationToken);
+
+        var verification = new SimVerification
+        {
+            Id = Guid.NewGuid(),
+            SimOwnershipId = newBuyerOwnership.Id,
+            VerificationStatus = VerificationStatus.VERIFIED,
+            VerificationMethod = "AUCTION_TRANSFER_AUTO_LIQUIDATED",
+            RequestedAt = now,
+            VerifiedAt = now
+        };
+        await context.SimVerifications.AddAsync(verification, cancellationToken);
+
+        if (trade.SimNumber != null)
+        {
+            trade.SimNumber.SimStatus = SimStatus.TRANSFERRED;
+        }
 
         var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
         var platformFeeAmount = Math.Round(escrowAmount * 0.05m, 2);
@@ -2107,7 +2126,49 @@ public class AuctionDelayQueueDispatcher : BackgroundService
 
         if (trade.TransferContract != null)
         {
-            trade.TransferContract.LiquidationSealedAt = now;
+            if (string.IsNullOrWhiteSpace(trade.TransferContract.LiquidationDocumentUrl) && serviceProvider != null)
+            {
+                var pdfContractService = serviceProvider.GetService<IPdfContractService>();
+                var pdfSigningService = serviceProvider.GetService<IPdfSigningService>();
+                var cloudStorageService = serviceProvider.GetService<ICloudStorageService>();
+
+                if (pdfContractService != null && pdfSigningService != null && cloudStorageService != null)
+                {
+                    try
+                    {
+                        var rawLiqBytes = await pdfContractService.GenerateLiquidationMinutePdfAsync(trade.Id, cancellationToken);
+                        var isAuto = trade.TransferContract.IsAutoEnforced;
+                        var stampBoxes = await pdfContractService.GetStampBoxesAsync(trade.Id, isAuto, cancellationToken);
+
+                        var signResult = await pdfSigningService.SignPdfPadesAsync(
+                            rawLiqBytes,
+                            "Nghiệm thu tự động hoàn tất chuyển quyền sử dụng SIM và thanh lý giao dịch điện tử",
+                            "Hà Nội, Việt Nam",
+                            stampBoxes,
+                            cancellationToken);
+
+                        var simPhone = trade.SimNumber?.PhoneNumber?.Replace("+", "") ?? "SIM";
+                        var liqFileName = $"BienBanThanhLy_{trade.TradeTransactionCode}_{simPhone}_Signed.pdf";
+                        var liqUrl = await cloudStorageService.UploadImageBytesAsync(
+                            signResult.SignedPdfBytes,
+                            liqFileName,
+                            "contracts",
+                            "application/pdf",
+                            cancellationToken);
+
+                        trade.TransferContract.LiquidationDocumentUrl = liqUrl;
+                        trade.TransferContract.LiquidationDocumentHash = signResult.Sha256Hash;
+                        trade.TransferContract.LiquidationSealedAt = signResult.SignedAt;
+                        trade.TransferContract.BlockchainTxHash = $"0x{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{trade.TradeTransactionCode}_{signResult.Sha256Hash}_{signResult.SignedAt:O}"))).ToLowerInvariant()}";
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[AuctionDelayDispatcher] ⚠️ Lỗi khi sinh/ký biên bản thanh lý tự động cho {TradeCode}.", trade.TradeTransactionCode);
+                    }
+                }
+            }
+
+            trade.TransferContract.LiquidationSealedAt ??= now;
             trade.TransferContract.ContractStatus = ContractStatus.COMPLETED;
         }
 

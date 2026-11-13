@@ -1,9 +1,11 @@
 using System.Text;
 using Amazon.S3;
+using Amazon.S3.Model;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Infrastructure.Services;
 using Xunit;
@@ -12,6 +14,7 @@ namespace TrustSimBackend.Tests.UnitTests.Storage;
 
 public class CloudStorageServiceKycAvatarTests
 {
+    private readonly Mock<IAmazonS3> _s3Mock;
     private readonly CloudStorageService _storageService;
     private readonly MinioSettings _settings;
 
@@ -27,17 +30,19 @@ public class CloudStorageServiceKycAvatarTests
             UseSsl = false
         };
 
-        var s3Config = new AmazonS3Config
-        {
-            ServiceURL = _settings.Endpoint,
-            ForcePathStyle = true,
-            UseHttp = true
-        };
-        var s3Client = new AmazonS3Client(_settings.AccessKey, _settings.SecretKey, s3Config);
+        _s3Mock = new Mock<IAmazonS3>();
+        _s3Mock.Setup(s => s.PutBucketAsync(It.IsAny<PutBucketRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PutBucketResponse());
+        _s3Mock.Setup(s => s.PutBucketPolicyAsync(It.IsAny<PutBucketPolicyRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PutBucketPolicyResponse());
+        _s3Mock.Setup(s => s.PutObjectAsync(It.IsAny<PutObjectRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PutObjectResponse());
+        _s3Mock.Setup(s => s.DeleteObjectAsync(It.IsAny<DeleteObjectRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new DeleteObjectResponse());
 
         _storageService = new CloudStorageService(
             NullLogger<CloudStorageService>.Instance,
-            s3Client,
+            _s3Mock.Object,
             Options.Create(_settings));
     }
 

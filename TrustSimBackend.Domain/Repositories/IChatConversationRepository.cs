@@ -12,6 +12,8 @@ public interface IChatConversationRepository
     Task<ChatConversation?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ChatConversation?> GetDirectConversationBetweenUsersAsync(Guid userAId, Guid userBId, CancellationToken cancellationToken = default);
     Task<ChatConversation?> GetActiveSupportConversationByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ChatConversation?> GetPendingSupportConversationByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ChatConversation>> GetClaimedSupportConversationsByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<ChatConversation> Items, int TotalCount)> GetUserConversationsPagedAsync(
         Guid currentUserId,
         UserRole currentUserRole,

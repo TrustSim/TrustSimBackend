@@ -1019,16 +1019,19 @@
                 </div>
 
                 <!-- Fast Role Switchers for Multi-user Testing -->
-                <button class="btn btn-purple btn-sm" onclick="quickLogin('admin', 'Admin@123456')">
+                <button class="btn btn-purple btn-sm" onclick="quickLogin('admin', 'Password123@')">
                     <i class="fa-solid fa-user-shield"></i> Admin
                 </button>
-                <button class="btn btn-emerald btn-sm" onclick="quickLogin('seller01', 'Password123@')">
+                <button class="btn btn-blue btn-sm" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff;" onclick="quickLogin('nguyenquan', 'Password123@')">
+                    <i class="fa-solid fa-user-check"></i> nguyenquan (KYC)
+                </button>
+                <button class="btn btn-emerald btn-sm" onclick="quickLogin('seller_vip_phuquy', 'Password123@')">
                     <i class="fa-solid fa-store"></i> Seller
                 </button>
-                <button class="btn btn-cyan btn-sm" style="background: var(--cyan-gradient); color: #fff;" onclick="quickLogin('buyer01', 'Password123@')">
+                <button class="btn btn-cyan btn-sm" style="background: var(--cyan-gradient); color: #fff;" onclick="quickLogin('bidder_dai_gia', 'Password123@')">
                     <i class="fa-solid fa-trophy"></i> Winner
                 </button>
-                <button class="btn btn-amber btn-sm" onclick="quickLogin('buyer02', 'Password123@')">
+                <button class="btn btn-amber btn-sm" onclick="quickLogin('bidder_beta', 'Password123@')">
                     <i class="fa-solid fa-medal"></i> Runner-Up
                 </button>
             </div>
@@ -1663,8 +1666,8 @@
             <div class="modal-body">
                 <div class="form-group">
                     <label>Tên đăng nhập hoặc Email</label>
-                    <input type="text" id="loginUsernameInput" class="form-control" value="admin"
-                        placeholder="admin, seller01, buyer01...">
+                    <input type="text" id="loginUsernameInput" class="form-control" value="nguyenquan"
+                        placeholder="nguyenquan, admin, seller_vip_phuquy...">
                 </div>
                 <div class="form-group">
                     <label>Mật khẩu</label>

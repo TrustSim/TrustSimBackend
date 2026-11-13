@@ -10,6 +10,8 @@ namespace TrustSimBackend.Application.Features.Chat.Helpers;
 /// </summary>
 public static class ChatMappingHelper
 {
+    public const int DefaultChatImageRetentionDays = 7;
+
     public static ChatParticipantDto MapParticipant(UserAccount? user)
     {
         if (user == null)
@@ -68,14 +70,25 @@ public static class ChatMappingHelper
         {
             if (isInitiator)
             {
-                displayTitle = assignedStaffDto != null
-                    ? $"Hỗ trợ Sàn TrustSim ({assignedStaffDto.FullName})"
-                    : "Hỗ trợ Sàn TrustSim (Đang chờ tiếp nhận)";
+                if (conversation.SupportStatus == SupportConversationStatus.RESOLVED)
+                {
+                    displayTitle = assignedStaffDto != null
+                        ? $"Hỗ trợ Sàn TrustSim ({assignedStaffDto.FullName} - Đã kết thúc)"
+                        : "Hỗ trợ Sàn TrustSim (Đã kết thúc)";
+                }
+                else
+                {
+                    displayTitle = assignedStaffDto != null
+                        ? $"Hỗ trợ Sàn TrustSim ({assignedStaffDto.FullName})"
+                        : "Hỗ trợ Sàn TrustSim (Đang chờ tiếp nhận)";
+                }
                 displayAvatar = assignedStaffDto?.AvatarUrl ?? string.Empty;
             }
             else
             {
-                displayTitle = $"[Hỗ trợ] {initiatorDto.FullName}";
+                displayTitle = conversation.SupportStatus == SupportConversationStatus.RESOLVED
+                    ? $"[Hỗ trợ - Đã đóng] {initiatorDto.FullName}"
+                    : $"[Hỗ trợ] {initiatorDto.FullName}";
                 displayAvatar = initiatorDto.AvatarUrl;
             }
         }
@@ -88,7 +101,8 @@ public static class ChatMappingHelper
                     && !isInitiator;
 
         var isPrivateSupport = conversation.Type == ConversationType.SUPPORT
-                            && conversation.SupportStatus == SupportConversationStatus.CLAIMED
+                            && (conversation.SupportStatus == SupportConversationStatus.CLAIMED
+                                || conversation.SupportStatus == SupportConversationStatus.RESOLVED)
                             && conversation.AssignedStaffId.HasValue;
 
         return new ChatConversationSummaryDto(
@@ -111,6 +125,9 @@ public static class ChatMappingHelper
     }
 
     public static ChatMessageDto MapMessage(ChatMessage message)
+        => MapMessageWithRetention(message, DefaultChatImageRetentionDays);
+
+    public static ChatMessageDto MapMessageWithRetention(ChatMessage message, int chatImageRetentionDays)
     {
         var sender = message.Sender;
         var profile = sender?.UserProfile;
@@ -119,6 +136,17 @@ public static class ChatMappingHelper
             : (!string.IsNullOrWhiteSpace(profile?.FullName) ? profile.FullName : (sender?.UserName ?? "Người dùng"));
         var senderAvatar = profile?.AvatarImg ?? string.Empty;
         var senderRole = sender?.Role ?? UserRole.USER;
+
+        DateTime? attachmentExpiresAt = null;
+        bool isAttachmentExpired = false;
+
+        if (message.MessageType == ChatMessageType.IMAGE)
+        {
+            var effectiveDays = chatImageRetentionDays > 0 ? chatImageRetentionDays : DefaultChatImageRetentionDays;
+            var createdUtc = message.CreatedDate == default ? DateTime.UtcNow : message.CreatedDate;
+            attachmentExpiresAt = createdUtc.AddDays(effectiveDays);
+            isAttachmentExpired = DateTime.UtcNow >= attachmentExpiresAt.Value || string.IsNullOrWhiteSpace(message.AttachmentUrl);
+        }
 
         return new ChatMessageDto(
             Id: message.Id,
@@ -129,10 +157,12 @@ public static class ChatMappingHelper
             SenderRole: senderRole,
             MessageType: message.MessageType,
             Content: message.Content,
-            AttachmentUrl: message.AttachmentUrl,
+            AttachmentUrl: isAttachmentExpired ? null : message.AttachmentUrl,
             AttachmentFileName: message.AttachmentFileName,
             IsRead: message.IsRead,
             ReadAt: message.ReadAt,
-            CreatedDate: message.CreatedDate);
+            CreatedDate: message.CreatedDate,
+            AttachmentExpiresAt: attachmentExpiresAt,
+            IsAttachmentExpired: isAttachmentExpired);
     }
 }

@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Chat.DTOs.Requests;
@@ -15,10 +16,14 @@ namespace TrustSimBackend.Application.Features.Chat.Queries;
 public class GetConversationMessagesQueryHandler : IRequestHandler<GetConversationMessagesQuery, PagedResult<ChatMessageDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly MinioSettings _minioSettings;
 
-    public GetConversationMessagesQueryHandler(IUnitOfWork unitOfWork)
+    public GetConversationMessagesQueryHandler(
+        IUnitOfWork unitOfWork,
+        IOptions<MinioSettings>? minioOptions = null)
     {
         _unitOfWork = unitOfWork;
+        _minioSettings = minioOptions?.Value ?? new MinioSettings();
     }
 
     public async Task<PagedResult<ChatMessageDto>> Handle(GetConversationMessagesQuery request, CancellationToken cancellationToken)
@@ -41,7 +46,14 @@ public class GetConversationMessagesQueryHandler : IRequestHandler<GetConversati
             pageSize,
             cancellationToken);
 
-        var dtos = messages.Select(ChatMappingHelper.MapMessage).ToList();
+        var retentionDays = _minioSettings.ChatImageExpirationDays > 0
+            ? _minioSettings.ChatImageExpirationDays
+            : ChatMappingHelper.DefaultChatImageRetentionDays;
+
+        var dtos = messages
+            .Select(m => ChatMappingHelper.MapMessageWithRetention(m, retentionDays))
+            .ToList();
+
         return PagedResult<ChatMessageDto>.Create(dtos, totalCount, pageIndex, pageSize);
     }
 }

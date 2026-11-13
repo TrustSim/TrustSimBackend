@@ -4,6 +4,8 @@ using TrustSimBackend.API.Controllers.Common;
 using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Identity.DTOs.Requests;
 using TrustSimBackend.Application.Features.Identity.DTOs.Responses;
+using TrustSimBackend.Application.Features.Users.DTOs;
+using TrustSimBackend.Application.Features.Users.Queries;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Filters;
 
@@ -48,6 +50,20 @@ public class UsersController : BaseApiController
         var command = new ConfirmEkycCommand(request.VerificationId, CurrentUserId);
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<UserProfileDto>.SuccessResult(result, "Xác nhận và cập nhật hồ sơ eKYC thành công!"));
+    }
+
+    /// <summary>
+    /// Tra cứu trạng thái chữ ký số VNPT SmartCA của người dùng hiện tại (dùng cho Mobile App sau khi hoàn tất eKYC).
+    /// </summary>
+    [HttpGet("me/smartca-status")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<UserSmartCaStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMySmartCaStatus()
+    {
+        var result = await Mediator.Send(new GetUserSmartCaStatusQuery(CurrentUserId));
+        return Ok(ApiResponse<UserSmartCaStatusDto>.SuccessResult(result, "Lấy thông tin trạng thái chứng thư số SmartCA thành công."));
     }
 
     /// <summary>

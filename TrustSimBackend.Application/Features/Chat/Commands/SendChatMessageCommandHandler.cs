@@ -1,6 +1,9 @@
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Chat.DTOs.Requests;
 using TrustSimBackend.Application.Features.Chat.DTOs.Responses;
 using TrustSimBackend.Application.Features.Chat.Helpers;
@@ -11,7 +14,7 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Chat.Commands;
 
 /// <summary>
-/// Xử lý gửi tin nhắn văn bản hoặc đính kèm tệp (Ảnh / PDF đã kiểm định Font chữ đa thiết bị) trong cuộc hội thoại.
+/// Xử lý gửi tin nhắn văn bản hoặc đính kèm tệp (Ảnh lưu vào Bucket chat-images tự xóa sau 1 tuần / PDF đã kiểm định Font chữ đa thiết bị) trong cuộc hội thoại.
 /// Kiểm tra nghiêm ngặt quyền riêng tư cho cả Direct Chat và Support Chat.
 /// </summary>
 public class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageCommand, ChatMessageDto>
@@ -20,19 +23,22 @@ public class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageComm
     private readonly ICloudStorageService _cloudStorageService;
     private readonly IPdfFontValidatorService _pdfFontValidatorService;
     private readonly IChatRealtimeService _chatRealtimeService;
+    private readonly MinioSettings _minioSettings;
 
-    private static readonly string[] AllowedAttachmentExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".pdf" };
+    private static readonly string[] AllowedAttachmentExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf" };
 
     public SendChatMessageCommandHandler(
         IUnitOfWork unitOfWork,
         ICloudStorageService cloudStorageService,
         IPdfFontValidatorService pdfFontValidatorService,
-        IChatRealtimeService chatRealtimeService)
+        IChatRealtimeService chatRealtimeService,
+        IOptions<MinioSettings>? minioOptions = null)
     {
         _unitOfWork = unitOfWork;
         _cloudStorageService = cloudStorageService;
         _pdfFontValidatorService = pdfFontValidatorService;
         _chatRealtimeService = chatRealtimeService;
+        _minioSettings = minioOptions?.Value ?? new MinioSettings();
     }
 
     public async Task<ChatMessageDto> Handle(SendChatMessageCommand request, CancellationToken cancellationToken)
@@ -73,6 +79,12 @@ public class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageComm
         }
         else if (conversation.Type == ConversationType.SUPPORT)
         {
+            if (conversation.SupportStatus == SupportConversationStatus.RESOLVED)
+            {
+                throw new BadRequestException(
+                    "Phiên hỗ trợ này đã kết thúc. Vui lòng bấm 'Chat với sàn' để mở phiên hỗ trợ mới.");
+            }
+
             // Nếu là nhân viên/admin muốn trả lời nhưng chưa bấm Duyệt/Tiếp nhận (AssignedStaffId == null)
             if (request.SenderId != conversation.InitiatorUserId && conversation.AssignedStaffId == null)
             {
@@ -120,10 +132,20 @@ public class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageComm
             else
             {
                 messageType = ChatMessageType.IMAGE;
-                attachmentUrl = await _cloudStorageService.UploadImageAsync(
+                await ValidateImageMagicBytesAsync(request.AttachmentFile, ext, cancellationToken);
+
+                attachmentUrl = await _cloudStorageService.UploadChatImageAsync(
                     request.AttachmentFile,
-                    "chat-attachments",
+                    conversation.Id,
                     cancellationToken);
+
+                if (string.IsNullOrWhiteSpace(attachmentUrl))
+                {
+                    attachmentUrl = await _cloudStorageService.UploadImageAsync(
+                        request.AttachmentFile,
+                        "chat-attachments",
+                        cancellationToken);
+                }
             }
         }
 
@@ -171,7 +193,11 @@ public class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageComm
         _unitOfWork.ChatConversations.Update(conversation);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var messageDto = ChatMappingHelper.MapMessage(message);
+        var retentionDays = _minioSettings.ChatImageExpirationDays > 0
+            ? _minioSettings.ChatImageExpirationDays
+            : ChatMappingHelper.DefaultChatImageRetentionDays;
+
+        var messageDto = ChatMappingHelper.MapMessageWithRetention(message, retentionDays);
         var summaryForInitiator = ChatMappingHelper.MapConversationSummary(
             conversation,
             conversation.InitiatorUserId,
@@ -204,5 +230,61 @@ public class SendChatMessageCommandHandler : IRequestHandler<SendChatMessageComm
             cancellationToken);
 
         return messageDto;
+    }
+
+    private static async Task ValidateImageMagicBytesAsync(
+        IFormFile file,
+        string ext,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = file.OpenReadStream();
+        var header = new byte[12];
+        var bytesRead = await stream.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
+        if (bytesRead < 3)
+        {
+            throw new BadRequestException("Tệp hình ảnh đính kèm bị hỏng hoặc không đúng định dạng ảnh chuẩn (Magic Bytes không hợp lệ).");
+        }
+
+        bool isJpeg = bytesRead >= 3
+                   && header[0] == 0xFF
+                   && header[1] == 0xD8
+                   && header[2] == 0xFF;
+
+        bool isPng = bytesRead >= 4
+                  && header[0] == 0x89
+                  && header[1] == 0x50
+                  && header[2] == 0x4E
+                  && header[3] == 0x47;
+
+        bool isGif = bytesRead >= 4
+                  && header[0] == 0x47
+                  && header[1] == 0x49
+                  && header[2] == 0x46
+                  && header[3] == 0x38;
+
+        bool isWebp = bytesRead >= 12
+                   && header[0] == 0x52
+                   && header[1] == 0x49
+                   && header[2] == 0x46
+                   && header[3] == 0x46
+                   && header[8] == 0x57
+                   && header[9] == 0x45
+                   && header[10] == 0x42
+                   && header[11] == 0x50;
+
+        bool isValidSignature = ext switch
+        {
+            ".jpg" or ".jpeg" => isJpeg,
+            ".png" => isPng,
+            ".gif" => isGif,
+            ".webp" => isWebp,
+            _ => isJpeg || isPng || isGif || isWebp
+        };
+
+        if (!isValidSignature)
+        {
+            throw new BadRequestException(
+                $"Tệp '{file.FileName}' không phải là hình ảnh hợp lệ hoặc bị giả mạo định dạng (Magic Bytes không khớp chuẩn {ext.ToUpperInvariant()}).");
+        }
     }
 }

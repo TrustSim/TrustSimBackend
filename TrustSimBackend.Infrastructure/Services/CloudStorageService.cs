@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Util;
@@ -10,11 +11,11 @@ using TrustSimBackend.Application.Common.Models;
 namespace TrustSimBackend.Infrastructure.Services;
 
 /// <summary>
-/// Triển khai dịch vụ lưu trữ hình ảnh tài liệu eKYC và tệp Hợp đồng PDF qua MinIO / AWS S3 Compatible Storage.
+/// Triển khai dịch vụ lưu trữ hình ảnh tài liệu eKYC, ảnh Chat và tệp Hợp đồng PDF qua MinIO / AWS S3 Compatible Storage.
 /// </summary>
 public class CloudStorageService : ICloudStorageService
 {
-    private static bool _bucketInitialized;
+    private static readonly ConcurrentDictionary<string, bool> _initializedBuckets = new(StringComparer.OrdinalIgnoreCase);
     private static readonly SemaphoreSlim _initLock = new(1, 1);
 
     private readonly ILogger<CloudStorageService> _logger;
@@ -42,34 +43,73 @@ public class CloudStorageService : ICloudStorageService
         if (string.IsNullOrWhiteSpace(ext)) ext = ".jpg";
         var fileName = $"{Guid.NewGuid():N}{ext}";
         var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType;
+        var bucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
 
         await using var stream = file.OpenReadStream();
-        return await UploadStreamToS3Async(stream, fileName, folder, contentType, cancellationToken);
+        return await UploadStreamToS3Async(stream, bucket, fileName, folder, contentType, expirationDays: null, cancellationToken);
     }
 
     public async Task<string> UploadImageBytesAsync(
-        byte[] imageBytes, 
-        string fileName, 
-        string folder, 
-        string contentType = "image/jpeg", 
+        byte[] imageBytes,
+        string fileName,
+        string folder,
+        string contentType = "image/jpeg",
         CancellationToken cancellationToken = default)
     {
+        var bucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
         using var stream = new MemoryStream(imageBytes);
-        return await UploadStreamToS3Async(stream, fileName, folder, contentType, cancellationToken);
+        return await UploadStreamToS3Async(stream, bucket, fileName, folder, contentType, expirationDays: null, cancellationToken);
+    }
+
+    public async Task<string> UploadChatImageAsync(
+        IFormFile file,
+        Guid conversationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (file == null || file.Length == 0)
+        {
+            throw new ArgumentException("Tệp hình ảnh tải lên không hợp lệ hoặc rỗng.", nameof(file));
+        }
+
+        var ext = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".jpg";
+        var fileName = $"{Guid.NewGuid():N}{ext.ToLowerInvariant()}";
+        var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/jpeg" : file.ContentType;
+
+        var chatBucket = string.IsNullOrWhiteSpace(_minioSettings.ChatImageBucket)
+            ? "chat-images"
+            : _minioSettings.ChatImageBucket.Trim();
+
+        var expirationDays = _minioSettings.ChatImageExpirationDays > 0
+            ? _minioSettings.ChatImageExpirationDays
+            : 7;
+
+        var folder = $"conversations/{conversationId:N}";
+
+        await using var stream = file.OpenReadStream();
+        return await UploadStreamToS3Async(
+            stream,
+            chatBucket,
+            fileName,
+            folder,
+            contentType,
+            expirationDays: expirationDays,
+            cancellationToken);
     }
 
     private async Task<string> UploadStreamToS3Async(
         Stream stream,
+        string bucket,
         string fileName,
         string folder,
         string contentType,
+        int? expirationDays,
         CancellationToken cancellationToken)
     {
         var cleanFileName = SanitizeFileName(fileName);
-        var bucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
         var objectKey = string.IsNullOrWhiteSpace(folder) ? cleanFileName : $"{folder.Trim('/')}/{cleanFileName}";
 
-        await EnsureBucketReadyAsync(bucket, cancellationToken);
+        await EnsureBucketReadyAsync(bucket, expirationDays, cancellationToken);
 
         try
         {
@@ -95,14 +135,15 @@ public class CloudStorageService : ICloudStorageService
         }
     }
 
-    private async Task EnsureBucketReadyAsync(string bucket, CancellationToken cancellationToken)
+    private async Task EnsureBucketReadyAsync(string bucket, int? expirationDays, CancellationToken cancellationToken)
     {
-        if (_bucketInitialized) return;
+        var cacheKey = $"{bucket}:{expirationDays ?? 0}";
+        if (_initializedBuckets.ContainsKey(cacheKey)) return;
 
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_bucketInitialized) return;
+            if (_initializedBuckets.ContainsKey(cacheKey)) return;
 
             var exists = await AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, bucket);
             if (!exists)
@@ -129,7 +170,49 @@ public class CloudStorageService : ICloudStorageService
                 _logger.LogInformation("[MinIO Storage] ✅ Đã cấu hình Public Read Policy cho Bucket '{Bucket}'", bucket);
             }
 
-            _bucketInitialized = true;
+            if (expirationDays.HasValue && expirationDays.Value > 0)
+            {
+                try
+                {
+                    var lifecycleRequest = new PutLifecycleConfigurationRequest
+                    {
+                        BucketName = bucket,
+                        Configuration = new LifecycleConfiguration
+                        {
+                            Rules = new List<LifecycleRule>
+                            {
+                                new LifecycleRule
+                                {
+                                    Id = $"auto-expire-{expirationDays.Value}-days",
+                                    Status = LifecycleRuleStatus.Enabled,
+                                    Filter = new LifecycleFilter
+                                    {
+                                        LifecycleFilterPredicate = new LifecyclePrefixPredicate { Prefix = string.Empty }
+                                    },
+                                    Expiration = new LifecycleRuleExpiration
+                                    {
+                                        Days = expirationDays.Value
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    await _s3Client.PutLifecycleConfigurationAsync(lifecycleRequest, cancellationToken);
+                    _logger.LogInformation(
+                        "[MinIO Storage] ✅ Đã cấu hình Lifecycle tự động xóa sau {Days} ngày cho Bucket '{Bucket}'",
+                        expirationDays.Value, bucket);
+                }
+                catch (Exception lcEx)
+                {
+                    _logger.LogWarning(
+                        lcEx,
+                        "[MinIO Storage] Cảnh báo khi thiết lập Lifecycle cho Bucket '{Bucket}' (sẽ dùng Background Cleanup Worker bổ trợ).",
+                        bucket);
+                }
+            }
+
+            _initializedBuckets[cacheKey] = true;
         }
         catch (Exception ex)
         {
@@ -141,24 +224,85 @@ public class CloudStorageService : ICloudStorageService
         }
     }
 
+    public async Task<int> CleanupExpiredChatImagesAsync(CancellationToken cancellationToken = default)
+    {
+        var chatBucket = string.IsNullOrWhiteSpace(_minioSettings.ChatImageBucket)
+            ? "chat-images"
+            : _minioSettings.ChatImageBucket.Trim();
+
+        var retentionDays = _minioSettings.ChatImageExpirationDays > 0
+            ? _minioSettings.ChatImageExpirationDays
+            : 7;
+
+        var cutoffUtc = DateTime.UtcNow.AddDays(-retentionDays);
+        int deletedCount = 0;
+
+        try
+        {
+            var exists = await AmazonS3Util.DoesS3BucketExistV2Async(_s3Client, chatBucket);
+            if (!exists) return 0;
+
+            string? continuationToken = null;
+            do
+            {
+                var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+                {
+                    BucketName = chatBucket,
+                    ContinuationToken = continuationToken
+                }, cancellationToken);
+
+                foreach (var obj in listResponse.S3Objects)
+                {
+                    if (obj.LastModified.ToUniversalTime() <= cutoffUtc)
+                    {
+                        await _s3Client.DeleteObjectAsync(new DeleteObjectRequest
+                        {
+                            BucketName = chatBucket,
+                            Key = obj.Key
+                        }, cancellationToken);
+                        deletedCount++;
+                    }
+                }
+
+                continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : null;
+            }
+            while (!string.IsNullOrEmpty(continuationToken));
+
+            if (deletedCount > 0)
+            {
+                _logger.LogInformation(
+                    "[MinIO Storage] 🧹 Đã tự động xóa giải phóng {Count} ảnh chat quá hạn ({Days} ngày) trong Bucket '{Bucket}'.",
+                    deletedCount, retentionDays, chatBucket);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[MinIO Storage] Lỗi khi quét dọn dẹp ảnh chat quá hạn trong Bucket '{Bucket}'", chatBucket);
+        }
+
+        return deletedCount;
+    }
+
     public async Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(fileUrl)) return false;
 
         try
         {
-            var bucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
-            var objectKey = ExtractObjectKey(fileUrl, bucket);
+            var defaultBucket = string.IsNullOrWhiteSpace(_minioSettings.Bucket) ? "pdf-files" : _minioSettings.Bucket;
+            var chatBucket = string.IsNullOrWhiteSpace(_minioSettings.ChatImageBucket) ? "chat-images" : _minioSettings.ChatImageBucket;
+
+            var (targetBucket, objectKey) = ResolveBucketAndObjectKey(fileUrl, defaultBucket, chatBucket);
             if (string.IsNullOrWhiteSpace(objectKey)) return false;
 
             var deleteRequest = new DeleteObjectRequest
             {
-                BucketName = bucket,
+                BucketName = targetBucket,
                 Key = objectKey
             };
 
             await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
-            _logger.LogInformation("[MinIO Storage] ✅ Đã xóa tệp trên MinIO thành công: {Key}", objectKey);
+            _logger.LogInformation("[MinIO Storage] ✅ Đã xóa tệp trên MinIO thành công ({Bucket}/{Key})", targetBucket, objectKey);
             return true;
         }
         catch (Exception ex)
@@ -173,16 +317,23 @@ public class CloudStorageService : ICloudStorageService
         return Task.FromResult(0);
     }
 
-    private string? ExtractObjectKey(string fileUrl, string bucket)
+    private static (string Bucket, string? ObjectKey) ResolveBucketAndObjectKey(string fileUrl, string defaultBucket, string chatBucket)
     {
-        var prefix = $"/{bucket}/";
-        var idx = fileUrl.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
-        if (idx >= 0)
+        var chatPrefix = $"/{chatBucket}/";
+        var chatIdx = fileUrl.IndexOf(chatPrefix, StringComparison.OrdinalIgnoreCase);
+        if (chatIdx >= 0)
         {
-            return fileUrl.Substring(idx + prefix.Length);
+            return (chatBucket, fileUrl.Substring(chatIdx + chatPrefix.Length));
         }
 
-        return Path.GetFileName(fileUrl);
+        var defaultPrefix = $"/{defaultBucket}/";
+        var defaultIdx = fileUrl.IndexOf(defaultPrefix, StringComparison.OrdinalIgnoreCase);
+        if (defaultIdx >= 0)
+        {
+            return (defaultBucket, fileUrl.Substring(defaultIdx + defaultPrefix.Length));
+        }
+
+        return (defaultBucket, Path.GetFileName(fileUrl));
     }
 
     private static string SanitizeFileName(string fileName, string defaultExt = ".jpg")

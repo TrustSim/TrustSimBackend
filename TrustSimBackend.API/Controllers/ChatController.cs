@@ -87,9 +87,11 @@ public class ChatController : BaseApiController
 
     /// <summary>
     /// Mở mới hoặc lấy lại cuộc hội thoại hỗ trợ với Sàn TrustSim (SUPPORT).
-    /// Khi mới tạo ở trạng thái PENDING, mọi Nhân viên Sàn (CONSULTANT) và Admin đều nhìn thấy để bấm Duyệt hỗ trợ.
+    /// Nếu phiên hỗ trợ trước đó đã được Sàn duyệt (CLAIMED), khi bấm nút "Chat với sàn" hệ thống sẽ đóng phiên cũ (RESOLVED)
+    /// và tạo một đoạn chat mới ở trạng thái PENDING để được duyệt lại (có thể được duyệt bởi nhân viên/admin khác).
     /// </summary>
     [HttpPost("conversations/support")]
+    [Authorize(Roles = "USER,User")]
     [ProducesResponseType(typeof(ApiResponse<ChatConversationSummaryDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetOrCreateSupportConversation([FromBody] CreateSupportConversationRequest? request)
@@ -121,6 +123,25 @@ public class ChatController : BaseApiController
 
         var result = await Mediator.Send(command);
         return HandleResult(result, "Đã tiếp nhận cuộc hội thoại hỗ trợ. Cuộc hội thoại hiện được bảo mật riêng tư.");
+    }
+
+    /// <summary>
+    /// Kết thúc / đóng một phiên hội thoại hỗ trợ với Sàn (chuyển trạng thái sang RESOLVED).
+    /// </summary>
+    [HttpPost("conversations/{conversationId:guid}/resolve")]
+    [ProducesResponseType(typeof(ApiResponse<ChatConversationSummaryDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResolveSupportConversation([FromRoute] Guid conversationId)
+    {
+        var command = new ResolveSupportConversationCommand(
+            ConversationId: conversationId,
+            CurrentUserId: CurrentUserId,
+            CurrentUserRole: ResolveCurrentUserRole());
+
+        var result = await Mediator.Send(command);
+        return HandleResult(result, "Đã kết thúc phiên hội thoại hỗ trợ.");
     }
 
     /// <summary>

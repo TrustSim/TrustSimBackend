@@ -577,6 +577,70 @@
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
     }
 
+    .sign-method-toggle {
+      display: flex;
+      background: var(--bg-card-secondary);
+      padding: 4px;
+      border-radius: var(--radius-sm);
+      gap: 4px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .sign-method-btn {
+      flex: 1;
+      padding: 8px 10px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .sign-method-btn.active {
+      background: var(--primary);
+      color: #000;
+      box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4);
+    }
+
+    .smartca-card-info {
+      background: rgba(56, 189, 248, 0.05);
+      border: 1px dashed rgba(56, 189, 248, 0.3);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .smartca-session-active {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      padding: 14px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .smartca-timer-badge {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--amber);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .otp-input-row {
       display: flex;
       gap: 8px;
@@ -991,6 +1055,54 @@
       gap: 12px;
     }
 
+    .upload-thumb-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .upload-thumb-item {
+      position: relative;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      height: 75px;
+      background: #000;
+    }
+
+    .upload-thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .upload-thumb-del {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      background: rgba(244, 63, 94, 0.9);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-rose {
+      background: linear-gradient(135deg, #e11d48, #f43f5e);
+      color: #fff;
+    }
+
+    .btn-rose:hover {
+      box-shadow: 0 4px 15px rgba(244, 63, 94, 0.4);
+    }
+
     /* Modal for Liquidation HTML Preview */
     .modal-overlay {
       position: fixed;
@@ -1115,6 +1227,8 @@
       </div>
 
       <a href="index.html" class="nav-btn"><i class="fa-solid fa-bolt"></i> Đấu Giá Arena</a>
+      <a href="transfer_review_studio.html" class="nav-btn" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399;"><i class="fa-solid fa-user-shield"></i> Duyệt Chuyển Nhượng</a>
+      <a href="vision_ocr_studio.html" class="nav-btn"><i class="fa-solid fa-eye"></i> OCR Studio</a>
       <a href="financial_integrity_studio.html" class="nav-btn"><i class="fa-solid fa-scale-balanced"></i> Sổ Cái Kép</a>
       <a href="ai_studio.html" class="nav-btn"><i class="fa-solid fa-brain"></i> AI Studio</a>
     </div>
@@ -1126,6 +1240,9 @@
     <div class="account-pills">
       <button class="pill-btn active" onclick="switchUser('bidder_dai_gia')">
         <span>💎</span> <strong>bidder_dai_gia</strong> (Người Mua)
+      </button>
+      <button class="pill-btn" onclick="switchUser('nguyenquan')">
+        <span>👤</span> <strong>nguyenquan</strong> (Người Mua/Bán - KYC)
       </button>
       <button class="pill-btn" onclick="switchUser('bidder_kinh_doanh')">
         <span>💼</span> <strong>bidder_kinh_doanh</strong> (Người Mua)
@@ -1156,7 +1273,7 @@
   <section class="scenario-bar">
     <span class="switcher-label"><i class="fa-solid fa-wand-magic-sparkles"></i> Chọn Kịch Bản Mẫu:</span>
     <button class="scenario-btn" onclick="selectScenario('TRD-20261010-002', '41000000-0000-0000-0000-000000000002')">
-      ⚡ Kịch bản 1: TRD-20261010-002 (Chờ Ký OTP 2 Bên)
+      ⚡ Kịch bản 1: TRD-20261010-002 (Chờ Ký Số 2 Bên - VNPT SmartCA / OTP)
     </button>
     <button class="scenario-btn" onclick="selectScenario('TRD-20260830-001', '41000000-0000-0000-0000-000000000001')">
       ⚡ Kịch bản 2: TRD-20260830-001 (Đã Ký HĐ - Chờ Bàn Giao SIM)
@@ -1261,10 +1378,21 @@
           </div>
         </div>
 
-        <!-- Card: Sign with Email OTP Console -->
+        <!-- Card: Signing Action Console Card (SmartCA + OTP) -->
         <div class="card sign-console-card">
-          <div class="card-title">
-            <i class="fa-solid fa-key" style="color: var(--primary);"></i> Ký Xác Nhận Bằng Email OTP
+          <div class="card-title" style="justify-content: space-between;">
+            <span><i class="fa-solid fa-signature" style="color: var(--primary);"></i> Ký Hợp Đồng Điện Tử</span>
+            <span class="badge badge-pending" id="currentSignMethodBadge" style="font-size: 10px;">VNPT SmartCA</span>
+          </div>
+
+          <!-- Method Selector Tabs -->
+          <div class="sign-method-toggle">
+            <button class="sign-method-btn active" id="btnMethodSmartCa" onclick="setSignMethod('smartca')">
+              <i class="fa-solid fa-mobile-screen-button"></i> 1. VNPT SmartCA (Khuyên dùng)
+            </button>
+            <button class="sign-method-btn" id="btnMethodOtp" onclick="setSignMethod('otp')">
+              <i class="fa-solid fa-envelope-open-text"></i> 2. Email OTP (Dự phòng)
+            </button>
           </div>
 
           <div id="alreadySignedNotice"
@@ -1274,33 +1402,110 @@
           </div>
 
           <div id="signingFormContainer" style="display: flex; flex-direction: column; gap: 14px;">
-            <p style="font-size: 12px; color: var(--text-muted);">
-              Bấm "Gửi OTP" để nhận mã 6 chữ số qua Email, sau đó nhập mã để hoàn tất giao kết điện tử ràng buộc pháp lý theo Luật Giao dịch điện tử.
-            </p>
 
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-primary" id="btnSendOtp" onclick="sendContractOtp()" style="flex: 1;">
-                <i class="fa-solid fa-paper-plane"></i> Gửi Mã OTP Qua Email
-              </button>
-              <button class="btn btn-secondary" onclick="fillDemoOtp()" title="Tự động điền mã nếu test local">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Demo OTP
+            <!-- SMARTCA PANEL -->
+            <div id="panelSmartCa" style="display: flex; flex-direction: column; gap: 12px;">
+              <!-- User SmartCA Certificate Card -->
+              <div class="smartca-card-info" id="smartCaCertInfoBox">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <strong style="color: var(--primary);"><i class="fa-solid fa-id-card"></i> Chứng Thư Số SmartCA:</strong>
+                  <span id="smartCaCertStatusBadge" class="badge" style="background: rgba(16,185,129,0.2); color: #34d399; font-size: 10px;">Đang kiểm tra...</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); line-height: 1.5;">
+                  <div>CCCD: <span id="smartCaCitizenId" style="color: var(--text-light); font-family: var(--font-mono);">--</span></div>
+                  <div>Chủ thể: <span id="smartCaSubject" style="color: var(--text-light);">--</span></div>
+                  <div>Serial: <span id="smartCaSerial" style="color: var(--text-dim); font-family: var(--font-mono); word-break: break-all;">--</span></div>
+                </div>
+              </div>
+
+              <!-- Initial State: Button to Initiate -->
+              <div id="smartCaInitState" style="display: flex; flex-direction: column; gap: 10px;">
+                <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                  Bấm "Khởi tạo Ký Số" để gửi lệnh băm SHA-256 PDF sang VNPT SmartCA. Ứng dụng SmartCA trên điện thoại sẽ nhận thông báo xác thực FaceID / PIN.
+                </p>
+
+                <label class="consent-checkbox-row">
+                  <input type="checkbox" id="smartCaConsentCheck" checked>
+                  <span>Tôi đã đọc kỹ hợp đồng và tự nguyện dùng Chữ ký số từ xa VNPT SmartCA để giao kết.</span>
+                </label>
+
+                <button class="btn btn-emerald" id="btnInitiateSmartCa" onclick="initiateSmartCaSign()"
+                  style="width: 100%; padding: 12px; font-size: 14px; font-weight: 700;">
+                  <i class="fa-solid fa-shield-halved"></i> KHỞI TẠO KÝ SỐ VNPT SMARTCA
+                </button>
+              </div>
+
+              <!-- Active Session State: Waiting for Confirm / Polling -->
+              <div id="smartCaActiveState" style="display: none;" class="smartca-session-active">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 700; color: #34d399; font-size: 13px;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Chờ Xác Nhận Trên App
+                  </span>
+                  <span class="smartca-timer-badge" id="smartCaTimerText">
+                    <i class="fa-regular fa-clock"></i> 05:00
+                  </span>
+                </div>
+
+                <div style="font-size: 11px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                  <div>Mã phiên (TranCode): <strong id="smartCaTranCodeText" style="color: var(--primary); font-family: var(--font-mono);">--</strong></div>
+                  <div style="margin-top: 4px; color: var(--text-muted);">
+                    Hệ thống đang tự động Polling kiểm tra mỗi 3 giây...
+                  </div>
+                </div>
+
+                <!-- Deep Link Actions -->
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary" id="btnOpenSmartCaApp" onclick="openSmartCaApp()" style="flex: 1; font-size: 12px;">
+                    <i class="fa-solid fa-up-right-from-square"></i> Mở App SmartCA
+                  </button>
+                  <button class="btn btn-secondary" onclick="copySmartCaDeepLink()" title="Copy Deep Link để test">
+                    <i class="fa-regular fa-copy"></i> Copy Link
+                  </button>
+                </div>
+
+                <!-- Sandbox Simulator Action -->
+                <div style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 8px;">
+                  <button class="btn btn-amber" onclick="instantCheckSmartCa()" style="width: 100%; font-size: 12px; font-weight: 600;">
+                    <i class="fa-solid fa-bolt"></i> ⚡ Mô Phỏng Ký Xong Ngay (Sandbox Quick Check)
+                  </button>
+                  <span style="font-size: 10px; color: var(--text-dim); display: block; text-align: center; margin-top: 4px;">
+                    Dành cho chế độ Sandbox Simulation khi test trên máy tính
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- EMAIL OTP PANEL (LEGACY) -->
+            <div id="panelEmailOtp" style="display: none; flex-direction: column; gap: 14px;">
+              <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+                Phương thức dự phòng: Bấm "Gửi OTP" để nhận mã 6 chữ số qua Email, sau đó nhập mã để hoàn tất ký xác nhận.
+              </p>
+
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" id="btnSendOtp" onclick="sendContractOtp()" style="flex: 1;">
+                  <i class="fa-solid fa-paper-plane"></i> Gửi Mã OTP Qua Email
+                </button>
+                <button class="btn btn-secondary" onclick="fillDemoOtp()" title="Tự động điền mã nếu test local">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Demo OTP
+                </button>
+              </div>
+
+              <div class="otp-input-row">
+                <input type="text" id="contractOtpInput" class="form-control otp-code-input" placeholder="000000"
+                  maxlength="6" pattern="[0-9]{6}">
+              </div>
+
+              <label class="consent-checkbox-row">
+                <input type="checkbox" id="contractConsentCheck" checked>
+                <span>Tôi đã đọc kỹ hợp đồng và tự nguyện cam kết thực hiện đúng mọi nghĩa vụ.</span>
+              </label>
+
+              <button class="btn btn-emerald" id="btnSignContract" onclick="submitSignContract()"
+                style="width: 100%; padding: 12px; font-size: 14px; font-weight: 700;">
+                <i class="fa-solid fa-pen-nib"></i> XÁC NHẬN KÝ BẰNG OTP
               </button>
             </div>
 
-            <div class="otp-input-row">
-              <input type="text" id="contractOtpInput" class="form-control otp-code-input" placeholder="000000"
-                maxlength="6" pattern="[0-9]{6}">
-            </div>
-
-            <label class="consent-checkbox-row">
-              <input type="checkbox" id="contractConsentCheck" checked>
-              <span>Tôi đã đọc kỹ toàn bộ nội dung hợp đồng thỏa thuận chuyển nhượng 3 bên và tự nguyện cam kết thực hiện đúng mọi nghĩa vụ.</span>
-            </label>
-
-            <button class="btn btn-emerald" id="btnSignContract" onclick="submitSignContract()"
-              style="width: 100%; padding: 12px; font-size: 14px; font-weight: 700;">
-              <i class="fa-solid fa-pen-nib"></i> XÁC NHẬN KÝ HỢP ĐỒNG ĐIỆN TỬ
-            </button>
           </div>
         </div>
 
@@ -1596,29 +1801,40 @@
 
                 <div id="sellerSubmittedNotice" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.4); padding: 12px; border-radius: var(--radius-sm); color: #34d399; font-size: 12px;">
                   <i class="fa-solid fa-circle-check"></i> <strong>Bạn đã nộp biên bản sang tên!</strong><br>
-                  Đang chờ Bên Mua kiểm tra có sóng và bấm xác nhận nhận SIM để giải ngân tiền vào ví.
+                  Đang chờ Ban Quản Trị sàn kiểm duyệt hồ sơ và Bên Mua nghiệm thu SIM.
                 </div>
 
                 <div id="sellerUploadForm" style="display: flex; flex-direction: column; gap: 10px;">
                   <p style="font-size: 12px; color: var(--text-muted);">
-                    Người Bán vui lòng mang CCCD ra điểm giao dịch Viettel/Vina/Mobi chuyển quyền sử dụng cho Bên Mua, sau đó tải ảnh biên bản/phiếu thay đổi thông tin lên đây:
+                    Người Bán mang CCCD ra điểm giao dịch nhà mạng làm thủ tục chuyển quyền sử dụng cho Bên Mua, sau đó chọn một hoặc nhiều ảnh biên bản/phiếu chuyển đổi:
                   </p>
 
+                  <!-- Multiple File Upload Selector -->
+                  <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed rgba(245, 158, 11, 0.45); padding: 14px; border-radius: var(--radius-sm); text-align: center;">
+                    <input type="file" id="sellerMultiFiles" multiple accept="image/*" style="display: none;" onchange="handleSellerFilesSelect(event)">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('sellerMultiFiles').click()" style="width: 100%;">
+                      <i class="fa-solid fa-images" style="color: var(--amber);"></i> Chọn Nhiều Tệp Ảnh Biên Bản (Từ Máy)
+                    </button>
+                    <div id="sellerThumbsContainer" class="upload-thumb-grid"></div>
+                    <div id="sellerFileCountHint" style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Chưa chọn tệp ảnh nào</div>
+                  </div>
+
                   <div>
-                    <label style="font-size: 11px; font-weight: 700; color: var(--text-dim);">Đường dẫn hình ảnh biên bản nhà mạng (Image URL):</label>
-                    <div style="display: flex; gap: 8px; margin-top: 4px;">
-                      <input type="text" id="proofImageUrlInput" class="form-control" placeholder="https://... hoặc bấm nút Mẫu">
-                      <button type="button" class="btn btn-secondary" onclick="fillDemoProofImage()" title="Điền URL ảnh biên bản Viettel mẫu"><i class="fa-solid fa-wand-magic-sparkles"></i> Mẫu</button>
+                    <label style="font-size: 11px; font-weight: 700; color: var(--text-dim);">Ghi chú bổ sung (tùy chọn):</label>
+                    <input type="text" id="proofDescInput" class="form-control" placeholder="VD: Đã làm thủ tục tại điểm giao dịch MobiFone Bà Triệu, phiếu #MB-9988" style="margin-top: 4px;">
+                  </div>
+
+                  <!-- Hoặc nộp qua URL ảnh mẫu nhanh -->
+                  <details style="font-size: 11px; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 6px;">
+                    <summary style="cursor: pointer; font-weight: 600;">Tùy chọn: Nhập URL ảnh biên bản mẫu</summary>
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                      <input type="text" id="proofImageUrlInput" class="form-control" placeholder="https://... hoặc bấm nút Mẫu" style="font-size: 11px;">
+                      <button type="button" class="btn btn-secondary" onclick="fillDemoProofImage()" style="font-size: 11px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Mẫu</button>
                     </div>
-                  </div>
+                  </details>
 
-                  <div>
-                    <label style="font-size: 11px; font-weight: 700; color: var(--text-dim);">Ghi chú bổ sung:</label>
-                    <input type="text" id="proofDescInput" class="form-control" placeholder="VD: Đã làm thủ tục tại điểm giao dịch MobiFone Bà Triệu, mã phiếu #MB-9988" style="margin-top: 4px;">
-                  </div>
-
-                  <button class="btn btn-primary" id="btnSubmitProof" onclick="submitTransferProof()" style="margin-top: 4px; padding: 10px; font-weight: 700;">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Biên Bản Sang Tên Cho Người Mua
+                  <button class="btn btn-primary" id="btnSubmitProof" onclick="submitSellerProofs()" style="margin-top: 4px; padding: 10px; font-weight: 700;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Danh Sách Biên Bản Sang Tên Cho Sàn & Bên Mua
                   </button>
                 </div>
               </div>
@@ -1626,7 +1842,7 @@
               <!-- Panel 2: Thao tác Bên Mua -->
               <div class="action-panel-card" id="buyerActionCard">
                 <div class="action-panel-header">
-                  <strong style="color: var(--primary);"><i class="fa-solid fa-sim-card"></i> [Bên Mua] Kiểm Tra & Nghiệm Thu</strong>
+                  <strong style="color: var(--primary);"><i class="fa-solid fa-sim-card"></i> [Bên Mua] Kiểm Tra Sóng & Nghiệm Thu</strong>
                   <span style="font-size: 11px; color: var(--text-muted);">Bảo đảm Escrow</span>
                 </div>
 
@@ -1637,17 +1853,34 @@
                 <div id="buyerConfirmForm" style="display: none; flex-direction: column; gap: 12px;">
                   <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.4); padding: 12px; border-radius: var(--radius-sm); color: #34d399; font-size: 12px;">
                     <i class="fa-solid fa-bell"></i> <strong>Người Bán đã nộp biên bản sang tên!</strong><br>
-                    Vui lòng lắp SIM vào máy hoặc gửi tin nhắn <code>TTTB gửi 1414</code> để kiểm tra chính chủ.
+                    Vui lòng lắp SIM kiểm tra có sóng, chụp ảnh màn hình SMS <code>TTTB gửi 1414</code> hoặc ứng dụng nhà mạng chính chủ và tải lên dưới đây để Sàn phê duyệt giải ngân:
+                  </div>
+
+                  <!-- Multiple File Upload Selector for Buyer -->
+                  <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed rgba(56, 189, 248, 0.45); padding: 12px; border-radius: var(--radius-sm); text-align: center;">
+                    <input type="file" id="buyerMultiFiles" multiple accept="image/*" style="display: none;" onchange="handleBuyerFilesSelect(event)">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('buyerMultiFiles').click()" style="width: 100%;">
+                      <i class="fa-solid fa-camera" style="color: var(--primary);"></i> Chọn Ảnh Chụp Sóng / App Nhà Mạng Chính Chủ
+                    </button>
+                    <div id="buyerThumbsContainer" class="upload-thumb-grid"></div>
+                    <div id="buyerFileCountHint" style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Chưa chọn tệp ảnh nào</div>
+                  </div>
+
+                  <div>
+                    <input type="text" id="buyerProofDescInput" class="form-control" placeholder="Ghi chú: Đã test gọi nghe tốt, SIM chính chủ">
                   </div>
 
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-secondary" onclick="openLiquidationPreviewModal()" style="flex: 1;">
-                      <i class="fa-solid fa-file-contract"></i> Xem Trước Biên Bản Thanh Lý
+                    <button class="btn btn-primary" id="btnSubmitBuyerProof" onclick="submitBuyerProofs()" style="flex: 1; padding: 10px; font-weight: 700;">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Tải Lên Ảnh Nghiệm Thu
+                    </button>
+                    <button class="btn btn-secondary" onclick="openLiquidationPreviewModal()">
+                      <i class="fa-solid fa-file-contract"></i> Xem HĐ 3
                     </button>
                   </div>
 
-                  <button class="btn btn-emerald" id="btnConfirmTransfer" onclick="confirmSimTransfer()" style="padding: 12px; font-size: 14px; font-weight: 800; box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);">
-                    <i class="fa-solid fa-circle-check"></i> XÁC NHẬN ĐÃ NHẬN SIM - NGHIỆM THU & GIẢI NGÂN
+                  <button class="btn btn-emerald" id="btnConfirmTransfer" onclick="confirmSimTransfer()" style="padding: 12px; font-size: 13px; font-weight: 800; box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);">
+                    <i class="fa-solid fa-circle-check"></i> XÁC NHẬN NGHIỆM THU TRỰC TIẾP
                   </button>
                 </div>
 
@@ -1663,6 +1896,81 @@
                   </div>
                 </div>
               </div>
+
+            </div>
+
+            <!-- Panel 3: Khối Ban Quản Trị Sàn Kiểm Duyệt Hồ Sơ -->
+            <div class="action-panel-card" id="adminReviewCard" style="margin-top: 16px; background: rgba(30, 27, 75, 0.45); border: 1px solid rgba(139, 92, 246, 0.35);">
+              <div class="action-panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <strong style="color: #c084fc; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-user-shield" style="color: var(--purple);"></i>
+                  [Ban Quản Trị Sàn] Kiểm Duyệt Bằng Chứng & Kích Hoạt Thanh Lý (Văn Bản 3)
+                </strong>
+                <div style="display: flex; gap: 8px;">
+                  <button type="button" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="loadPendingAdminReviewsModal()">
+                    <i class="fa-solid fa-list-check"></i> DS Chờ Duyệt (<span id="pendingReviewCountBadge">0</span>)
+                  </button>
+                  <button type="button" class="btn btn-secondary" style="font-size: 11px; padding: 4px 10px;" onclick="refreshAdminReviewPanel()">
+                    <i class="fa-solid fa-rotate"></i> Làm mới
+                  </button>
+                </div>
+              </div>
+
+              <!-- Rejection Reason Input -->
+              <div style="padding: 10px 0 4px 0;">
+                <div style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 4px;">Lý do từ chối (bắt buộc nếu bấm nút Từ chối):</div>
+                <input type="text" id="adminRejectionReasonInput" class="form-control" placeholder="VD: Ảnh biên bản bị mờ, không rõ số CMND hoặc chưa đóng dấu đỏ nhà mạng...">
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 8px;">
+                <!-- Cột Duyệt Bên Bán -->
+                <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; color: var(--amber); font-size: 12px;">
+                      <i class="fa-solid fa-store"></i> 1. Hồ Sơ Bên Bán (SELLER_HANDOVER)
+                    </span>
+                    <span class="badge badge-pending" id="adminSellerProofBadge">CHỜ DUYỆT</span>
+                  </div>
+                  <div id="adminSellerProofThumbnails" style="display: flex; gap: 8px; flex-wrap: wrap; min-height: 50px; align-items: center;">
+                    <span style="color: var(--text-dim); font-size: 11px;">Chưa có ảnh biên bản nào</span>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <button type="button" class="btn btn-emerald" onclick="adminReviewParty('SELLER', true)" style="flex: 1; font-size: 12px; padding: 8px;">
+                      <i class="fa-solid fa-check"></i> Duyệt Bên Bán
+                    </button>
+                    <button type="button" class="btn btn-rose" onclick="adminReviewParty('SELLER', false)" style="flex: 1; font-size: 12px; padding: 8px;">
+                      <i class="fa-solid fa-xmark"></i> Từ Chối Bên Bán
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Cột Duyệt Bên Mua -->
+                <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; color: var(--primary); font-size: 12px;">
+                      <i class="fa-solid fa-sim-card"></i> 2. Hồ Sơ Bên Mua (BUYER_RECEIPT)
+                    </span>
+                    <span class="badge badge-pending" id="adminBuyerProofBadge">CHỜ DUYỆT</span>
+                  </div>
+                  <div id="adminBuyerProofThumbnails" style="display: flex; gap: 8px; flex-wrap: wrap; min-height: 50px; align-items: center;">
+                    <span style="color: var(--text-dim); font-size: 11px;">Chưa có ảnh nghiệm thu nào</span>
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <button type="button" class="btn btn-emerald" onclick="adminReviewParty('BUYER', true)" style="flex: 1; font-size: 12px; padding: 8px;">
+                      <i class="fa-solid fa-stamp"></i> Duyệt Bên Mua & Hoàn Tất
+                    </button>
+                    <button type="button" class="btn btn-rose" onclick="adminReviewParty('BUYER', false)" style="flex: 1; font-size: 12px; padding: 8px;">
+                      <i class="fa-solid fa-xmark"></i> Từ Chối Bên Mua
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style="font-size: 11px; color: var(--text-muted); background: rgba(255, 255, 255, 0.02); padding: 8px 12px; border-radius: 6px; margin-top: 6px;">
+                <i class="fa-solid fa-circle-info" style="color: var(--primary);"></i>
+                <strong>Quy trình bảo an 2 lớp:</strong> Sau khi Ban Quản Trị duyệt đủ hồ sơ Bên Bán và Bên Mua, hệ thống sẽ tự động niêm phong chữ ký số PAdES X.509 + TSA cho Biên Bản Thanh Lý (VB 3), đổi chủ sở hữu SIM cho Bên Mua và giải ngân Quỹ Escrow (95% cho Người Bán, 5% cho Sàn).
+              </div>
+            </div>
 
             </div>
 
@@ -1759,6 +2067,38 @@
     </div>
   </div>
 
+  <!-- Modal for Admin Pending Reviews -->
+  <div class="modal-overlay" id="adminReviewsModal" onclick="closeAdminReviewsModal(event)">
+    <div class="modal-box" style="max-width: 900px; background: #0f172a; color: #f8fafc; border: 1px solid var(--border-glow);" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 style="font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-list-check" style="color: var(--purple);"></i>
+          Danh Sách Giao Dịch Chuyển Nhượng Chờ Admin Duyệt Hồ Sơ
+        </h3>
+        <button class="modal-close-btn" onclick="closeAdminReviewsModal()" style="color: #fff;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div id="adminPendingReviewsTableContainer" style="max-height: 450px; overflow-y: auto;">
+        <table class="table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <thead>
+            <tr style="background: rgba(255,255,255,0.05); text-align: left; color: var(--text-dim);">
+              <th style="padding: 10px;">Mã Giao Dịch</th>
+              <th style="padding: 10px;">Số SIM</th>
+              <th style="padding: 10px;">Người Bán</th>
+              <th style="padding: 10px;">Người Mua</th>
+              <th style="padding: 10px;">Trạng Thái</th>
+              <th style="padding: 10px;">Hồ Sơ</th>
+              <th style="padding: 10px; text-align: right;">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="adminPendingReviewsTbody">
+            <tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -1769,17 +2109,22 @@
     let currentUsername = 'bidder_dai_gia';
     let currentToken = '';
     let currentUserId = '';
+    let currentUserFullName = '';
+    let userTradesMap = {};
     let currentTradeId = '';
     let currentContractData = null;
     let currentHandoverData = null;
     let deadlineTimerInterval = null;
+    let sellerSelectedFiles = [];
+    let buyerSelectedFiles = [];
 
     const demoUsers = {
-      'bidder_dai_gia': { pass: 'Password123@', role: 'BUYER', email: 'quanidol6224@gmail.com' },
-      'bidder_kinh_doanh': { pass: 'Password123@', role: 'BUYER', email: 'kinhdoanh.sim@gmail.com' },
-      'seller_vip_phuquy': { pass: 'Password123@', role: 'SELLER', email: 'supperidol6224@gmail.com' },
-      'seller_daiphat': { pass: 'Password123@', role: 'SELLER', email: 'daiphat.telecom@gmail.com' },
-      'admin': { pass: 'Password123@', role: 'ADMIN', email: 'admin@trustsim.vn' }
+      'bidder_dai_gia': { pass: 'Password123@', role: 'BUYER', email: 'quanidol6224@gmail.com', fullNameHint: 'phạm hoàng nam' },
+      'nguyenquan': { pass: 'Password123@', role: 'BUYER', email: 'nguyenquan06022004@gmail.com', fullNameHint: 'nguyễn quân' },
+      'bidder_kinh_doanh': { pass: 'Password123@', role: 'BUYER', email: 'kinhdoanh.sim@gmail.com', fullNameHint: 'lê minh tuấn' },
+      'seller_vip_phuquy': { pass: 'Password123@', role: 'SELLER', email: 'supperidol6224@gmail.com', fullNameHint: 'trần phú quý' },
+      'seller_daiphat': { pass: 'Password123@', role: 'SELLER', email: 'daiphat.telecom@gmail.com', fullNameHint: 'đại phát' },
+      'admin': { pass: 'Password123@', role: 'ADMIN', email: 'admin@trustsim.vn', fullNameHint: 'admin' }
     };
 
     // Predefined Scenarios
@@ -1847,6 +2192,11 @@
         btn.classList.toggle('active', btn.getAttribute('onclick')?.includes(username));
       });
 
+      // Reset trade id so loadUserTrades automatically selects a trade belonging to this user
+      currentTradeId = '';
+      const manualInput = document.getElementById('manualTradeIdInput');
+      if (manualInput) manualInput.value = '';
+
       await loginCurrentUser();
       await loadUserTrades();
       if (currentTradeId) {
@@ -1885,6 +2235,7 @@
         if (isSuccess && data.data) {
           currentToken = data.data.token || data.data.accessToken || '';
           currentUserId = data.data.userId || data.data.user?.id || '';
+          currentUserFullName = data.data.fullName || data.data.user?.fullName || '';
           const userEmail = data.data.email || data.data.user?.email || cfg.email;
           const userRole = data.data.role || data.data.user?.role || cfg.role;
 
@@ -1894,6 +2245,7 @@
           document.getElementById('currentUserEmailText').innerText = userEmail;
 
           showToast(`Đã đăng nhập: ${currentUsername}`, 'success');
+          await loadSmartCaStatus();
         } else {
           showToast(`Đăng nhập thất bại: ${data.message || 'Lỗi server'}`, 'error');
         }
@@ -1926,7 +2278,9 @@
           }
 
           select.innerHTML = '<option value="">-- Chọn một giao dịch để thao tác --</option>';
+          userTradesMap = {};
           items.forEach(t => {
+            userTradesMap[t.id] = t;
             const opt = document.createElement('option');
             opt.value = t.id;
             opt.innerText = `[${t.status}] ${t.tradeTransactionCode} | SIM: ${t.simPhoneNumber} (${formatMoney(t.escrowAmount)})`;
@@ -1935,7 +2289,9 @@
           });
 
           if (!currentTradeId && items.length > 0) {
-            currentTradeId = items[0].id;
+            // Ưu tiên chọn giao dịch đang ở trạng thái Chờ Ký (PendingSignature / DRAFT)
+            const pendingTrade = items.find(t => t.status === 'PendingSignature' || t.status === 'DRAFT') || items[0];
+            currentTradeId = pendingTrade.id;
             select.value = currentTradeId;
             document.getElementById('manualTradeIdInput').value = currentTradeId;
             await loadContractDetails(currentTradeId);
@@ -1980,8 +2336,8 @@
         const isSuccess = data.success ?? data.isSuccess;
         if (isSuccess && data.data) {
           currentContractData = data.data;
-          renderContractUI(data.data);
           await loadSimTransferDetails(tradeId);
+          renderContractUI(data.data);
         } else {
           showToast(data.message || 'Không thể tải thông tin hợp đồng', 'error');
         }
@@ -2032,7 +2388,7 @@
       } else {
         buyerBox.classList.remove('signed');
         buyerStatus.style.color = 'var(--amber)';
-        buyerStatus.innerHTML = `<i class="fa-regular fa-clock"></i> Chờ ký OTP`;
+        buyerStatus.innerHTML = `<i class="fa-regular fa-clock"></i> Chờ ký (SmartCA/OTP)`;
       }
 
       const sellerBox = document.getElementById('sellerSignerBox');
@@ -2048,24 +2404,95 @@
       } else {
         sellerBox.classList.remove('signed');
         sellerStatus.style.color = 'var(--amber)';
-        sellerStatus.innerHTML = `<i class="fa-regular fa-clock"></i> Chờ ký OTP`;
+        sellerStatus.innerHTML = `<i class="fa-regular fa-clock"></i> Chờ ký (SmartCA/OTP)`;
       }
 
       // 4. User Signing Permission & Notice
-      const isCurrentUserBuyer = currentUsername.includes('bidder');
-      const isCurrentUserSeller = currentUsername.includes('seller');
-      const hasCurrentUserSigned = (isCurrentUserBuyer && contract.buyerSigned) || (isCurrentUserSeller && contract.sellerSigned);
+      const tradeMeta = userTradesMap[contract.tradeId || currentTradeId];
+      const handoverForThisTrade = (currentHandoverData && currentHandoverData.tradeId === (contract.tradeId || currentTradeId))
+        ? currentHandoverData
+        : null;
+      const fullNameLower = (currentUserFullName || '').trim().toLowerCase();
+      const hintLower = (demoUsers[currentUsername]?.fullNameHint || '').trim().toLowerCase();
+      const buyerNameLower = (contract.buyerName || '').trim().toLowerCase();
+      const sellerNameLower = (contract.sellerName || '').trim().toLowerCase();
+      const usernameLower = (currentUsername || '').trim().toLowerCase();
+
+      const isCurrentUserBuyer = Boolean(
+        (tradeMeta && currentUserId && String(tradeMeta.buyerId).toLowerCase() === String(currentUserId).toLowerCase()) ||
+        (handoverForThisTrade && handoverForThisTrade.isBuyer === true) ||
+        (fullNameLower && buyerNameLower && (buyerNameLower === fullNameLower || buyerNameLower.includes(fullNameLower) || fullNameLower.includes(buyerNameLower))) ||
+        (hintLower && buyerNameLower && buyerNameLower.includes(hintLower)) ||
+        (buyerNameLower && usernameLower && (buyerNameLower === usernameLower || buyerNameLower.includes(usernameLower) || usernameLower.includes(buyerNameLower)))
+      );
+
+      const isCurrentUserSeller = Boolean(
+        (tradeMeta && currentUserId && String(tradeMeta.sellerId).toLowerCase() === String(currentUserId).toLowerCase()) ||
+        (handoverForThisTrade && handoverForThisTrade.isSeller === true) ||
+        (fullNameLower && sellerNameLower && (sellerNameLower === fullNameLower || sellerNameLower.includes(fullNameLower) || fullNameLower.includes(sellerNameLower))) ||
+        (hintLower && sellerNameLower && sellerNameLower.includes(hintLower)) ||
+        (sellerNameLower && usernameLower && (sellerNameLower === usernameLower || sellerNameLower.includes(usernameLower) || usernameLower.includes(sellerNameLower)))
+      );
+
+      const isParty = isCurrentUserBuyer || isCurrentUserSeller;
+      const isFullySigned = contract.contractStatus === 'FULLY_SIGNED';
 
       const alreadySignedNotice = document.getElementById('alreadySignedNotice');
       const signingFormContainer = document.getElementById('signingFormContainer');
 
-      if (hasCurrentUserSigned) {
+      // Reset notice styles
+      alreadySignedNotice.style.background = 'rgba(16, 185, 129, 0.1)';
+      alreadySignedNotice.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+      alreadySignedNotice.style.color = '#34d399';
+
+      if (!isParty) {
         alreadySignedNotice.style.display = 'block';
-        document.getElementById('alreadySignedDetails').innerText = `Ký lúc ${formatDateTime(isCurrentUserBuyer ? contract.buyerSignedAt : contract.sellerSignedAt)} qua EMAIL_OTP.`;
+        alreadySignedNotice.style.background = 'rgba(239, 68, 68, 0.1)';
+        alreadySignedNotice.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        alreadySignedNotice.style.color = '#f87171';
+        alreadySignedNotice.innerHTML = `
+          <i class="fa-solid fa-triangle-exclamation"></i> <strong>Bạn không có quyền ký hợp đồng này!</strong><br>
+          <div style="font-size: 11px; color: var(--text-light); margin-top: 4px; line-height: 1.5;">
+            Tài khoản đang đăng nhập: <strong style="color: var(--primary);">${currentUsername}</strong>.<br>
+            Hợp đồng này chỉ cho phép:
+            <ul style="margin: 2px 0 2px 18px; padding: 0;">
+              <li>Bên Mua: <strong>${contract.buyerName || 'Chưa xác định'}</strong></li>
+              <li>Bên Bán: <strong>${contract.sellerName || 'Chưa xác định'}</strong></li>
+            </ul>
+            <em>👉 Vui lòng chọn đúng giao dịch của bạn ở ô dropdown bên dưới hoặc chuyển sang tài khoản Bên Mua/Bán ở thanh trên cùng.</em>
+          </div>
+        `;
+        signingFormContainer.style.display = 'none';
+        return;
+      }
+
+      const hasCurrentUserSigned = (isCurrentUserBuyer && contract.buyerSigned) || (isCurrentUserSeller && contract.sellerSigned);
+
+      if (hasCurrentUserSigned || isFullySigned) {
+        alreadySignedNotice.style.display = 'block';
+        let detailsHtml = '';
+        if (isFullySigned && !hasCurrentUserSigned) {
+          detailsHtml = `
+            <strong>Hợp đồng này đã hoàn tất niêm phong chữ ký số PAdES X.509!</strong><br>
+            <span style="color: var(--primary);">Giao dịch đang ở trạng thái bàn giao SIM hoặc đã hoàn tất.</span>
+          `;
+        } else {
+          const signRole = isCurrentUserBuyer ? 'BÊN MUA' : 'BÊN BÁN';
+          const signTime = isCurrentUserBuyer ? contract.buyerSignedAt : contract.sellerSignedAt;
+          detailsHtml = `
+            <strong>${signRole}</strong> đã ký xác nhận lúc ${formatDateTime(signTime)}.<br>
+            <span style="color: var(--primary);">Chứng thư số & Chữ ký số điện tử đã được ghi nhận an toàn vào hợp đồng.</span>
+          `;
+        }
+        alreadySignedNotice.innerHTML = `
+          <i class="fa-solid fa-circle-check"></i> <strong>Bạn đã hoàn tất ký hợp đồng này!</strong><br>
+          <span style="font-size: 11px; color: var(--text-muted);" id="alreadySignedDetails">${detailsHtml}</span>
+        `;
         signingFormContainer.style.display = 'none';
       } else {
         alreadySignedNotice.style.display = 'none';
         signingFormContainer.style.display = 'flex';
+        loadSmartCaStatus();
       }
 
       // 5. TAB 1: Winning Notice
@@ -2337,8 +2764,223 @@
         showToast('Lỗi khi gửi yêu cầu ký hợp đồng', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> XÁC NHẬN KÝ HỢP ĐỒNG ĐIỆN TỬ';
+        btn.innerHTML = '<i class="fa-solid fa-pen-nib"></i> XÁC NHẬN KÝ BẰNG OTP';
       }
+    }
+
+    // ==========================================
+    // VNPT SMARTCA SIGNING CLIENT INTEGRATION
+    // ==========================================
+    let currentSignMethod = 'smartca';
+    let smartCaPollingTimer = null;
+    let smartCaCountdownTimer = null;
+    let activeSmartCaTranCode = null;
+    let activeSmartCaDeepLink = null;
+    let activeSmartCaSecondsLeft = 300;
+
+    function setSignMethod(method) {
+      currentSignMethod = method;
+      const isSmartCa = method === 'smartca';
+      document.getElementById('btnMethodSmartCa').classList.toggle('active', isSmartCa);
+      document.getElementById('btnMethodOtp').classList.toggle('active', !isSmartCa);
+      document.getElementById('panelSmartCa').style.display = isSmartCa ? 'flex' : 'none';
+      document.getElementById('panelEmailOtp').style.display = !isSmartCa ? 'flex' : 'none';
+      document.getElementById('currentSignMethodBadge').innerText = isSmartCa ? 'VNPT SmartCA' : 'Email OTP';
+      document.getElementById('currentSignMethodBadge').className = isSmartCa ? 'badge badge-signed' : 'badge badge-pending';
+      if (isSmartCa) {
+        loadSmartCaStatus();
+      }
+    }
+
+    async function loadSmartCaStatus() {
+      if (!currentToken) return;
+      try {
+        const res = await fetch(`${backendUrl}/api/users/me/smartca-status`, {
+          headers: { 'Authorization': `Bearer ${currentToken}` },
+          credentials: 'include'
+        });
+        const data = await res.json();
+        const info = data?.data;
+        const statusBadge = document.getElementById('smartCaCertStatusBadge');
+        if (info && info.hasSmartCaCertificate && info.activeCertificate) {
+          statusBadge.className = 'badge badge-sealed';
+          statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Đang hoạt động';
+          document.getElementById('smartCaCitizenId').innerText = info.citizenId || 'N/A';
+          document.getElementById('smartCaSubject').innerText = info.fullName || 'Thuê bao SmartCA';
+          document.getElementById('smartCaSerial').innerText = info.activeCertificate.serialNumber || 'N/A';
+        } else if (info && info.isEkycVerified) {
+          statusBadge.className = 'badge badge-pending';
+          statusBadge.innerHTML = '<i class="fa-solid fa-circle-info"></i> Đã eKYC (Chờ cấp CTS)';
+          document.getElementById('smartCaCitizenId').innerText = info.citizenId || 'N/A';
+          document.getElementById('smartCaSubject').innerText = info.fullName || 'N/A';
+          document.getElementById('smartCaSerial').innerText = 'Chưa có chứng thư số trên SmartCA';
+        } else {
+          statusBadge.className = 'badge';
+          statusBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+          statusBadge.style.color = '#f87171';
+          statusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Chưa eKYC';
+          document.getElementById('smartCaCitizenId').innerText = 'Chưa cập nhật CCCD';
+          document.getElementById('smartCaSubject').innerText = 'N/A';
+          document.getElementById('smartCaSerial').innerText = 'N/A';
+        }
+      } catch (err) {
+        console.error('loadSmartCaStatus error:', err);
+      }
+    }
+
+    async function initiateSmartCaSign() {
+      if (!currentTradeId) {
+        showToast('Vui lòng chọn giao dịch trước!', 'warning');
+        return;
+      }
+
+      if (currentContractData && currentContractData.contractStatus === 'FULLY_SIGNED') {
+        showToast('⚠️ Hợp đồng này đã hoàn tất ký số rồi! Vui lòng bấm chọn Kịch bản 1: TRD-20261010-002 để test ký.', 'warning');
+        return;
+      }
+
+      const consent = document.getElementById('smartCaConsentCheck').checked;
+      if (!consent) {
+        showToast('Vui lòng tích đồng ý với điều khoản hợp đồng!', 'warning');
+        return;
+      }
+
+      const btn = document.getElementById('btnInitiateSmartCa');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang băm PDF & kết nối VNPT...';
+
+      try {
+        const res = await fetch(`${backendUrl}/api/contracts/${currentTradeId}/smartca/sign`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({})
+        });
+
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess && data.data) {
+          const signData = data.data;
+          activeSmartCaTranCode = signData.tranCode || signData.transactionId;
+          activeSmartCaDeepLink = signData.deepLinkUrl || `vnptsmartca://sign?tranCode=${activeSmartCaTranCode}`;
+
+          showToast('✅ Đã tạo phiên ký số VNPT SmartCA!', 'success');
+
+          // Switch UI to active waiting state
+          document.getElementById('smartCaInitState').style.display = 'none';
+          document.getElementById('smartCaActiveState').style.display = 'flex';
+          document.getElementById('smartCaTranCodeText').innerText = activeSmartCaTranCode;
+
+          // Start Countdown Timer (5 mins)
+          activeSmartCaSecondsLeft = signData.expiredInSeconds || 300;
+          updateSmartCaTimerDisplay();
+          clearInterval(smartCaCountdownTimer);
+          smartCaCountdownTimer = setInterval(() => {
+            activeSmartCaSecondsLeft--;
+            updateSmartCaTimerDisplay();
+            if (activeSmartCaSecondsLeft <= 0) {
+              stopSmartCaSession('Hết thời gian chờ ký số SmartCA (5 phút). Vui lòng thử lại.');
+            }
+          }, 1000);
+
+          // Start Polling loop every 3 seconds
+          clearInterval(smartCaPollingTimer);
+          smartCaPollingTimer = setInterval(pollSmartCaStatus, 3000);
+
+        } else {
+          showToast(data.message || 'Lỗi khởi tạo ký số SmartCA', 'error');
+        }
+      } catch (err) {
+        console.error('initiateSmartCaSign error:', err);
+        showToast('Lỗi khi gọi API khởi tạo ký số SmartCA', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-shield-halved"></i> KHỞI TẠO KÝ SỐ VNPT SMARTCA';
+      }
+    }
+
+    function updateSmartCaTimerDisplay() {
+      const mins = Math.floor(activeSmartCaSecondsLeft / 60);
+      const secs = activeSmartCaSecondsLeft % 60;
+      const str = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      const timerEl = document.getElementById('smartCaTimerText');
+      if (timerEl) {
+        timerEl.innerHTML = `<i class="fa-regular fa-clock"></i> ${str}`;
+      }
+    }
+
+    async function pollSmartCaStatus() {
+      if (!currentTradeId || !activeSmartCaTranCode) return;
+      try {
+        const res = await fetch(`${backendUrl}/api/contracts/${currentTradeId}/smartca/transactions/${activeSmartCaTranCode}/check-status`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`
+          },
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess) {
+          // SIGNED SUCCESSFULLY!
+          stopSmartCaSession();
+          showToast('🎉 ' + (data.message || 'Ký số VNPT SmartCA thành công!'), 'success');
+          await loadUserTrades();
+          await loadContractDetails(currentTradeId);
+
+          if (data.data?.isFullySigned) {
+            showToast('🎊 Cả 2 bên đã ký xong! Hệ thống đang kích hoạt niêm phong PAdES X.509...', 'info');
+            setTimeout(async () => {
+              await loadUserTrades();
+              await loadContractDetails(currentTradeId);
+            }, 2000);
+          }
+        }
+      } catch (err) {
+        // Ignore polling network blips
+      }
+    }
+
+    async function instantCheckSmartCa() {
+      if (!currentTradeId || !activeSmartCaTranCode) {
+        showToast('Chưa có phiên ký SmartCA nào đang mở!', 'warning');
+        return;
+      }
+      showToast('Đang kích hoạt kiểm tra trạng thái ngay lập tức...', 'info');
+      await pollSmartCaStatus();
+    }
+
+    function stopSmartCaSession(errorMessage) {
+      clearInterval(smartCaPollingTimer);
+      clearInterval(smartCaCountdownTimer);
+      smartCaPollingTimer = null;
+      smartCaCountdownTimer = null;
+      document.getElementById('smartCaInitState').style.display = 'flex';
+      document.getElementById('smartCaActiveState').style.display = 'none';
+      if (errorMessage) {
+        showToast(errorMessage, 'warning');
+      }
+    }
+
+    function openSmartCaApp() {
+      if (!activeSmartCaDeepLink) {
+        showToast('Chưa có Deep Link hợp lệ!', 'warning');
+        return;
+      }
+      window.location.href = activeSmartCaDeepLink;
+    }
+
+    function copySmartCaDeepLink() {
+      if (!activeSmartCaDeepLink) return;
+      navigator.clipboard.writeText(activeSmartCaDeepLink).then(() => {
+        showToast('Đã sao chép Deep Link: ' + activeSmartCaDeepLink, 'success');
+      }).catch(() => {
+        prompt('Copy Deep Link:', activeSmartCaDeepLink);
+      });
     }
 
     // Download Winning Notice PDF (VB 1)
@@ -2601,7 +3243,7 @@
       statusBadge.innerText = details.simTransferStatus;
       if (details.simTransferStatus === 'COMPLETED') {
         statusBadge.className = 'badge badge-sealed';
-      } else if (details.simTransferStatus === 'SELLER_PROOF_SUBMITTED') {
+      } else if (details.simTransferStatus === 'SELLER_PROOF_SUBMITTED' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED') {
         statusBadge.className = 'badge badge-signed';
       } else {
         statusBadge.className = 'badge badge-pending';
@@ -2615,11 +3257,13 @@
       const step4 = document.getElementById('step4Item');
       const step4Desc = document.getElementById('step4Desc');
 
-      const isProofSubmitted = details.simTransferStatus === 'SELLER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
+      const isSellerSubmitted = details.simTransferStatus === 'SELLER_PROOF_SUBMITTED' || details.simTransferStatus === 'PENDING_BUYER_ACTION' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
+      const isSellerApproved = (details.proofs || []).some(p => (!p.proofType || p.proofType === 'SELLER_HANDOVER') && p.proofStatus === 'APPROVED') || details.simTransferStatus === 'PENDING_BUYER_ACTION' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
+      const isBuyerSubmitted = details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
       const isCompleted = details.simTransferStatus === 'COMPLETED';
 
       // Step 2
-      if (isProofSubmitted) {
+      if (isSellerSubmitted) {
         step2.className = 'step-item completed';
         step2.querySelector('.step-icon').innerHTML = '<i class="fa-solid fa-check"></i>';
         step2Desc.innerText = 'Đã nộp biên bản nhà mạng';
@@ -2635,9 +3279,14 @@
       if (isCompleted) {
         step3.className = 'step-item completed';
         step3.querySelector('.step-icon').innerHTML = '<i class="fa-solid fa-check"></i>';
-        step3Desc.innerText = 'Bên mua đã xác nhận nghiệm thu';
+        step3Desc.innerText = 'Đã duyệt nghiệm thu SIM';
         step3Desc.style.color = 'var(--emerald)';
-      } else if (isProofSubmitted) {
+      } else if (isBuyerSubmitted) {
+        step3.className = 'step-item active';
+        step3.querySelector('.step-icon').innerText = '3';
+        step3Desc.innerText = 'Đã nộp ảnh, chờ sàn duyệt';
+        step3Desc.style.color = 'var(--amber)';
+      } else if (isSellerSubmitted) {
         step3.className = 'step-item active';
         step3.querySelector('.step-icon').innerText = '3';
         step3Desc.innerText = 'Bên mua đang kiểm tra sóng';
@@ -2645,7 +3294,7 @@
       } else {
         step3.className = 'step-item';
         step3.querySelector('.step-icon').innerText = '3';
-        step3Desc.innerText = 'Chờ bên mua xác nhận';
+        step3Desc.innerText = 'Chờ bên mua nghiệm thu';
         step3Desc.style.color = 'var(--text-dim)';
       }
 
@@ -2669,9 +3318,9 @@
         sellerNotice.style.display = 'block';
         sellerNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i> <strong>Giao dịch đã hoàn tất!</strong> Tiền bán SIM đã được chuyển vào ví của bạn.';
         sellerForm.style.display = 'none';
-      } else if (isProofSubmitted) {
+      } else if (isSellerSubmitted) {
         sellerNotice.style.display = 'block';
-        sellerNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i> <strong>Bạn đã nộp biên bản sang tên!</strong> Đang chờ Bên Mua kiểm tra có sóng và xác nhận nhận SIM.';
+        sellerNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i> <strong>Bạn đã nộp biên bản sang tên!</strong> Đang chờ Ban Quản Trị sàn kiểm duyệt hồ sơ và Bên Mua nghiệm thu SIM.';
         sellerForm.style.display = 'none';
       } else {
         sellerNotice.style.display = 'none';
@@ -2687,7 +3336,7 @@
         buyerWaiting.style.display = 'none';
         buyerConfirm.style.display = 'none';
         completedBanner.style.display = 'block';
-      } else if (isProofSubmitted) {
+      } else if (isSellerApproved) {
         buyerWaiting.style.display = 'none';
         buyerConfirm.style.display = 'flex';
         completedBanner.style.display = 'none';
@@ -2697,23 +3346,102 @@
         completedBanner.style.display = 'none';
       }
 
+      // Proofs Separation for Admin Panel & Gallery
+      const proofs = details.proofs || [];
+      const sellerProofs = proofs.filter(p => !p.proofType || p.proofType === 'SELLER_HANDOVER');
+      const buyerProofs = proofs.filter(p => p.proofType === 'BUYER_RECEIPT');
+
+      // Admin Panel Badges & Thumbnails
+      const adminSellerBadge = document.getElementById('adminSellerProofBadge');
+      if (adminSellerBadge) {
+        if (sellerProofs.length === 0) {
+          adminSellerBadge.innerText = 'CHƯA NỘP';
+          adminSellerBadge.className = 'badge badge-pending';
+        } else if (sellerProofs.some(p => p.proofStatus === 'APPROVED')) {
+          adminSellerBadge.innerText = 'ĐÃ DUYỆT';
+          adminSellerBadge.className = 'badge badge-sealed';
+        } else if (sellerProofs.some(p => p.proofStatus === 'REJECTED')) {
+          adminSellerBadge.innerText = 'BỊ TỪ CHỐI';
+          adminSellerBadge.className = 'badge badge-pending';
+        } else {
+          adminSellerBadge.innerText = 'CHỜ DUYỆT';
+          adminSellerBadge.className = 'badge badge-signed';
+        }
+      }
+
+      const adminBuyerBadge = document.getElementById('adminBuyerProofBadge');
+      if (adminBuyerBadge) {
+        if (buyerProofs.length === 0) {
+          adminBuyerBadge.innerText = 'CHƯA NỘP';
+          adminBuyerBadge.className = 'badge badge-pending';
+        } else if (buyerProofs.some(p => p.proofStatus === 'APPROVED')) {
+          adminBuyerBadge.innerText = 'ĐÃ DUYỆT';
+          adminBuyerBadge.className = 'badge badge-sealed';
+        } else if (buyerProofs.some(p => p.proofStatus === 'REJECTED')) {
+          adminBuyerBadge.innerText = 'BỊ TỪ CHỐI';
+          adminBuyerBadge.className = 'badge badge-pending';
+        } else {
+          adminBuyerBadge.innerText = 'CHỜ DUYỆT';
+          adminBuyerBadge.className = 'badge badge-signed';
+        }
+      }
+
+      // Admin Thumbnails
+      const adminSellerThumbs = document.getElementById('adminSellerProofThumbnails');
+      if (adminSellerThumbs) {
+        if (sellerProofs.length > 0) {
+          adminSellerThumbs.innerHTML = sellerProofs.map(p => `
+            <a href="${p.imageUrl}" target="_blank" title="${p.description || 'Ảnh biên bản'}" style="position: relative; display: inline-block;">
+              <img src="${p.imageUrl}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-subtle);" onerror="this.src='https://placehold.co/100x100/1e293b/f59e0b?text=Seller'">
+              <span style="position: absolute; bottom: 0; right: 0; font-size: 9px; padding: 1px 3px; border-radius: 3px; background: ${p.proofStatus === 'APPROVED' ? '#10b981' : (p.proofStatus === 'REJECTED' ? '#f43f5e' : '#f59e0b')}; color: #fff;">${p.proofStatus}</span>
+            </a>
+          `).join('');
+        } else {
+          adminSellerThumbs.innerHTML = '<span style="color: var(--text-dim); font-size: 11px;">Chưa có ảnh biên bản nào</span>';
+        }
+      }
+
+      const adminBuyerThumbs = document.getElementById('adminBuyerProofThumbnails');
+      if (adminBuyerThumbs) {
+        if (buyerProofs.length > 0) {
+          adminBuyerThumbs.innerHTML = buyerProofs.map(p => `
+            <a href="${p.imageUrl}" target="_blank" title="${p.description || 'Ảnh nghiệm thu'}" style="position: relative; display: inline-block;">
+              <img src="${p.imageUrl}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-subtle);" onerror="this.src='https://placehold.co/100x100/1e293b/38bdf8?text=Buyer'">
+              <span style="position: absolute; bottom: 0; right: 0; font-size: 9px; padding: 1px 3px; border-radius: 3px; background: ${p.proofStatus === 'APPROVED' ? '#10b981' : (p.proofStatus === 'REJECTED' ? '#f43f5e' : '#f59e0b')}; color: #fff;">${p.proofStatus}</span>
+            </a>
+          `).join('');
+        } else {
+          adminBuyerThumbs.innerHTML = '<span style="color: var(--text-dim); font-size: 11px;">Chưa có ảnh nghiệm thu nào</span>';
+        }
+      }
+
       // Proofs Gallery
       const gallery = document.getElementById('proofsGalleryContainer');
-      if (details.proofs && details.proofs.length > 0) {
-        gallery.innerHTML = details.proofs.map(p => `
-          <div class="proof-item">
-            <a href="${p.imageUrl}" target="_blank">
-              <img src="${p.imageUrl}" class="proof-img" alt="Biên bản chuyển nhượng" onerror="this.src='https://placehold.co/400x250/1e293b/38bdf8?text=Biên+Bản+Nhà+Mạng'">
-            </a>
-            <div class="proof-meta">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span class="badge ${p.proofStatus === 'APPROVED' ? 'badge-sealed' : 'badge-pending'}">${p.proofStatus}</span>
-                <span style="color: var(--text-dim);">${formatDateTime(p.createdDate)}</span>
+      if (proofs.length > 0) {
+        gallery.innerHTML = proofs.map(p => {
+          const isBuyer = p.proofType === 'BUYER_RECEIPT';
+          const partyBadge = isBuyer
+            ? '<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 10px;">BÊN MUA</span>'
+            : '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px;">BÊN BÁN</span>';
+
+          const statusBadgeClass = p.proofStatus === 'APPROVED' ? 'badge-sealed' : (p.proofStatus === 'REJECTED' ? 'badge-pending' : 'badge-signed');
+
+          return `
+            <div class="proof-item">
+              <a href="${p.imageUrl}" target="_blank">
+                <img src="${p.imageUrl}" class="proof-img" alt="Hồ sơ chuyển nhượng" onerror="this.src='https://placehold.co/400x250/1e293b/38bdf8?text=Bằng+Chứng'">
+              </a>
+              <div class="proof-meta">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  ${partyBadge}
+                  <span class="badge ${statusBadgeClass}" style="font-size: 10px;">${p.proofStatus}</span>
+                </div>
+                <div style="color: var(--text-dim); font-size: 10px;">${formatDateTime(p.createdDate)}</div>
+                <div style="color: var(--text-main); font-weight: 600; margin-top: 4px; font-size: 11px; word-break: break-word;">${p.description || (isBuyer ? 'Ảnh nghiệm thu sóng SIM' : 'Biên bản chuyển nhượng nhà mạng')}</div>
               </div>
-              <div style="color: var(--text-main); font-weight: 600; margin-top: 4px;">${p.description || 'Biên bản chuyển nhượng nhà mạng'}</div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       } else {
         gallery.innerHTML = '<div style="color: var(--text-dim); font-size: 12px; grid-column: 1 / -1; padding: 16px 0; text-align: center;">Chưa có biên bản nào được tải lên.</div>';
       }
@@ -2730,6 +3458,319 @@
       } else {
         escrowBadge.className = 'badge badge-pending';
       }
+
+      // Tự động kiểm tra số lượng pending reviews
+      fetchPendingAdminReviews();
+    }
+
+    // --- SELLER MULTIPLE FILE SELECTION & UPLOAD ---
+    function handleSellerFilesSelect(event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+      sellerSelectedFiles = sellerSelectedFiles.concat(files);
+      renderSellerThumbs();
+      event.target.value = '';
+    }
+
+    function removeSellerFile(index) {
+      sellerSelectedFiles.splice(index, 1);
+      renderSellerThumbs();
+    }
+
+    function renderSellerThumbs() {
+      const container = document.getElementById('sellerThumbsContainer');
+      const hint = document.getElementById('sellerFileCountHint');
+      hint.innerText = sellerSelectedFiles.length ? `Đã chọn ${sellerSelectedFiles.length} tệp ảnh` : 'Chưa chọn tệp ảnh nào';
+
+      container.innerHTML = sellerSelectedFiles.map((f, i) => {
+        const url = URL.createObjectURL(f);
+        return `
+          <div class="upload-thumb-item">
+            <img src="${url}" alt="${f.name}">
+            <button type="button" class="upload-thumb-del" onclick="removeSellerFile(${i})">&times;</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function submitSellerProofs() {
+      if (!currentTradeId) {
+        showToast('Vui lòng chọn giao dịch trước!', 'warning');
+        return;
+      }
+
+      const desc = document.getElementById('proofDescInput').value.trim();
+
+      // Nếu có chọn files từ máy -> gọi multipart/form-data
+      if (sellerSelectedFiles.length > 0) {
+        const btn = document.getElementById('btnSubmitProof');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên ${sellerSelectedFiles.length} ảnh...`;
+
+        try {
+          const formData = new FormData();
+          sellerSelectedFiles.forEach(f => formData.append('Files', f));
+          formData.append('ProofType', 'SELLER_HANDOVER');
+          if (desc) formData.append('Description', desc);
+
+          const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/proofs`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${currentToken}`
+            },
+            body: formData,
+            credentials: 'include'
+          });
+
+          const data = await res.json();
+          const isSuccess = data.success ?? data.isSuccess;
+          if (isSuccess) {
+            showToast('✅ Nộp danh sách biên bản sang tên thành công! Chờ Admin duyệt.', 'success');
+            sellerSelectedFiles = [];
+            renderSellerThumbs();
+            await loadContractDetails(currentTradeId);
+            await loadSimTransferDetails(currentTradeId);
+          } else {
+            showToast(data.message || 'Lỗi nộp biên bản', 'error');
+          }
+        } catch (err) {
+          console.error('Submit seller proofs error:', err);
+          showToast('Lỗi khi tải lên danh sách ảnh biên bản', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Nộp Danh Sách Biên Bản Sang Tên Cho Sàn & Bên Mua';
+        }
+        return;
+      }
+
+      // Fallback: Nếu không chọn file nhưng có nhập URL mẫu
+      const imageUrl = document.getElementById('proofImageUrlInput').value.trim();
+      if (imageUrl) {
+        await submitTransferProof();
+        return;
+      }
+
+      showToast('Vui lòng bấm "Chọn Nhiều Tệp Ảnh" hoặc điền URL ảnh biên bản!', 'warning');
+    }
+
+    // --- BUYER MULTIPLE FILE SELECTION & UPLOAD ---
+    function handleBuyerFilesSelect(event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+      buyerSelectedFiles = buyerSelectedFiles.concat(files);
+      renderBuyerThumbs();
+      event.target.value = '';
+    }
+
+    function removeBuyerFile(index) {
+      buyerSelectedFiles.splice(index, 1);
+      renderBuyerThumbs();
+    }
+
+    function renderBuyerThumbs() {
+      const container = document.getElementById('buyerThumbsContainer');
+      const hint = document.getElementById('buyerFileCountHint');
+      hint.innerText = buyerSelectedFiles.length ? `Đã chọn ${buyerSelectedFiles.length} tệp ảnh` : 'Chưa chọn tệp ảnh nào';
+
+      container.innerHTML = buyerSelectedFiles.map((f, i) => {
+        const url = URL.createObjectURL(f);
+        return `
+          <div class="upload-thumb-item">
+            <img src="${url}" alt="${f.name}">
+            <button type="button" class="upload-thumb-del" onclick="removeBuyerFile(${i})">&times;</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function submitBuyerProofs() {
+      if (!currentTradeId) {
+        showToast('Vui lòng chọn giao dịch trước!', 'warning');
+        return;
+      }
+
+      if (buyerSelectedFiles.length === 0) {
+        showToast('Vui lòng chọn ít nhất 1 ảnh chụp sóng viễn thông / app nhà mạng!', 'warning');
+        return;
+      }
+
+      const desc = document.getElementById('buyerProofDescInput').value.trim() || 'Người Mua nộp ảnh kiểm tra sóng / app nhà mạng chính chủ';
+      const btn = document.getElementById('btnSubmitBuyerProof');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên ${buyerSelectedFiles.length} ảnh...`;
+
+      try {
+        const formData = new FormData();
+        buyerSelectedFiles.forEach(f => formData.append('Files', f));
+        formData.append('ProofType', 'BUYER_RECEIPT');
+        formData.append('Description', desc);
+
+        const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/proofs`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`
+          },
+          body: formData,
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess) {
+          showToast('✅ Đã nộp ảnh nghiệm thu SIM thành công! Ban Quản Trị sàn sẽ kiểm tra và giải ngân.', 'success');
+          buyerSelectedFiles = [];
+          renderBuyerThumbs();
+          await loadContractDetails(currentTradeId);
+          await loadSimTransferDetails(currentTradeId);
+        } else {
+          showToast(data.message || 'Lỗi nộp ảnh nghiệm thu', 'error');
+        }
+      } catch (err) {
+        console.error('Submit buyer proofs error:', err);
+        showToast('Lỗi khi tải lên ảnh nghiệm thu', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Tải Lên Ảnh Nghiệm Thu';
+      }
+    }
+
+    // --- ADMIN REVIEWS & APPROVAL WORKFLOW ---
+    async function adminReviewParty(targetParty, isApproved) {
+      if (!currentTradeId) {
+        showToast('Vui lòng chọn giao dịch cần duyệt!', 'warning');
+        return;
+      }
+
+      const rejectionReason = document.getElementById('adminRejectionReasonInput').value.trim();
+      if (!isApproved && !rejectionReason) {
+        showToast('Vui lòng nhập lý do từ chối vào ô bên trên!', 'error');
+        document.getElementById('adminRejectionReasonInput').focus();
+        return;
+      }
+
+      const partyName = targetParty === 'SELLER' ? 'Bên Bán' : 'Bên Mua';
+      const actionName = isApproved ? 'DUYỆT CHẤP THUẬN' : 'TỪ CHỐI';
+
+      if (!confirm(`Bạn có chắc chắn muốn [${actionName}] hồ sơ của [${partyName}]?`)) {
+        return;
+      }
+
+      try {
+        showToast(`Đang gửi yêu cầu ${actionName} hồ sơ ${partyName}...`, 'info');
+        const res = await fetch(`${backendUrl}/api/SimTransfers/admin/${currentTradeId}/review`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            targetParty: targetParty,
+            isApproved: isApproved,
+            rejectionReason: isApproved ? null : rejectionReason
+          }),
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess) {
+          showToast('🎉 ' + (data.message || 'Xử lý duyệt hồ sơ thành công!'), 'success');
+          document.getElementById('adminRejectionReasonInput').value = '';
+          await loadContractDetails(currentTradeId);
+          await loadSimTransferDetails(currentTradeId);
+        } else {
+          showToast(data.message || 'Lỗi duyệt hồ sơ', 'error');
+        }
+      } catch (err) {
+        console.error('Admin review error:', err);
+        showToast('Lỗi khi gọi API duyệt hồ sơ Admin', 'error');
+      }
+    }
+
+    async function fetchPendingAdminReviews() {
+      try {
+        const res = await fetch(`${backendUrl}/api/SimTransfers/admin/pending-reviews`, {
+          headers: {
+            'Authorization': `Bearer ${currentToken}`
+          },
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess && data.data) {
+          const count = data.data.length || 0;
+          const badge = document.getElementById('pendingReviewCountBadge');
+          if (badge) badge.innerText = count;
+          return data.data;
+        }
+      } catch (err) {
+        // Silent blip
+      }
+      return [];
+    }
+
+    async function refreshAdminReviewPanel() {
+      await fetchPendingAdminReviews();
+      if (currentTradeId) {
+        await loadSimTransferDetails(currentTradeId);
+      }
+      showToast('Đã làm mới thông tin duyệt hồ sơ!', 'info');
+    }
+
+    async function loadPendingAdminReviewsModal() {
+      const modal = document.getElementById('adminReviewsModal');
+      const tbody = document.getElementById('adminPendingReviewsTbody');
+      modal.classList.add('active');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--text-dim);"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải danh sách chờ duyệt...</td></tr>';
+
+      try {
+        const trades = await fetchPendingAdminReviews();
+        if (!trades || trades.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-dim);"><i class="fa-solid fa-circle-check" style="color: var(--emerald);"></i> Không có giao dịch nào đang chờ duyệt hồ sơ!</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = trades.map(t => {
+          const sellerCount = t.sellerProofs ? t.sellerProofs.length : 0;
+          const buyerCount = t.buyerProofs ? t.buyerProofs.length : 0;
+
+          return `
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 10px; font-weight: 700; color: var(--primary); font-family: var(--font-mono);">${t.tradeTransactionCode}</td>
+              <td style="padding: 10px; font-weight: 700;">${t.simPhoneNumber}</td>
+              <td style="padding: 10px;">${t.sellerName}</td>
+              <td style="padding: 10px;">${t.buyerName}</td>
+              <td style="padding: 10px;"><span class="badge badge-pending" style="font-size: 10px;">${t.simTransferStatus}</span></td>
+              <td style="padding: 10px;">
+                <span style="color: var(--amber);"><i class="fa-solid fa-store"></i> ${sellerCount}</span> | 
+                <span style="color: var(--primary);"><i class="fa-solid fa-sim-card"></i> ${buyerCount}</span>
+              </td>
+              <td style="padding: 10px; text-align: right;">
+                <button class="btn btn-primary" onclick="selectTradeFromAdmin('${t.tradeId}')" style="font-size: 11px; padding: 4px 10px;">
+                  <i class="fa-solid fa-arrow-right-to-bracket"></i> Xem & Duyệt
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--rose);">Lỗi khi tải danh sách: ${err.message}</td></tr>`;
+      }
+    }
+
+    function closeAdminReviewsModal(e) {
+      if (e && e.target !== document.getElementById('adminReviewsModal') && !e.target.classList.contains('modal-close-btn') && !e.target.parentElement?.classList.contains('modal-close-btn')) {
+        return;
+      }
+      document.getElementById('adminReviewsModal').classList.remove('active');
+    }
+
+    function selectTradeFromAdmin(tradeId) {
+      document.getElementById('adminReviewsModal').classList.remove('active');
+      selectScenario(tradeId, tradeId);
+      switchTab('tabHandover');
+      showToast(`Đã mở giao dịch: ${tradeId}`, 'info');
     }
 
     function fillDemoProofImage() {
@@ -2781,7 +3822,7 @@
         showToast('Lỗi khi gọi API nộp biên bản', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Nộp Biên Bản Sang Tên Cho Người Mua';
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Nộp Danh Sách Biên Bản Sang Tên Cho Sàn & Bên Mua';
       }
     }
 
@@ -2823,7 +3864,7 @@
         showToast('Lỗi khi gọi API xác nhận nhận SIM', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> XÁC NHẬN ĐÃ NHẬN SIM - NGHIỆM THU & GIẢI NGÂN';
+        btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> XÁC NHẬN NGHIỆM THU TRỰC TIẾP';
       }
     }
 

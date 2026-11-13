@@ -45,6 +45,13 @@ public class ClaimSupportConversationCommandHandler : IRequestHandler<ClaimSuppo
             throw new BadRequestException("Chỉ có thể tiếp nhận xử lý đối với cuộc hội thoại hỗ trợ Sàn (SUPPORT).");
         }
 
+        // Chặn tuyệt đối tự duyệt: Nhân viên hoặc Admin không được phép duyệt cuộc hội thoại do chính mình tạo ra
+        if (conversation.InitiatorUserId == request.StaffUserId)
+        {
+            throw new ForbiddenAccessException(
+                "Nhân viên hoặc Quản trị viên không thể tự duyệt cuộc hội thoại hỗ trợ do chính mình tạo ra.");
+        }
+
         // Nếu cuộc hội thoại đã được người khác nhận trước đó -> Chặn tuyệt đối
         if (conversation.AssignedStaffId.HasValue)
         {

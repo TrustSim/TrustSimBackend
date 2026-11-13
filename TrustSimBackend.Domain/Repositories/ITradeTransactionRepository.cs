@@ -19,6 +19,9 @@ public interface ITradeTransactionRepository
         MyTradeQueryFilter filter,
         CancellationToken cancellationToken = default);
 
+    // Lấy danh sách giao dịch có hồ sơ bằng chứng sang tên chờ Admin duyệt
+    Task<IReadOnlyList<TradeTransaction>> GetPendingReviewsAsync(CancellationToken cancellationToken = default);
+
     // Thêm mới một giao dịch vào DB
     Task AddAsync(TradeTransaction tradeTransaction, CancellationToken cancellationToken = default);
     

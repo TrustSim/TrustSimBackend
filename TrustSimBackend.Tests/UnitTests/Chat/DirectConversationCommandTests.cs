@@ -1,9 +1,11 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
+using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Chat.Commands;
 using TrustSimBackend.Application.Features.Chat.DTOs.Requests;
 using TrustSimBackend.Application.Features.Chat.DTOs.Responses;
@@ -211,6 +213,141 @@ public class DirectConversationCommandTests
         // Assert
         await act.Should().ThrowAsync<InvalidPdfFontException>()
             .WithMessage("*dinh_kem_loi_font.pdf*");
+        _chatMsgRepoMock.Verify(r => r.AddAsync(It.IsAny<ChatMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SendChatMessage_WhenValidPngImageAttached_ShouldUploadToChatImagesBucketAndReturnImageMessageWith7DayExpiration()
+    {
+        // Arrange
+        var senderId = Guid.NewGuid();
+        var receiverId = Guid.NewGuid();
+        var convId = Guid.NewGuid();
+
+        var sender = CreateUser(senderId, "sender_img", "Người Gửi Ảnh", VerificationStatus.VERIFIED);
+        var receiver = CreateUser(receiverId, "receiver_img", "Người Nhận Ảnh", VerificationStatus.VERIFIED);
+
+        var conversation = new ChatConversation
+        {
+            Id = convId,
+            Type = ConversationType.DIRECT,
+            InitiatorUserId = senderId,
+            ParticipantUserId = receiverId,
+            InitiatorUser = sender,
+            ParticipantUser = receiver,
+            SupportStatus = SupportConversationStatus.NONE
+        };
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(senderId, It.IsAny<CancellationToken>())).ReturnsAsync(sender);
+        _chatConvRepoMock.Setup(r => r.GetByIdWithDetailsAsync(convId, It.IsAny<CancellationToken>())).ReturnsAsync(conversation);
+
+        var expectedImageUrl = $"http://localhost:9000/chat-images/conversations/{convId:N}/sim_photo.png";
+        var cloudStorageMock = new Mock<ICloudStorageService>();
+        cloudStorageMock.Setup(s => s.UploadChatImageAsync(It.IsAny<IFormFile>(), convId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedImageUrl);
+
+        var pdfValidatorMock = new Mock<IPdfFontValidatorService>();
+        var minioOptions = Options.Create(new MinioSettings
+        {
+            ChatImageBucket = "chat-images",
+            ChatImageExpirationDays = 7
+        });
+
+        var sendHandler = new SendChatMessageCommandHandler(
+            _uowMock.Object,
+            cloudStorageMock.Object,
+            pdfValidatorMock.Object,
+            _realtimeMock.Object,
+            minioOptions);
+
+        // Chuẩn Magic Bytes PNG: 89 50 4E 47 0D 0A 1A 0A
+        var validPngBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52 };
+        var pngStream = new MemoryStream(validPngBytes);
+        var formFile = new FormFile(pngStream, 0, validPngBytes.Length, "AttachmentFile", "anh_sim_vip.png")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "image/png"
+        };
+
+        var command = new SendChatMessageCommand(
+            ConversationId: convId,
+            SenderId: senderId,
+            SenderRole: UserRole.USER,
+            Content: null,
+            AttachmentFile: formFile);
+
+        // Act
+        var result = await sendHandler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.MessageType.Should().Be(ChatMessageType.IMAGE);
+        result.AttachmentUrl.Should().Be(expectedImageUrl);
+        result.AttachmentFileName.Should().Be("anh_sim_vip.png");
+        result.Content.Should().Be("[Hình ảnh] anh_sim_vip.png");
+        result.IsAttachmentExpired.Should().BeFalse();
+        result.AttachmentExpiresAt.Should().NotBeNull();
+        result.AttachmentExpiresAt!.Value.Should().BeCloseTo(DateTime.UtcNow.AddDays(7), TimeSpan.FromMinutes(1));
+
+        cloudStorageMock.Verify(s => s.UploadChatImageAsync(It.IsAny<IFormFile>(), convId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendChatMessage_WhenImageFileHasSpoofedMagicBytes_ShouldThrowBadRequestExceptionAndNeverUploadToMinio()
+    {
+        // Arrange
+        var senderId = Guid.NewGuid();
+        var receiverId = Guid.NewGuid();
+        var convId = Guid.NewGuid();
+
+        var sender = CreateUser(senderId, "sender_spoof", "Người Gửi", VerificationStatus.VERIFIED);
+        var receiver = CreateUser(receiverId, "receiver_spoof", "Người Nhận", VerificationStatus.VERIFIED);
+
+        var conversation = new ChatConversation
+        {
+            Id = convId,
+            Type = ConversationType.DIRECT,
+            InitiatorUserId = senderId,
+            ParticipantUserId = receiverId,
+            InitiatorUser = sender,
+            ParticipantUser = receiver,
+            SupportStatus = SupportConversationStatus.NONE
+        };
+
+        _userRepoMock.Setup(r => r.GetByIdAsync(senderId, It.IsAny<CancellationToken>())).ReturnsAsync(sender);
+        _chatConvRepoMock.Setup(r => r.GetByIdWithDetailsAsync(convId, It.IsAny<CancellationToken>())).ReturnsAsync(conversation);
+
+        var cloudStorageMock = new Mock<ICloudStorageService>();
+        var pdfValidatorMock = new Mock<IPdfFontValidatorService>();
+
+        var sendHandler = new SendChatMessageCommandHandler(
+            _uowMock.Object,
+            cloudStorageMock.Object,
+            pdfValidatorMock.Object,
+            _realtimeMock.Object);
+
+        // Nội dung giả mạo (MZ executable / HTML script) nhưng đặt tên đuôi .png
+        var spoofedBytes = "MZ_FAKE_EXECUTABLE_SCRIPT_PAYLOAD"u8.ToArray();
+        var stream = new MemoryStream(spoofedBytes);
+        var spoofedFile = new FormFile(stream, 0, spoofedBytes.Length, "AttachmentFile", "malware_disguised.png")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "image/png"
+        };
+
+        var command = new SendChatMessageCommand(
+            ConversationId: convId,
+            SenderId: senderId,
+            SenderRole: UserRole.USER,
+            Content: "Ảnh giả mạo",
+            AttachmentFile: spoofedFile);
+
+        // Act
+        Func<Task> act = async () => await sendHandler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<BadRequestException>()
+            .WithMessage("*Magic Bytes*");
+        cloudStorageMock.Verify(s => s.UploadChatImageAsync(It.IsAny<IFormFile>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         _chatMsgRepoMock.Verify(r => r.AddAsync(It.IsAny<ChatMessage>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 

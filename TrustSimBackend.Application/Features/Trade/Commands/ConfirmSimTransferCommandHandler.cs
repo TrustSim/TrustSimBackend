@@ -77,6 +77,14 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             throw new BadRequestException("Giao dịch chuyển nhượng SIM này đã bị hủy bỏ.");
         }
 
+        var hasApprovedSellerProof = trade.SimTransfer.TransferProofs
+            .Any(p => p.ProofType == TransferProofType.SELLER_HANDOVER && p.ProofStatus == ProofStatus.APPROVED);
+
+        if (!hasApprovedSellerProof)
+        {
+            throw new BadRequestException("Bằng chứng chuyển nhượng của Người Bán phải được Ban Quản Trị sàn phê duyệt thành công trước khi Người Mua xác nhận nhận SIM.");
+        }
+
         var now = DateTime.UtcNow;
 
         // 1. Cập nhật trạng thái chuyển nhượng và giao dịch
@@ -91,7 +99,7 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             p.VerifiedAt = now;
         }
 
-        // 2. Chuyển giao quyền sở hữu SIM (SimOwnership)
+        // 2. Chuyển giao quyền sở hữu SIM (SimOwnership, SimVerification & SimNumber.SimStatus)
         var oldOwnership = await _unitOfWork.SimOwnerships.GetActiveOwnershipBySimNumberIdAsync(trade.SimNumberId, cancellationToken);
         if (oldOwnership != null)
         {
@@ -108,6 +116,23 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             AcquistionType = AcquistionType.AUCTION_TRANSFER
         };
         await _unitOfWork.SimOwnerships.AddAsync(newBuyerOwnership, cancellationToken);
+
+        var verification = new SimVerification
+        {
+            Id = Guid.NewGuid(),
+            SimOwnershipId = newBuyerOwnership.Id,
+            VerificationStatus = VerificationStatus.VERIFIED,
+            VerificationMethod = "AUCTION_TRANSFER_APPROVED",
+            RequestedAt = now,
+            VerifiedAt = now
+        };
+        await _unitOfWork.SimVerifications.AddAsync(verification, cancellationToken);
+
+        if (trade.SimNumber != null)
+        {
+            trade.SimNumber.SimStatus = SimStatus.TRANSFERRED;
+            _unitOfWork.SimNumbers.Update(trade.SimNumber);
+        }
 
         // 3. Khởi tạo, niêm phong chữ ký số PAdES và lưu trữ Văn bản 3: Biên bản nghiệm thu và thanh lý giao dịch điện tử
         if (trade.TransferContract != null && string.IsNullOrWhiteSpace(trade.TransferContract.LiquidationDocumentUrl))
@@ -273,7 +298,8 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
                 p.Description,
                 p.ProofStatus.ToString(),
                 p.VerifiedAt,
-                p.CreatedDate
+                p.CreatedDate,
+                p.ProofType.ToString()
             )).ToList();
 
         return new SimTransferDetailsDto(

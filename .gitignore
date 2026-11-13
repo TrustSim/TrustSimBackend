@@ -11,6 +11,7 @@ appsettings*.local.json
 appsettings.Local.json
 appsettings.Production.json
 appsettings.json
+[Ss]ecrets/
 
 # User-specific files
 *.rsuser

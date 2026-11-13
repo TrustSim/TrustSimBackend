@@ -4,6 +4,11 @@
 // ═══════════════════════════════════════════════════════════════════
 
 const DEMO_USERS = {
+  nguyenquan: {
+    pass: 'Password123@', role: 'USER', status: 'VERIFIED',
+    fullName: 'Nguyễn Quân', email: 'nguyenquan06022004@gmail.com', phone: '0869192776',
+    group: 'verified'
+  },
   bidder_dai_gia: {
     pass: 'Password123@', role: 'USER', status: 'VERIFIED',
     fullName: 'Phạm Hoàng Nam', email: 'quanidol6224@gmail.com', phone: '0988777003',
