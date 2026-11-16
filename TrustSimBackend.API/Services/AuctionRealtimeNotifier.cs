@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR;
 using TrustSimBackend.API.Hubs;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
 using TrustSimBackend.Application.Features.Auction.Hubs;
+using TrustSimBackend.Application.Features.System.DTOs.Responses;
 
 namespace TrustSimBackend.API.Services;
 
@@ -38,8 +39,8 @@ public class AuctionRealtimeNotifier : IAuctionRealtimeNotifier
     public async Task NotifyAuctionStatusChangedAsync(Guid auctionId, string status, Guid? winnerId, decimal? finalPrice, CancellationToken cancellationToken = default)
     {
         var groupName = $"auction_{auctionId.ToString().ToLower()}";
-        _logger.LogInformation("[Realtime] Phát sóng StatusChanged ({Status}) tới nhóm {GroupName}", status, groupName);
-        await _hubContext.Clients.Group(groupName).ReceiveAuctionStatusChanged(auctionId, status, winnerId, finalPrice);
+        _logger.LogInformation("[Realtime] Phát sóng StatusChanged ({Status}) tới nhóm {GroupName} và auctions_listing", status, groupName);
+        await _hubContext.Clients.Groups(new[] { groupName, "auctions_listing" }).ReceiveAuctionStatusChanged(auctionId, status, winnerId, finalPrice);
     }
 
     public async Task NotifyNewAuctionCreatedAsync(AuctionDto auction, CancellationToken cancellationToken = default)
@@ -58,15 +59,15 @@ public class AuctionRealtimeNotifier : IAuctionRealtimeNotifier
     public async Task NotifyAuctionEndedAsync(Guid auctionId, AuctionResultDto result, CancellationToken cancellationToken = default)
     {
         var groupName = $"auction_{auctionId.ToString().ToLower()}";
-        _logger.LogInformation("[Realtime] Phát sóng AuctionEnded (Winner: {WinnerId}, FinalPrice: {Price:N0} VNĐ) tới nhóm {GroupName}", result.WinnerId, result.FinalPrice, groupName);
-        await _hubContext.Clients.Group(groupName).ReceiveAuctionEnded(result);
+        _logger.LogInformation("[Realtime] Phát sóng AuctionEnded (Winner: {WinnerId}, FinalPrice: {Price:N0} VNĐ) tới nhóm {GroupName} và auctions_listing", result.WinnerId, result.FinalPrice, groupName);
+        await _hubContext.Clients.Groups(new[] { groupName, "auctions_listing" }).ReceiveAuctionEnded(result);
     }
 
     public async Task NotifyAuctionFailedAsync(Guid auctionId, string reason, CancellationToken cancellationToken = default)
     {
         var groupName = $"auction_{auctionId.ToString().ToLower()}";
-        _logger.LogInformation("[Realtime] Phát sóng AuctionFailed ({Reason}) tới nhóm {GroupName}", reason, groupName);
-        await _hubContext.Clients.Group(groupName).ReceiveAuctionFailed(reason);
+        _logger.LogInformation("[Realtime] Phát sóng AuctionFailed ({Reason}) tới nhóm {GroupName} và auctions_listing", reason, groupName);
+        await _hubContext.Clients.Groups(new[] { groupName, "auctions_listing" }).ReceiveAuctionFailed(reason);
     }
 
     public async Task NotifyAuctionNotificationAsync(Guid auctionId, string message, string type, CancellationToken cancellationToken = default)
@@ -84,7 +85,7 @@ public class AuctionRealtimeNotifier : IAuctionRealtimeNotifier
         }
     }
 
-    public async Task NotifyPersonalNotificationAsync(Guid userId, TrustSimBackend.Application.Features.System.DTOs.Responses.NotificationDto notification, CancellationToken cancellationToken = default)
+    public async Task NotifyPersonalNotificationAsync(Guid userId, NotificationDto notification, CancellationToken cancellationToken = default)
     {
         var groupName = $"user_{userId.ToString().ToLower()}";
         _logger.LogInformation("[Realtime] Phát thông báo cá nhân tới {GroupName}: {Title}", groupName, notification.Title);

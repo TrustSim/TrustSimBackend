@@ -4,6 +4,7 @@ namespace TrustSimBackend.Domain.Enums
     {
         PENDING,
         APPROVED,
-        REJECTED
+        REJECTED,
+        WITHDRAWN
     }
 }

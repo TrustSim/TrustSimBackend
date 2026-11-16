@@ -12,13 +12,18 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Domain.Entities.Identity;
 using TrustSimBackend.Domain.Repositories;
 using TrustSimBackend.Infrastructure.Persistence;
+using TrustSimBackend.Infrastructure.Persistence.Interceptors;
 using TrustSimBackend.Infrastructure.Persistence.Repositories;
 using TrustSimBackend.Infrastructure.Services;
 using TrustSimBackend.Infrastructure.Services.Ai;
 using TrustSimBackend.Infrastructure.Services.Financial;
-using TrustSimBackend.Infrastructure.BackgroundServices;
-using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Infrastructure.Services.Hsm;
+using TrustSimBackend.Application.Features.Auction.Services;
+using TrustSimBackend.Infrastructure.Workers.Auction;
+using TrustSimBackend.Infrastructure.Workers.Auction.DelayJobs;
+using TrustSimBackend.Infrastructure.Workers.Financial;
+using TrustSimBackend.Infrastructure.Workers.Storage;
+using TrustSimBackend.Infrastructure.Workers.Trade;
 
 namespace TrustSimBackend.Infrastructure;
 
@@ -60,9 +65,11 @@ public static class DependencyInjection
             });
         }
 
-        // ─── 2. DbContext ─────────────────────────────────────────────────────────
+        // ─── 2. DbContext & Interceptors ──────────────────────────────────────────
+        services.AddScoped<AuditableEntityInterceptor>();
+
         // DefaultConnection  → Pooled (PgBouncer) — dùng cho EF Core runtime queries
-        services.AddDbContext<TrustSimDbContext>(options =>
+        services.AddDbContext<TrustSimDbContext>((sp, options) =>
         {
             options.UseNpgsql(
                 configuration.GetConnectionString("DefaultConnection"),
@@ -77,6 +84,9 @@ public static class DependencyInjection
                         maxRetryDelay: TimeSpan.FromSeconds(5),
                         errorCodesToAdd: null);
                 });
+
+            // Đăng ký Interceptor ghi AuditLog và tự động hóa IAuditlog / ISoftDelete
+            options.AddInterceptors(sp.GetRequiredService<AuditableEntityInterceptor>());
         });
 
         // ─── 2.1. ASP.NET Core Identity ──────────────────────────────────────────
@@ -199,9 +209,18 @@ public static class DependencyInjection
         services.AddScoped<IMockBankPayoutGatewayService, MockBankPayoutGatewayService>();
         services.AddHostedService<LedgerIntegrityCheckWorker>();
 
-        // Real-time Auction Delay Queue & Dispatcher Engine (Redis ZSET + In-Memory Timer)
+        // Real-time Auction Delay Queue, Split Workers & Job Handlers (Redis ZSET + WakeUp Timer)
         services.AddSingleton<IAuctionDelayQueueService, RedisDelayQueueService>();
-        services.AddHostedService<AuctionDelayQueueDispatcher>();
+        services.AddScoped<SellerListingDepositHelper>();
+        services.AddScoped<IAuctionDelayJobHandler, AuctionPreWarmAndStartJobHandler>();
+        services.AddScoped<IAuctionDelayJobHandler, DutchPriceDropJobHandler>();
+        services.AddScoped<IAuctionDelayJobHandler, AuctionEndJobHandler>();
+        services.AddScoped<IAuctionDelayJobHandler, SettlementDeadlineJobHandler>();
+        services.AddScoped<IAuctionDelayJobHandler, TradeDeadlineJobHandler>();
+
+        services.AddHostedService<LiveAuctionSchedulerWorker>();
+        services.AddHostedService<PostAuctionDeadlineWorker>();
+        services.AddHostedService<AuctionDatabaseSyncWorker>();
 
         // Redis In-Memory Hot State Engine, Lua Script & Write-Behind Persistence Worker
         services.AddSingleton<IRedisAuctionCacheService, RedisAuctionCacheService>();

@@ -105,7 +105,8 @@ public class GetAuctionByIdQueryHandler : IRequestHandler<GetAuctionByIdQuery, A
             IsUserRegistered = isUserRegistered,
 
             // Kết quả phiên đấu giá
-            Result = resultDto
+            Result = resultDto,
+            ServerUtcNow = DateTime.UtcNow
         };
     }
 }

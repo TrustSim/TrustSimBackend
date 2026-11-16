@@ -25,7 +25,7 @@ public static class DbSeeder
 {
     // Hash mật khẩu "Password123@" theo chuẩn ASP.NET Core Identity PBKDF2
     private static readonly string DefaultPasswordHash = new PasswordHasher<UserAccount>().HashPassword(null!, "Password123@");
-    // Hash mật khẩu "Phuhotboy123@" cho tài khoản admin draflame
+    // Hash mật khẩu "Phuhotboy123@" cho tài khoản draflame
     private static readonly string DraflamePasswordHash = new PasswordHasher<UserAccount>().HashPassword(null!, "Phuhotboy123@");
 
     public static async Task SeedAsync(TrustSimDbContext context, IServiceProvider? serviceProvider = null)
@@ -50,6 +50,9 @@ public static class DbSeeder
 
         // 6. Level 4 & 5: Các phiên đấu giá (English, Dutch, End), Quy tắc, Người tham gia, Bids & Gian lận
         await SeedAuctionsAndBidsAsync(context);
+
+        // 6.1 Khóa cọc cam kết bán cho các phiên đấu giá mẫu có SellerDepositAmount > 0 vào Sổ cái Kép
+        await SeedSellerListingDepositLocksAsync(context, serviceProvider);
 
         // 7. Level 4 -> 6: Giao dịch chuyển nhượng, Hợp đồng số, Ký quỹ Escrow, Chữ ký số & Bằng chứng
         await SeedTradeAndContractsAsync(context);
@@ -285,7 +288,7 @@ public static class DbSeeder
         var usersData = new[]
         {
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000001"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000001"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000001"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000001"), UserName = "admin",               Email = "admin@trustsim.vn",          Role = UserRole.ADMIN,      FullName = "Tổng Quản Trị Hệ Thống",          Phone = "0900000001", Identity = "001088000001", Dob = new DateTime(1988, 1, 1, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
-            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000099"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000099"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000099"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000099"), UserName = "draflame",            Email = "phulam03@gmail.com",         Role = UserRole.ADMIN,      FullName = "Lâm Ngọc Thanh Phú",              Phone = "0899488041", Identity = "087204005634", Dob = new DateTime(2004, 9, 3, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 99999999999m, Locked = 0m, HasPki = true },
+            new { Id = Guid.Parse("11000000-0000-0000-0000-000000000099"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000099"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000099"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000099"), UserName = "draflame",            Email = "phulam03@gmail.com",         Role = UserRole.USER,       FullName = "Lâm Ngọc Thanh Phú",              Phone = "0899488041", Identity = "087204005634", Dob = new DateTime(2004, 9, 3, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 99999999999m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000002"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000002"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000002"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000002"), UserName = "consultant_01",       Email = "consultant01@trustsim.vn",  Role = UserRole.CONSULTANT, FullName = "Lê Hoàng Chuyên Viên",              Phone = "0900000002", Identity = "079092000002", Dob = new DateTime(1992, 5, 15, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 0m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000003"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000003"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000003"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000003"), UserName = "seller_vip_phuquy",   Email = "supperidol6224@gmail.com",   Role = UserRole.USER,       FullName = "Trần Phú Quý (SIM Phú Quý)",       Phone = "0909999001", Identity = "001085009999", Dob = new DateTime(1985, 10, 20, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
             new { Id = Guid.Parse("11000000-0000-0000-0000-000000000004"), ProfileId = Guid.Parse("12000000-0000-0000-0000-000000000004"), WalletId = Guid.Parse("14000000-0000-0000-0000-000000000004"), SecurityId = Guid.Parse("13000000-0000-0000-0000-000000000004"), UserName = "seller_daiphat",      Email = "daiphat.telecom@gmail.com",  Role = UserRole.USER,       FullName = "Nguyễn Đại Phát (Đại Phát Telecom)",Phone = "0912333002", Identity = "079087008888", Dob = new DateTime(1987, 3, 12, 0, 0, 0, DateTimeKind.Utc), Status = VerificationStatus.VERIFIED, Available = 1000000000m, Locked = 0m, HasPki = true },
@@ -314,6 +317,8 @@ public static class DbSeeder
                     NormalizedUserName = u.UserName.ToUpperInvariant(),
                     Email = u.Email,
                     NormalizedEmail = u.Email.ToUpperInvariant(),
+                    PhoneNumber = u.Phone,
+                    PhoneNumberConfirmed = true,
                     EmailConfirmed = true,
                     PasswordHash = pwdHash,
                     SecurityStamp = Guid.NewGuid().ToString(),
@@ -327,6 +332,8 @@ public static class DbSeeder
             {
                 existingUser.Email = u.Email;
                 existingUser.NormalizedEmail = u.Email.ToUpperInvariant();
+                existingUser.PhoneNumber = u.Phone;
+                existingUser.PhoneNumberConfirmed = true;
                 existingUser.PasswordHash = pwdHash;
                 existingUser.Role = u.Role;
                 existingUser.EmailConfirmed = true;
@@ -383,9 +390,15 @@ public static class DbSeeder
             }
             else
             {
-                existingWallet.AvailableBalance = u.Available;
-                existingWallet.LockedBalance = u.Locked;
-                if (u.UserName != "user_suspicious_bot" && existingWallet.WalletStatus == WalletStatus.FROZEN)
+                // Chỉ đồng bộ số dư mẫu nếu ví chưa có lịch sử Sổ cái Kép để tránh làm lệch Snapshot khi khởi động lại
+                var hasWalletEntries = await context.LedgerEntries.AnyAsync(e => e.WalletId == existingWallet.Id);
+                if (!hasWalletEntries)
+                {
+                    existingWallet.AvailableBalance = u.Available;
+                    existingWallet.LockedBalance = u.Locked;
+                }
+
+                if (u.UserName != "user_suspicious_bot" && existingWallet.WalletStatus == WalletStatus.FROZEN && !hasWalletEntries)
                 {
                     existingWallet.WalletStatus = WalletStatus.ACTIVE;
                 }
@@ -420,8 +433,16 @@ public static class DbSeeder
             var roleKey = u.Role.ToString().ToUpperInvariant();
             if (roleDict.TryGetValue(roleKey, out var roleId))
             {
-                var hasUserRole = await context.UserRoles.AnyAsync(ur => ur.UserId == existingUser.Id && ur.RoleId == roleId);
-                if (!hasUserRole)
+                var existingUserRoles = await context.UserRoles.Where(ur => ur.UserId == existingUser.Id).ToListAsync();
+                var hasTargetRole = existingUserRoles.Any(ur => ur.RoleId == roleId);
+                var redundantRoles = existingUserRoles.Where(ur => ur.RoleId != roleId).ToList();
+
+                if (redundantRoles.Count > 0)
+                {
+                    context.UserRoles.RemoveRange(redundantRoles);
+                }
+
+                if (!hasTargetRole)
                 {
                     await context.UserRoles.AddAsync(new IdentityUserRole<Guid>
                     {
@@ -535,6 +556,100 @@ public static class DbSeeder
         await context.SaveChangesAsync();
     }
 
+    private static IFinancialSigningService ResolveSigningService(IServiceProvider? serviceProvider)
+        => serviceProvider?.GetService<IFinancialSigningService>()
+           ?? new EcdsaFinancialSigningService(NullLogger<EcdsaFinancialSigningService>.Instance);
+
+    /// <summary>
+    /// Tạo và ký số một chứng từ Sổ cái Kép gồm 2 bút toán (Debit/Credit), đồng thời cập nhật trạng thái mắt xích Hash Chain.
+    /// </summary>
+    private static async Task<(LedgerJournal Journal, long NextSequence, string NextPrevHash)> AppendSignedDoubleEntryJournalAsync(
+        TrustSimDbContext context,
+        IFinancialSigningService signingService,
+        long currentSequence,
+        string currentPrevHash,
+        LedgerTransactionType transactionType,
+        string journalCode,
+        string referenceType,
+        Guid referenceId,
+        string? idempotencyKey,
+        string description,
+        decimal amount,
+        DateTime postedAt,
+        FinancialAccountType debitAccount,
+        Guid? debitWalletId,
+        string debitDescription,
+        FinancialAccountType creditAccount,
+        Guid? creditWalletId,
+        string creditDescription)
+    {
+        var journalId = Guid.NewGuid();
+        var journal = new LedgerJournal
+        {
+            Id = journalId,
+            JournalCode = journalCode,
+            TransactionType = transactionType,
+            ReferenceType = referenceType,
+            ReferenceId = referenceId,
+            IdempotencyKey = idempotencyKey,
+            Description = description,
+            TotalAmount = amount,
+            Status = JournalStatus.POSTED,
+            PostedAt = postedAt
+        };
+
+        var specs = new[]
+        {
+            (Account: debitAccount, Type: LedgerEntryType.DEBIT, WalletId: debitWalletId, Desc: debitDescription),
+            (Account: creditAccount, Type: LedgerEntryType.CREDIT, WalletId: creditWalletId, Desc: creditDescription)
+        };
+
+        var createdEntries = new List<LedgerEntry>(2);
+        foreach (var spec in specs)
+        {
+            currentSequence++;
+            var payload = LedgerHashHelper.BuildEntryPayload(
+                currentSequence,
+                journalId,
+                spec.Account,
+                spec.Type,
+                amount,
+                spec.WalletId,
+                currentPrevHash,
+                postedAt);
+            var entryHash = LedgerHashHelper.ComputeSha256Hex(payload);
+            var signature = await signingService.SignHashAsync(entryHash);
+
+            var entry = new LedgerEntry
+            {
+                Id = Guid.NewGuid(),
+                JournalId = journalId,
+                WalletId = spec.WalletId,
+                AccountType = spec.Account,
+                EntryType = spec.Type,
+                Amount = amount,
+                SequenceNumber = currentSequence,
+                PrevHash = currentPrevHash,
+                EntryHash = entryHash,
+                Signature = signature,
+                CreatedAt = postedAt,
+                Description = spec.Desc
+            };
+
+            createdEntries.Add(entry);
+            journal.Entries.Add(entry);
+            currentPrevHash = entryHash;
+        }
+
+        var journalPayload = $"{journal.JournalCode}:{journal.TransactionType}:{journal.TotalAmount.ToString("F2", CultureInfo.InvariantCulture)}:{journal.PostedAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ss.ffffffZ}:{createdEntries.Count}";
+        journal.SignedHash = await signingService.SignHashAsync(LedgerHashHelper.ComputeSha256Hex(journalPayload));
+
+        await context.LedgerJournals.AddAsync(journal);
+        await context.LedgerEntries.AddRangeAsync(createdEntries);
+
+        return (journal, currentSequence, currentPrevHash);
+    }
+
     // ─────────────────────────────────────────────────────────────
     //  3.1. Level 1: Khởi tạo Chứng từ & Sổ cái Kép (Ledger Hash Chain)
     // ─────────────────────────────────────────────────────────────
@@ -543,13 +658,12 @@ public static class DbSeeder
         IEnumerable<dynamic> usersData,
         IServiceProvider? serviceProvider = null)
     {
-        var signingService = serviceProvider?.GetService<IFinancialSigningService>()
-            ?? new EcdsaFinancialSigningService(NullLogger<EcdsaFinancialSigningService>.Instance);
+        var signingService = ResolveSigningService(serviceProvider);
 
         // Self-Healing: Đối soát và tự động tái ký lại các bản ghi seed cũ nếu chữ ký không khớp với Master Key hiện tại của HSM
         var existingSeedJournals = await context.LedgerJournals
             .Include(j => j.Entries)
-            .Where(j => j.ReferenceType == "SeedInitialBalance")
+            .Where(j => j.ReferenceType == "SeedInitialBalance" || j.JournalCode.StartsWith("JRN-SEED-LOCK-"))
             .ToListAsync();
 
         if (existingSeedJournals.Count > 0)
@@ -611,94 +725,117 @@ public static class DbSeeder
             var hasExistingEntries = await context.LedgerEntries.AnyAsync(e => e.WalletId == walletId && e.AccountType == FinancialAccountType.USER_AVAILABLE);
             if (hasExistingEntries) continue;
 
-            var journalId = Guid.NewGuid();
-            var journalCode = $"JRN-INIT-{userName.ToUpperInvariant()}";
             var now = new DateTime((DateTime.UtcNow.AddDays(-30).Ticks / 10) * 10, DateTimeKind.Utc);
-
-            var journal = new LedgerJournal
-            {
-                Id = journalId,
-                JournalCode = journalCode,
-                TransactionType = LedgerTransactionType.TOP_UP,
-                ReferenceType = "SeedInitialBalance",
-                ReferenceId = walletId,
-                Description = $"Nạp số dư khởi tạo cho ví {fullName} ({userName})",
-                TotalAmount = available,
-                Status = JournalStatus.POSTED,
-                PostedAt = now
-            };
-
-            // Bút toán 1: TK 1010 (EXTERNAL_GATEWAY_CLEARING) - DEBIT
-            currentSequence++;
-            var payload1 = LedgerHashHelper.BuildEntryPayload(
+            (_, currentSequence, currentPrevHash) = await AppendSignedDoubleEntryJournalAsync(
+                context,
+                signingService,
                 currentSequence,
-                journalId,
-                FinancialAccountType.EXTERNAL_GATEWAY_CLEARING,
-                LedgerEntryType.DEBIT,
-                available,
-                null,
                 currentPrevHash,
-                now);
-            var entryHash1 = LedgerHashHelper.ComputeSha256Hex(payload1);
-            var sig1 = await signingService.SignHashAsync(entryHash1);
-
-            var entry1 = new LedgerEntry
-            {
-                Id = Guid.NewGuid(),
-                JournalId = journalId,
-                WalletId = null,
-                AccountType = FinancialAccountType.EXTERNAL_GATEWAY_CLEARING,
-                EntryType = LedgerEntryType.DEBIT,
-                Amount = available,
-                SequenceNumber = currentSequence,
-                PrevHash = currentPrevHash,
-                EntryHash = entryHash1,
-                Signature = sig1,
-                CreatedAt = now,
-                Description = $"Đối ứng nạp SePay khởi tạo {userName}"
-            };
-            currentPrevHash = entryHash1;
-
-            // Bút toán 2: TK 2010 (USER_AVAILABLE) - CREDIT
-            currentSequence++;
-            var payload2 = LedgerHashHelper.BuildEntryPayload(
-                currentSequence,
-                journalId,
-                FinancialAccountType.USER_AVAILABLE,
-                LedgerEntryType.CREDIT,
-                available,
+                LedgerTransactionType.TOP_UP,
+                $"JRN-INIT-{userName.ToUpperInvariant()}",
+                "SeedInitialBalance",
                 walletId,
-                currentPrevHash,
-                now);
-            var entryHash2 = LedgerHashHelper.ComputeSha256Hex(payload2);
-            var sig2 = await signingService.SignHashAsync(entryHash2);
+                idempotencyKey: null,
+                $"Nạp số dư khởi tạo cho ví {fullName} ({userName})",
+                available,
+                now,
+                FinancialAccountType.EXTERNAL_GATEWAY_CLEARING,
+                null,
+                $"Đối ứng nạp SePay khởi tạo {userName}",
+                FinancialAccountType.USER_AVAILABLE,
+                walletId,
+                $"Cộng số dư khả dụng khởi tạo {userName}");
 
-            var entry2 = new LedgerEntry
+            await context.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Khóa cọc cam kết bán cho các phiên đấu giá mẫu có cấu hình SellerDepositAmount &gt; 0,
+    /// bảo đảm đồng bộ giữa ví người bán, lịch sử giao dịch và Sổ cái Kép khi phiên kết thúc/hoàn cọc.
+    /// </summary>
+    private static async Task SeedSellerListingDepositLocksAsync(
+        TrustSimDbContext context,
+        IServiceProvider? serviceProvider = null)
+    {
+        var seededAuctionIds = new[]
+        {
+            Guid.Parse("31000000-0000-0000-0000-000000000001"),
+            Guid.Parse("31000000-0000-0000-0000-000000000002"),
+            Guid.Parse("31000000-0000-0000-0000-000000000003"),
+            Guid.Parse("31000000-0000-0000-0000-000000000004"),
+            Guid.Parse("31000000-0000-0000-0000-000000000006")
+        };
+
+        var auctions = await context.Auctions
+            .Include(a => a.AuctionRule)
+            .Where(a => seededAuctionIds.Contains(a.Id) && a.AuctionRule != null && a.AuctionRule.SellerDepositAmount > 0)
+            .OrderBy(a => a.AuctionCode)
+            .ToListAsync();
+
+        if (auctions.Count == 0) return;
+
+        var signingService = ResolveSigningService(serviceProvider);
+        var lastEntry = await context.LedgerEntries.OrderByDescending(e => e.SequenceNumber).FirstOrDefaultAsync();
+        var currentSequence = lastEntry?.SequenceNumber ?? 0L;
+        var currentPrevHash = lastEntry?.EntryHash ?? LedgerHashHelper.GenesisPrevHash;
+
+        foreach (var auction in auctions)
+        {
+            var sellerDeposit = auction.AuctionRule!.SellerDepositAmount;
+            var lockKey = $"SELLER-LOCK-{auction.Id}";
+
+            var alreadyHandled = await context.LedgerJournals.AnyAsync(
+                j => j.IdempotencyKey == lockKey || j.IdempotencyKey == $"SELLER-REL-{auction.Id}");
+            if (alreadyHandled) continue;
+
+            var sellerWallet = await context.Wallets.FirstOrDefaultAsync(w => w.UserAccountId == auction.AuthorId);
+            if (sellerWallet == null || sellerWallet.AvailableBalance < sellerDeposit) continue;
+
+            var lockTime = new DateTime((DateTime.UtcNow.AddDays(-1).Ticks / 10) * 10, DateTimeKind.Utc);
+            LedgerJournal lockJournal;
+            (lockJournal, currentSequence, currentPrevHash) = await AppendSignedDoubleEntryJournalAsync(
+                context,
+                signingService,
+                currentSequence,
+                currentPrevHash,
+                LedgerTransactionType.SELLER_LISTING_DEPOSIT_LOCK,
+                $"JRN-SEED-LOCK-{auction.AuctionCode}",
+                "Auction",
+                auction.Id,
+                lockKey,
+                $"Khóa cọc cam kết bán cho phiên đấu giá #{auction.Id}",
+                sellerDeposit,
+                lockTime,
+                FinancialAccountType.USER_AVAILABLE,
+                sellerWallet.Id,
+                $"Khóa cọc Người bán cam kết giao SIM cho phiên #{auction.Id}",
+                FinancialAccountType.USER_LOCKED,
+                sellerWallet.Id,
+                "Ghi có cọc cam kết bán vào số dư phong tỏa");
+
+            var balanceBefore = sellerWallet.AvailableBalance;
+            sellerWallet.AvailableBalance -= sellerDeposit;
+            sellerWallet.LockedBalance += sellerDeposit;
+            sellerWallet.LockVersion++;
+
+            var depositTx = new AuctionTransaction
             {
                 Id = Guid.NewGuid(),
-                JournalId = journalId,
-                WalletId = walletId,
-                AccountType = FinancialAccountType.USER_AVAILABLE,
-                EntryType = LedgerEntryType.CREDIT,
-                Amount = available,
-                SequenceNumber = currentSequence,
-                PrevHash = currentPrevHash,
-                EntryHash = entryHash2,
-                Signature = sig2,
-                CreatedAt = now,
-                Description = $"Cộng số dư khả dụng khởi tạo {userName}"
+                WalletId = sellerWallet.Id,
+                AuctionId = auction.Id,
+                AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_LOCK,
+                TransactionStatus = TransactionStatus.COMPLETED,
+                Amount = sellerDeposit,
+                BalanceBefore = balanceBefore,
+                BalanceAfter = sellerWallet.AvailableBalance,
+                LedgerJournalId = lockJournal.Id,
+                JournalCode = lockJournal.JournalCode,
+                CreatedAt = lockTime,
+                CompletedAt = lockTime
             };
-            currentPrevHash = entryHash2;
 
-            // Ký số toàn bộ chứng từ Journal
-            var journalPayload = $"{journal.JournalCode}:{journal.TransactionType}:{journal.TotalAmount.ToString("F2", CultureInfo.InvariantCulture)}:{journal.PostedAt.ToUniversalTime():yyyy-MM-ddTHH:mm:ss.ffffffZ}:2";
-            journal.SignedHash = await signingService.SignHashAsync(LedgerHashHelper.ComputeSha256Hex(journalPayload));
-
-            journal.Entries.Add(entry1);
-            journal.Entries.Add(entry2);
-
-            await context.LedgerJournals.AddAsync(journal);
-            await context.LedgerEntries.AddRangeAsync(entry1, entry2);
+            await context.AuctionTransactions.AddAsync(depositTx);
             await context.SaveChangesAsync();
         }
     }
@@ -769,7 +906,7 @@ public static class DbSeeder
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000018"), Phone = "0868888888", Price = 990000000m,  Status = SimStatus.AVAILABLE,  Prefix = pr086, Rhythm = f28,   Seller = sellerPhuQuy, Categories = new[] { caBatQuy, caKhongThatBat } },
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000019"), Phone = "0987654321", Price = 350000000m,  Status = SimStatus.AVAILABLE,  Prefix = pr098, Rhythm = f28,   Seller = sellerDaiPhat, Categories = new[] { caSanhTien } },
             
-            // SIM 0899488041 chính chủ thuộc sở hữu của admin draflame (MobiFone 089)
+            // SIM 0899488041 chính chủ thuộc sở hữu của user draflame (MobiFone 089)
             new { Id = Guid.Parse("21000000-0000-0000-0000-000000000099"), Phone = "0899488041", Price = 88000000m,   Status = SimStatus.AVAILABLE,  Prefix = pr089, Rhythm = f334,  Seller = userDraflame, Categories = new[] { caLocPhat86, caThanTai } }
         };
 
@@ -791,8 +928,13 @@ public static class DbSeeder
             }
             else
             {
-                sim.SimStatus = def.Status;
-                sim.Price = def.Price;
+                // Nếu SIM đã hoàn tất chuyển nhượng thực tế thì giữ nguyên trạng thái SIM
+                var hasCompletedTrade = await context.TradeTransactions.AnyAsync(t => t.SimNumberId == sim.Id && t.TradeTransactionStatus == TradeTransactionStatus.Completed);
+                if (!hasCompletedTrade)
+                {
+                    sim.SimStatus = def.Status;
+                    sim.Price = def.Price;
+                }
             }
 
             foreach (var catId in def.Categories)
@@ -810,46 +952,67 @@ public static class DbSeeder
                 }
             }
 
+            var hasTransferredOwnership = await context.SimOwnerships.AnyAsync(o =>
+                o.SimNumberId == sim.Id &&
+                o.UserAccountId != def.Seller &&
+                o.AcquistionType == AcquistionType.AUCTION_TRANSFER &&
+                o.OwnershipStatus == OwnershipStatus.ACTIVE);
+
             var ownership = await context.SimOwnerships.FirstOrDefaultAsync(o => o.SimNumberId == sim.Id && o.UserAccountId == def.Seller);
-            if (ownership == null)
+            if (hasTransferredOwnership)
             {
-                var otherActive = await context.SimOwnerships.FirstOrDefaultAsync(o => o.SimNumberId == sim.Id && o.OwnershipStatus == OwnershipStatus.ACTIVE && o.UserAccountId != def.Seller);
-                if (otherActive != null)
+                // SIM đã được chuyển nhượng thành công cho người mua mới trong giao dịch đấu giá
+                // Giữ nguyên trạng thái của chủ cũ là ENDED và không reset lại ACTIVE
+                if (ownership != null)
                 {
-                    otherActive.OwnershipStatus = OwnershipStatus.ENDED;
+                    ownership.OwnershipStatus = OwnershipStatus.ENDED;
                 }
-
-                ownership = new SimOwnership
-                {
-                    Id = Guid.NewGuid(),
-                    UserAccountId = def.Seller,
-                    SimNumberId = sim.Id,
-                    OwnershipStatus = OwnershipStatus.ACTIVE,
-                    AcquistionType = AcquistionType.INITIAL_VERIFICATION
-                };
-                await context.SimOwnerships.AddAsync(ownership);
             }
             else
             {
-                ownership.OwnershipStatus = OwnershipStatus.ACTIVE;
+                if (ownership == null)
+                {
+                    var otherActive = await context.SimOwnerships.FirstOrDefaultAsync(o => o.SimNumberId == sim.Id && o.OwnershipStatus == OwnershipStatus.ACTIVE && o.UserAccountId != def.Seller);
+                    if (otherActive != null)
+                    {
+                        otherActive.OwnershipStatus = OwnershipStatus.ENDED;
+                    }
+
+                    ownership = new SimOwnership
+                    {
+                        Id = Guid.NewGuid(),
+                        UserAccountId = def.Seller,
+                        SimNumberId = sim.Id,
+                        OwnershipStatus = OwnershipStatus.ACTIVE,
+                        AcquistionType = AcquistionType.INITIAL_VERIFICATION
+                    };
+                    await context.SimOwnerships.AddAsync(ownership);
+                }
+                else
+                {
+                    ownership.OwnershipStatus = OwnershipStatus.ACTIVE;
+                }
             }
 
-            var verification = await context.SimVerifications.FirstOrDefaultAsync(v => v.SimOwnershipId == ownership.Id);
-            if (verification == null)
+            if (ownership != null)
             {
-                verification = new SimVerification
+                var verification = await context.SimVerifications.FirstOrDefaultAsync(v => v.SimOwnershipId == ownership.Id);
+                if (verification == null)
                 {
-                    Id = Guid.NewGuid(),
-                    SimOwnershipId = ownership.Id,
-                    VerificationStatus = VerificationStatus.VERIFIED,
-                    RequestedAt = DateTime.UtcNow.AddDays(-10),
-                    VerifiedAt = DateTime.UtcNow.AddDays(-10)
-                };
-                await context.SimVerifications.AddAsync(verification);
-            }
-            else
-            {
-                verification.VerificationStatus = VerificationStatus.VERIFIED;
+                    verification = new SimVerification
+                    {
+                        Id = Guid.NewGuid(),
+                        SimOwnershipId = ownership.Id,
+                        VerificationStatus = VerificationStatus.VERIFIED,
+                        RequestedAt = DateTime.UtcNow.AddDays(-10),
+                        VerifiedAt = DateTime.UtcNow.AddDays(-10)
+                    };
+                    await context.SimVerifications.AddAsync(verification);
+                }
+                else
+                {
+                    verification.VerificationStatus = VerificationStatus.VERIFIED;
+                }
             }
         }
 
@@ -1537,13 +1700,26 @@ public static class DbSeeder
         var proof = new TransferProof
         {
             Id = Guid.Parse("46000000-0000-0000-0000-000000000001"),
-            ImageUrl = "https://storage.trustsim.vn/proofs/mobifone_transfer_0909999999.jpg",
+            AuctionId = auc5Id,
+            SimTransferId = transfer.Id,
+            SubmittedByUserId = sellerPhuQuy,
             Description = "Phiếu tiếp nhận sang tên chính chủ tại cửa hàng MobiFone 84 Bà Triệu",
-            ProofStatus = ProofStatus.APPROVED,
-            VerifiedAt = DateTime.UtcNow.AddHours(-10),
-            SimTransferId = transfer.Id
+            ProofType = TransferProofType.SELLER_HANDOVER,
+            ProofStatus = ProofStatus.PENDING,
+            VerifiedAt = null
         };
         await context.TransferProofs.AddAsync(proof);
+
+        var proofImage = new TransferProofImage
+        {
+            Id = Guid.Parse("47000000-0000-0000-0000-000000000001"),
+            TransferProofId = proof.Id,
+            ImageUrl = "https://storage.trustsim.vn/proofs/mobifone_transfer_0909999999.jpg",
+            FileName = "mobifone_transfer_0909999999.jpg",
+            ContentType = "image/jpeg",
+            SortOrder = 0
+        };
+        await context.TransferProofImages.AddAsync(proofImage);
 
         // ══════════════════════════════════════════════════════════════
         // GIAO DỊCH 2: TRD-20261010-002 (CHỜ KÝ SỐ - PendingSignature)

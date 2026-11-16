@@ -1824,17 +1824,8 @@
                     <input type="text" id="proofDescInput" class="form-control" placeholder="VD: Đã làm thủ tục tại điểm giao dịch MobiFone Bà Triệu, phiếu #MB-9988" style="margin-top: 4px;">
                   </div>
 
-                  <!-- Hoặc nộp qua URL ảnh mẫu nhanh -->
-                  <details style="font-size: 11px; color: var(--text-dim); background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 6px;">
-                    <summary style="cursor: pointer; font-weight: 600;">Tùy chọn: Nhập URL ảnh biên bản mẫu</summary>
-                    <div style="display: flex; gap: 8px; margin-top: 6px;">
-                      <input type="text" id="proofImageUrlInput" class="form-control" placeholder="https://... hoặc bấm nút Mẫu" style="font-size: 11px;">
-                      <button type="button" class="btn btn-secondary" onclick="fillDemoProofImage()" style="font-size: 11px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Mẫu</button>
-                    </div>
-                  </details>
-
                   <button class="btn btn-primary" id="btnSubmitProof" onclick="submitSellerProofs()" style="margin-top: 4px; padding: 10px; font-weight: 700;">
-                    <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Danh Sách Biên Bản Sang Tên Cho Sàn & Bên Mua
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Bộ Bằng Chứng Sang Tên Cho Sàn & Bên Mua
                   </button>
                 </div>
               </div>
@@ -3257,9 +3248,16 @@
       const step4 = document.getElementById('step4Item');
       const step4Desc = document.getElementById('step4Desc');
 
-      const isSellerSubmitted = details.simTransferStatus === 'SELLER_PROOF_SUBMITTED' || details.simTransferStatus === 'PENDING_BUYER_ACTION' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
-      const isSellerApproved = (details.proofs || []).some(p => (!p.proofType || p.proofType === 'SELLER_HANDOVER') && p.proofStatus === 'APPROVED') || details.simTransferStatus === 'PENDING_BUYER_ACTION' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
-      const isBuyerSubmitted = details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
+      // Proofs Separation for Admin Panel & Gallery
+      const proofs = details.proofs || [];
+      const sellerProofs = proofs.filter(p => p.proofType === 'SELLER_HANDOVER');
+      const buyerProofs = proofs.filter(p => p.proofType === 'BUYER_RECEIPT');
+      const pendingSellerProof = sellerProofs.find(p => p.proofStatus === 'PENDING');
+      const pendingBuyerProof = buyerProofs.find(p => p.proofStatus === 'PENDING');
+
+      const isSellerSubmitted = !!pendingSellerProof || sellerProofs.some(p => p.proofStatus === 'APPROVED') || details.simTransferStatus === 'SELLER_PROOF_SUBMITTED' || details.simTransferStatus === 'PENDING_BUYER_ACTION' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
+      const isSellerApproved = sellerProofs.some(p => p.proofStatus === 'APPROVED') || details.simTransferStatus === 'PENDING_BUYER_ACTION' || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
+      const isBuyerSubmitted = !!pendingBuyerProof || buyerProofs.some(p => p.proofStatus === 'APPROVED') || details.simTransferStatus === 'BUYER_PROOF_SUBMITTED' || details.simTransferStatus === 'COMPLETED';
       const isCompleted = details.simTransferStatus === 'COMPLETED';
 
       // Step 2
@@ -3318,9 +3316,20 @@
         sellerNotice.style.display = 'block';
         sellerNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i> <strong>Giao dịch đã hoàn tất!</strong> Tiền bán SIM đã được chuyển vào ví của bạn.';
         sellerForm.style.display = 'none';
-      } else if (isSellerSubmitted) {
+      } else if (pendingSellerProof) {
         sellerNotice.style.display = 'block';
-        sellerNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i> <strong>Bạn đã nộp biên bản sang tên!</strong> Đang chờ Ban Quản Trị sàn kiểm duyệt hồ sơ và Bên Mua nghiệm thu SIM.';
+        sellerNotice.innerHTML = `
+          <i class="fa-solid fa-hourglass-half"></i> <strong>Đang có bộ bằng chứng PENDING (${(pendingSellerProof.images || []).length} ảnh)!</strong><br>
+          Không thể nộp thêm cho tới khi Admin duyệt hoặc bạn thu hồi bộ đang chờ.
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-rose" style="font-size:11px;padding:5px 10px;" onclick="withdrawTransferProof('${pendingSellerProof.id}')">
+              <i class="fa-solid fa-rotate-left"></i> Thu Hồi Bộ Đang Chờ
+            </button>
+          </div>`;
+        sellerForm.style.display = 'none';
+      } else if (isSellerApproved) {
+        sellerNotice.style.display = 'block';
+        sellerNotice.innerHTML = '<i class="fa-solid fa-circle-check"></i> <strong>Hồ sơ Bên Bán đã được duyệt!</strong> Đang chờ Bên Mua nghiệm thu SIM.';
         sellerForm.style.display = 'none';
       } else {
         sellerNotice.style.display = 'none';
@@ -3336,86 +3345,87 @@
         buyerWaiting.style.display = 'none';
         buyerConfirm.style.display = 'none';
         completedBanner.style.display = 'block';
+      } else if (pendingBuyerProof) {
+        buyerWaiting.style.display = 'block';
+        buyerWaiting.innerHTML = `
+          <i class="fa-solid fa-hourglass-half"></i> <strong>Bạn đã nộp bộ ảnh nghiệm thu (${(pendingBuyerProof.images || []).length} ảnh) đang chờ Admin duyệt!</strong>
+          <div style="margin-top:8px;">
+            <button type="button" class="btn btn-rose" style="font-size:11px;padding:5px 10px;" onclick="withdrawTransferProof('${pendingBuyerProof.id}')">
+              <i class="fa-solid fa-rotate-left"></i> Thu Hồi Bộ Đang Chờ
+            </button>
+          </div>`;
+        buyerConfirm.style.display = 'none';
+        completedBanner.style.display = 'none';
       } else if (isSellerApproved) {
         buyerWaiting.style.display = 'none';
         buyerConfirm.style.display = 'flex';
         completedBanner.style.display = 'none';
       } else {
         buyerWaiting.style.display = 'block';
+        buyerWaiting.innerHTML = '<i class="fa-solid fa-hourglass-start"></i> Đang chờ Người Bán ra nhà mạng làm thủ tục sang tên và được Admin duyệt.';
         buyerConfirm.style.display = 'none';
         completedBanner.style.display = 'none';
       }
 
-      // Proofs Separation for Admin Panel & Gallery
-      const proofs = details.proofs || [];
-      const sellerProofs = proofs.filter(p => !p.proofType || p.proofType === 'SELLER_HANDOVER');
-      const buyerProofs = proofs.filter(p => p.proofType === 'BUYER_RECEIPT');
-
       // Admin Panel Badges & Thumbnails
       const adminSellerBadge = document.getElementById('adminSellerProofBadge');
       if (adminSellerBadge) {
-        if (sellerProofs.length === 0) {
+        const activeSeller = sellerProofs.filter(p => p.proofStatus !== 'WITHDRAWN');
+        if (activeSeller.length === 0) {
           adminSellerBadge.innerText = 'CHƯA NỘP';
           adminSellerBadge.className = 'badge badge-pending';
-        } else if (sellerProofs.some(p => p.proofStatus === 'APPROVED')) {
+        } else if (activeSeller.some(p => p.proofStatus === 'APPROVED')) {
           adminSellerBadge.innerText = 'ĐÃ DUYỆT';
           adminSellerBadge.className = 'badge badge-sealed';
-        } else if (sellerProofs.some(p => p.proofStatus === 'REJECTED')) {
-          adminSellerBadge.innerText = 'BỊ TỪ CHỐI';
-          adminSellerBadge.className = 'badge badge-pending';
-        } else {
+        } else if (pendingSellerProof) {
           adminSellerBadge.innerText = 'CHỜ DUYỆT';
           adminSellerBadge.className = 'badge badge-signed';
+        } else {
+          adminSellerBadge.innerText = 'BỊ TỪ CHỐI';
+          adminSellerBadge.className = 'badge badge-pending';
         }
       }
 
       const adminBuyerBadge = document.getElementById('adminBuyerProofBadge');
       if (adminBuyerBadge) {
-        if (buyerProofs.length === 0) {
+        const activeBuyer = buyerProofs.filter(p => p.proofStatus !== 'WITHDRAWN');
+        if (activeBuyer.length === 0) {
           adminBuyerBadge.innerText = 'CHƯA NỘP';
           adminBuyerBadge.className = 'badge badge-pending';
-        } else if (buyerProofs.some(p => p.proofStatus === 'APPROVED')) {
+        } else if (activeBuyer.some(p => p.proofStatus === 'APPROVED')) {
           adminBuyerBadge.innerText = 'ĐÃ DUYỆT';
           adminBuyerBadge.className = 'badge badge-sealed';
-        } else if (buyerProofs.some(p => p.proofStatus === 'REJECTED')) {
-          adminBuyerBadge.innerText = 'BỊ TỪ CHỐI';
-          adminBuyerBadge.className = 'badge badge-pending';
-        } else {
+        } else if (pendingBuyerProof) {
           adminBuyerBadge.innerText = 'CHỜ DUYỆT';
           adminBuyerBadge.className = 'badge badge-signed';
+        } else {
+          adminBuyerBadge.innerText = 'BỊ TỪ CHỐI';
+          adminBuyerBadge.className = 'badge badge-pending';
         }
       }
 
-      // Admin Thumbnails
-      const adminSellerThumbs = document.getElementById('adminSellerProofThumbnails');
-      if (adminSellerThumbs) {
-        if (sellerProofs.length > 0) {
-          adminSellerThumbs.innerHTML = sellerProofs.map(p => `
-            <a href="${p.imageUrl}" target="_blank" title="${p.description || 'Ảnh biên bản'}" style="position: relative; display: inline-block;">
-              <img src="${p.imageUrl}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-subtle);" onerror="this.src='https://placehold.co/100x100/1e293b/f59e0b?text=Seller'">
-              <span style="position: absolute; bottom: 0; right: 0; font-size: 9px; padding: 1px 3px; border-radius: 3px; background: ${p.proofStatus === 'APPROVED' ? '#10b981' : (p.proofStatus === 'REJECTED' ? '#f43f5e' : '#f59e0b')}; color: #fff;">${p.proofStatus}</span>
+      // Admin Thumbnails (flatten images from TransferProof batches)
+      const renderAdminPartyThumbs = (targetElId, partyProofs, fallbackText) => {
+        const el = document.getElementById(targetElId);
+        if (!el) return;
+        const activeBatches = partyProofs.filter(p => p.proofStatus !== 'WITHDRAWN');
+        const items = activeBatches.flatMap(p => (p.images || []).map(img => ({ img, status: p.proofStatus, desc: p.description })));
+        if (items.length > 0) {
+          el.innerHTML = items.map(({ img, status, desc }) => `
+            <a href="${img.imageUrl}" target="_blank" title="${desc || img.fileName || 'Ảnh bằng chứng'}" style="position: relative; display: inline-block;">
+              <img src="${img.imageUrl}" style="width: 60px; height: 60px; object-fit: contain; background: #020617; border-radius: 6px; border: 1px solid var(--border-subtle);" onerror="this.src='https://placehold.co/100x100/1e293b/38bdf8?text=Proof'">
+              <span style="position: absolute; bottom: 0; right: 0; font-size: 9px; padding: 1px 3px; border-radius: 3px; background: ${status === 'APPROVED' ? '#10b981' : (status === 'REJECTED' ? '#f43f5e' : '#f59e0b')}; color: #fff;">${status}</span>
             </a>
           `).join('');
         } else {
-          adminSellerThumbs.innerHTML = '<span style="color: var(--text-dim); font-size: 11px;">Chưa có ảnh biên bản nào</span>';
+          el.innerHTML = `<span style="color: var(--text-dim); font-size: 11px;">${fallbackText}</span>`;
         }
-      }
+      };
 
-      const adminBuyerThumbs = document.getElementById('adminBuyerProofThumbnails');
-      if (adminBuyerThumbs) {
-        if (buyerProofs.length > 0) {
-          adminBuyerThumbs.innerHTML = buyerProofs.map(p => `
-            <a href="${p.imageUrl}" target="_blank" title="${p.description || 'Ảnh nghiệm thu'}" style="position: relative; display: inline-block;">
-              <img src="${p.imageUrl}" style="width: 55px; height: 55px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border-subtle);" onerror="this.src='https://placehold.co/100x100/1e293b/38bdf8?text=Buyer'">
-              <span style="position: absolute; bottom: 0; right: 0; font-size: 9px; padding: 1px 3px; border-radius: 3px; background: ${p.proofStatus === 'APPROVED' ? '#10b981' : (p.proofStatus === 'REJECTED' ? '#f43f5e' : '#f59e0b')}; color: #fff;">${p.proofStatus}</span>
-            </a>
-          `).join('');
-        } else {
-          adminBuyerThumbs.innerHTML = '<span style="color: var(--text-dim); font-size: 11px;">Chưa có ảnh nghiệm thu nào</span>';
-        }
-      }
+      renderAdminPartyThumbs('adminSellerProofThumbnails', sellerProofs, 'Chưa có ảnh biên bản nào');
+      renderAdminPartyThumbs('adminBuyerProofThumbnails', buyerProofs, 'Chưa có ảnh nghiệm thu nào');
 
-      // Proofs Gallery
+      // Proofs Gallery (theo từng bộ TransferProof chứa nhiều TransferProofImage)
       const gallery = document.getElementById('proofsGalleryContainer');
       if (proofs.length > 0) {
         gallery.innerHTML = proofs.map(p => {
@@ -3424,20 +3434,30 @@
             ? '<span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); font-size: 10px;">BÊN MUA</span>'
             : '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 10px;">BÊN BÁN</span>';
 
-          const statusBadgeClass = p.proofStatus === 'APPROVED' ? 'badge-sealed' : (p.proofStatus === 'REJECTED' ? 'badge-pending' : 'badge-signed');
+          const statusBadgeClass = p.proofStatus === 'APPROVED' ? 'badge-sealed' : (p.proofStatus === 'REJECTED' || p.proofStatus === 'WITHDRAWN' ? 'badge-pending' : 'badge-signed');
+          const imgs = p.images || [];
+          const imgsMarkup = imgs.map(img => `
+            <a href="${img.imageUrl}" target="_blank" style="display:block; background:#020617; border-radius:6px; overflow:hidden; border:1px solid var(--border-subtle);">
+              <img src="${img.imageUrl}" class="proof-img" style="object-fit:contain;background:#020617;" alt="${img.fileName || 'Hồ sơ chuyển nhượng'}" onerror="this.src='https://placehold.co/400x250/1e293b/38bdf8?text=Bằng+Chứng'">
+            </a>
+          `).join('');
 
           return `
-            <div class="proof-item">
-              <a href="${p.imageUrl}" target="_blank">
-                <img src="${p.imageUrl}" class="proof-img" alt="Hồ sơ chuyển nhượng" onerror="this.src='https://placehold.co/400x250/1e293b/38bdf8?text=Bằng+Chứng'">
-              </a>
-              <div class="proof-meta">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  ${partyBadge}
-                  <span class="badge ${statusBadgeClass}" style="font-size: 10px;">${p.proofStatus}</span>
+            <div class="proof-item" style="grid-column: 1 / -1;">
+              <div class="proof-meta" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    ${partyBadge}
+                    <span class="badge ${statusBadgeClass}" style="font-size: 10px;">${p.proofStatus}</span>
+                    <span style="font-size: 10px; color: var(--text-muted);">${imgs.length} ảnh</span>
+                  </div>
+                  <div style="color: var(--text-dim); font-size: 10px;">${formatDateTime(p.createdDate)}</div>
                 </div>
-                <div style="color: var(--text-dim); font-size: 10px;">${formatDateTime(p.createdDate)}</div>
                 <div style="color: var(--text-main); font-weight: 600; margin-top: 4px; font-size: 11px; word-break: break-word;">${p.description || (isBuyer ? 'Ảnh nghiệm thu sóng SIM' : 'Biên bản chuyển nhượng nhà mạng')}</div>
+                ${p.rejectionReason ? `<div style="color: #fda4af; font-size: 11px; margin-top: 4px;">Lý do từ chối: ${p.rejectionReason}</div>` : ''}
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding: 10px;">
+                ${imgsMarkup || '<span style="color:var(--text-dim);font-size:11px;">Không có ảnh</span>'}
               </div>
             </div>
           `;
@@ -3493,64 +3513,64 @@
       }).join('');
     }
 
+    function buildIdempotencyKey() {
+      return (window.crypto && typeof window.crypto.randomUUID === 'function')
+        ? window.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
     async function submitSellerProofs() {
       if (!currentTradeId) {
         showToast('Vui lòng chọn giao dịch trước!', 'warning');
         return;
       }
 
+      if (sellerSelectedFiles.length === 0) {
+        showToast('Vui lòng bấm "Chọn Nhiều Tệp Ảnh Biên Bản" trước khi nộp!', 'warning');
+        return;
+      }
+
       const desc = document.getElementById('proofDescInput').value.trim();
+      const btn = document.getElementById('btnSubmitProof');
+      const idemKey = buildIdempotencyKey();
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên ${sellerSelectedFiles.length} ảnh...`;
 
-      // Nếu có chọn files từ máy -> gọi multipart/form-data
-      if (sellerSelectedFiles.length > 0) {
-        const btn = document.getElementById('btnSubmitProof');
-        btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên ${sellerSelectedFiles.length} ảnh...`;
+      try {
+        const formData = new FormData();
+        sellerSelectedFiles.forEach(f => formData.append('Files', f));
+        formData.append('ProofType', 'SELLER_HANDOVER');
+        formData.append('IdempotencyKey', idemKey);
+        if (desc) formData.append('Description', desc);
 
-        try {
-          const formData = new FormData();
-          sellerSelectedFiles.forEach(f => formData.append('Files', f));
-          formData.append('ProofType', 'SELLER_HANDOVER');
-          if (desc) formData.append('Description', desc);
+        const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/proofs`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${currentToken}`,
+            'X-Idempotency-Key': idemKey
+          },
+          body: formData,
+          credentials: 'include'
+        });
 
-          const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/proofs`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${currentToken}`
-            },
-            body: formData,
-            credentials: 'include'
-          });
-
-          const data = await res.json();
-          const isSuccess = data.success ?? data.isSuccess;
-          if (isSuccess) {
-            showToast('✅ Nộp danh sách biên bản sang tên thành công! Chờ Admin duyệt.', 'success');
-            sellerSelectedFiles = [];
-            renderSellerThumbs();
-            await loadContractDetails(currentTradeId);
-            await loadSimTransferDetails(currentTradeId);
-          } else {
-            showToast(data.message || 'Lỗi nộp biên bản', 'error');
-          }
-        } catch (err) {
-          console.error('Submit seller proofs error:', err);
-          showToast('Lỗi khi tải lên danh sách ảnh biên bản', 'error');
-        } finally {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Nộp Danh Sách Biên Bản Sang Tên Cho Sàn & Bên Mua';
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess) {
+          showToast('✅ Nộp bộ bằng chứng sang tên thành công! Chờ Admin duyệt.', 'success');
+          sellerSelectedFiles = [];
+          renderSellerThumbs();
+          await loadContractDetails(currentTradeId);
+          await loadSimTransferDetails(currentTradeId);
+        } else {
+          showToast(data.message || 'Lỗi nộp biên bản', 'error');
         }
-        return;
+      } catch (err) {
+        console.error('Submit seller proofs error:', err);
+        showToast('Lỗi khi tải lên danh sách ảnh biên bản', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Nộp Bộ Bằng Chứng Sang Tên Cho Sàn & Bên Mua';
       }
-
-      // Fallback: Nếu không chọn file nhưng có nhập URL mẫu
-      const imageUrl = document.getElementById('proofImageUrlInput').value.trim();
-      if (imageUrl) {
-        await submitTransferProof();
-        return;
-      }
-
-      showToast('Vui lòng bấm "Chọn Nhiều Tệp Ảnh" hoặc điền URL ảnh biên bản!', 'warning');
     }
 
     // --- BUYER MULTIPLE FILE SELECTION & UPLOAD ---
@@ -3596,6 +3616,7 @@
 
       const desc = document.getElementById('buyerProofDescInput').value.trim() || 'Người Mua nộp ảnh kiểm tra sóng / app nhà mạng chính chủ';
       const btn = document.getElementById('btnSubmitBuyerProof');
+      const idemKey = buildIdempotencyKey();
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải lên ${buyerSelectedFiles.length} ảnh...`;
 
@@ -3603,12 +3624,14 @@
         const formData = new FormData();
         buyerSelectedFiles.forEach(f => formData.append('Files', f));
         formData.append('ProofType', 'BUYER_RECEIPT');
+        formData.append('IdempotencyKey', idemKey);
         formData.append('Description', desc);
 
         const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/proofs`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${currentToken}`
+            'Authorization': `Bearer ${currentToken}`,
+            'X-Idempotency-Key': idemKey
           },
           body: formData,
           credentials: 'include'
@@ -3634,10 +3657,45 @@
       }
     }
 
+    async function withdrawTransferProof(proofId) {
+      if (!confirm('Bạn chắc chắn muốn thu hồi bộ bằng chứng đang chờ duyệt này để tải lên bộ mới?')) {
+        return;
+      }
+      try {
+        const res = await fetch(`${backendUrl}/api/SimTransfers/proofs/${proofId}/withdraw`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${currentToken}` },
+          credentials: 'include'
+        });
+        const data = await res.json();
+        const isSuccess = data.success ?? data.isSuccess;
+        if (isSuccess) {
+          showToast(data.message || 'Đã thu hồi bộ bằng chứng thành công!', 'success');
+          await loadContractDetails(currentTradeId);
+          await loadSimTransferDetails(currentTradeId);
+        } else {
+          showToast(data.message || 'Lỗi thu hồi bộ bằng chứng', 'error');
+        }
+      } catch (err) {
+        console.error('Withdraw proof error:', err);
+        showToast('Lỗi khi gọi API thu hồi bằng chứng', 'error');
+      }
+    }
+
     // --- ADMIN REVIEWS & APPROVAL WORKFLOW ---
     async function adminReviewParty(targetParty, isApproved) {
       if (!currentTradeId) {
         showToast('Vui lòng chọn giao dịch cần duyệt!', 'warning');
+        return;
+      }
+
+      const proofType = targetParty === 'SELLER' ? 'SELLER_HANDOVER' : 'BUYER_RECEIPT';
+      const pendingProof = (currentHandoverData?.proofs || []).find(
+        p => p.proofType === proofType && p.proofStatus === 'PENDING'
+      );
+
+      if (!pendingProof) {
+        showToast(`Không có bộ bằng chứng nào đang PENDING của ${targetParty} để duyệt.`, 'warning');
         return;
       }
 
@@ -3651,20 +3709,19 @@
       const partyName = targetParty === 'SELLER' ? 'Bên Bán' : 'Bên Mua';
       const actionName = isApproved ? 'DUYỆT CHẤP THUẬN' : 'TỪ CHỐI';
 
-      if (!confirm(`Bạn có chắc chắn muốn [${actionName}] hồ sơ của [${partyName}]?`)) {
+      if (!confirm(`Bạn có chắc chắn muốn [${actionName}] bộ bằng chứng của [${partyName}]?`)) {
         return;
       }
 
       try {
         showToast(`Đang gửi yêu cầu ${actionName} hồ sơ ${partyName}...`, 'info');
-        const res = await fetch(`${backendUrl}/api/SimTransfers/admin/${currentTradeId}/review`, {
+        const res = await fetch(`${backendUrl}/api/SimTransfers/admin/proofs/${pendingProof.id}/review`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${currentToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            targetParty: targetParty,
             isApproved: isApproved,
             rejectionReason: isApproved ? null : rejectionReason
           }),
@@ -3732,8 +3789,8 @@
         }
 
         tbody.innerHTML = trades.map(t => {
-          const sellerCount = t.sellerProofs ? t.sellerProofs.length : 0;
-          const buyerCount = t.buyerProofs ? t.buyerProofs.length : 0;
+          const sellerCount = (t.sellerProofs || []).reduce((acc, p) => acc + (p.images?.length || 0), 0);
+          const buyerCount = (t.buyerProofs || []).reduce((acc, p) => acc + (p.images?.length || 0), 0);
 
           return `
             <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -3771,59 +3828,6 @@
       selectScenario(tradeId, tradeId);
       switchTab('tabHandover');
       showToast(`Đã mở giao dịch: ${tradeId}`, 'info');
-    }
-
-    function fillDemoProofImage() {
-      document.getElementById('proofImageUrlInput').value = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80';
-      document.getElementById('proofDescInput').value = 'Đã hoàn tất thủ tục sang tên đổi chủ tại điểm giao dịch MobiFone. Kính gửi bên mua kiểm tra sóng!';
-      showToast('Đã điền link ảnh biên bản demo', 'info');
-    }
-
-    async function submitTransferProof() {
-      if (!currentTradeId) {
-        showToast('Vui lòng chọn giao dịch trước!', 'warning');
-        return;
-      }
-
-      const imageUrl = document.getElementById('proofImageUrlInput').value.trim();
-      const desc = document.getElementById('proofDescInput').value.trim();
-
-      if (!imageUrl) {
-        showToast('Vui lòng cung cấp link hình ảnh biên bản sang tên!', 'warning');
-        return;
-      }
-
-      const btn = document.getElementById('btnSubmitProof');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nộp biên bản...';
-
-      try {
-        const res = await fetch(`${backendUrl}/api/SimTransfers/${currentTradeId}/proof`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify({ imageUrl: imageUrl, description: desc })
-        });
-
-        const data = await res.json();
-        const isSuccess = data.success ?? data.isSuccess;
-        if (isSuccess) {
-          showToast('✅ Nộp biên bản sang tên thành công! Đã thông báo cho Bên Mua.', 'success');
-          await loadContractDetails(currentTradeId);
-          await loadSimTransferDetails(currentTradeId);
-        } else {
-          showToast(data.message || 'Lỗi nộp biên bản', 'error');
-        }
-      } catch (err) {
-        console.error('Submit proof error:', err);
-        showToast('Lỗi khi gọi API nộp biên bản', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Nộp Danh Sách Biên Bản Sang Tên Cho Sàn & Bên Mua';
-      }
     }
 
     async function confirmSimTransfer() {

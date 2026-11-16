@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using TrustSimBackend.Application.Common.Interfaces;
 
-namespace TrustSimBackend.Infrastructure.BackgroundServices;
+namespace TrustSimBackend.Infrastructure.Workers.Financial;
 
 /// <summary>
 /// Background Service tự động quét kiểm toán toàn vẹn Sổ cái kép &amp; Hash Chain định kỳ.
@@ -12,8 +12,6 @@ public class LedgerIntegrityCheckWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<LedgerIntegrityCheckWorker> _logger;
-
-    // Chu kỳ quét định kỳ (mặc định: mỗi 10 phút)
     private const int CheckIntervalMinutes = 10;
 
     public LedgerIntegrityCheckWorker(
@@ -30,7 +28,6 @@ public class LedgerIntegrityCheckWorker : BackgroundService
             "[Ledger Integrity Worker] Background verifier started. Auditing every {interval} minutes.",
             CheckIntervalMinutes);
 
-        // Chờ 30 giây sau khi khởi động app mới chạy lần đầu tiên
         await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -39,7 +36,6 @@ public class LedgerIntegrityCheckWorker : BackgroundService
             {
                 using var scope = _scopeFactory.CreateScope();
                 var verifier = scope.ServiceProvider.GetRequiredService<ILedgerIntegrityVerifier>();
-
                 var report = await verifier.GenerateFullAuditReportAsync(stoppingToken);
 
                 if (!report.IsChainValid || !report.IsSignatureValid || !report.IsBalanceReconciled)

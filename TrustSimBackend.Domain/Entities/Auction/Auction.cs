@@ -80,5 +80,24 @@ namespace TrustSimBackend.Domain.Entities.Auctions
         /// Giao dịch liên quan đến phiên đấu giá này.
         /// </summary>
         public virtual TradeTransaction? TradeTransaction { get; set; }
+
+        private readonly List<TransferProof> _transferProofs = new();
+        /// <summary>
+        /// Danh sách các bộ hồ sơ bằng chứng chuyển nhượng SIM thuộc phiên đấu giá này.
+        /// </summary>
+        public IReadOnlyCollection<TransferProof> TransferProofs => _transferProofs.AsReadOnly();
+
+        /// <summary>
+        /// Bổ sung bộ hồ sơ bằng chứng vào phiên đấu giá (chống trùng lặp khi EF Core đã tự fixup).
+        /// </summary>
+        public void AddTransferProof(TransferProof proof)
+        {
+            if (_transferProofs.Any(p => p.Id == proof.Id) || _transferProofs.Contains(proof))
+            {
+                return;
+            }
+
+            _transferProofs.Add(proof);
+        }
     }
 }

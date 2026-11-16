@@ -175,6 +175,8 @@ public class ConfirmWinnerPaymentCommandHandler : IRequestHandler<ConfirmWinnerP
 
         // Đảm bảo ví giữ trạng thái ACTIVE
         wallet.WalletStatus = WalletStatus.ACTIVE;
+        wallet.FrozenAt = null;
+        wallet.FrozenReason = null;
         _unitOfWork.Wallets.Update(wallet);
 
         await _unitOfWork.Escrows.AddAsync(escrow, cancellationToken);

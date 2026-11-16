@@ -3,6 +3,7 @@ using TrustSimBackend.Application.Common.Exceptions;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.DTOs.Requests;
 using TrustSimBackend.Application.Features.Auction.DTOs.Responses;
+using TrustSimBackend.Application.Features.Auction.Helpers;
 using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Domain.Entities.Auctions;
@@ -50,14 +51,37 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
             bidId,
             cancellationToken);
 
+        // Self-healing nếu Redis bị Cache Miss (chưa Pre-Warm hoặc vừa restart Redis)
+        if (!luaResult.Success && (luaResult.ErrorCode == "ERR_AUCTION_CACHE_MISS" || luaResult.ErrorCode == "ERR_PARTICIPANT_CACHE_MISS"))
+        {
+            var recovered = await TryRecoverAuctionCacheAsync(request.AuctionId, cancellationToken);
+            if (!recovered)
+            {
+                throw new BadRequestException("Phiên đấu giá chưa mở hoặc đã kết thúc.");
+            }
+
+            luaResult = await _redisCache.PlaceBidAtomicAsync(
+                request.AuctionId,
+                participant.Id,
+                request.UserId,
+                request.BidAmount,
+                bidId,
+                cancellationToken);
+        }
+
         if (!luaResult.Success && luaResult.ErrorCode != "ERR_REDIS_UNAVAILABLE")
         {
             throw new BadRequestException(luaResult.Message ?? "Lượt đặt giá không hợp lệ.");
         }
 
-        // 2. NẾU REDIS THÀNH CÔNG: BROADCAST VÀ RETURN NGAY
+        // 2. NẾU REDIS THÀNH CÔNG: ĐỒNG BỘ KÍCH HOẠT (NẾU VỪA JIT), BROADCAST VÀ RETURN NGAY
         if (luaResult.Success)
         {
+            if (luaResult.JustActivated)
+            {
+                await SynchronizeJitActivationAsync(request.AuctionId, luaResult.NewCurrentPrice, cancellationToken);
+            }
+
             var newEndAt = DateTimeOffset.FromUnixTimeMilliseconds(luaResult.NewEndAtMs).UtcDateTime;
 
             if (luaResult.WasExtended)
@@ -107,10 +131,40 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
             return bidDto;
         }
 
-        // 3. FALLBACK CƠ SỞ DỮ LIỆU SQL SERVER (KHI REDIS OFFLINE)
+        // 3. FALLBACK CƠ SỞ DỮ LIỆU SQL (KHI REDIS OFFLINE)
         var auction = await _unitOfWork.Auctions.GetByIdAsync(request.AuctionId, cancellationToken);
-        if (auction == null || auction.AuctionStatus != AuctionStatus.ACTIVE)
+        var nowUtc = DateTime.UtcNow;
+        var jitFromSchedule = auction != null
+            && auction.AuctionStatus == AuctionStatus.SCHEDULE
+            && nowUtc >= auction.StartAt
+            && nowUtc < auction.EndAt
+            && auction.Participants.Count > 0;
+
+        if (auction == null || (auction.AuctionStatus != AuctionStatus.ACTIVE && !jitFromSchedule))
             throw new BadRequestException("Phiên đấu giá chưa mở hoặc đã kết thúc.");
+
+        if (nowUtc >= auction.EndAt)
+            throw new BadRequestException("Đã hết thời gian đặt giá của phiên.");
+
+        if (jitFromSchedule)
+        {
+            AuctionActivationHelper.ActivateAndFreezeWallets(auction);
+            await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.AUCTION_PRE_WARM, cancellationToken);
+            await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.AUCTION_START, cancellationToken);
+
+            var postStartJob = AuctionActivationHelper.BuildPostStartJob(auction);
+            if (postStartJob != null)
+            {
+                await _delayQueue.EnqueueJobAsync(postStartJob, cancellationToken);
+            }
+
+            await _realtimeNotifier.NotifyAuctionStatusChangedAsync(
+                auction.Id,
+                AuctionStatus.ACTIVE.ToString(),
+                null,
+                auction.CurrentPrice,
+                cancellationToken);
+        }
 
         if (auction.AuthorId == request.UserId)
             throw new BadRequestException("Người tạo phiên đấu giá không được phép đặt giá.");
@@ -192,7 +246,12 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
         _unitOfWork.Auctions.UpdateParticipant(participant);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var totalBids = await _unitOfWork.Bids.CountByAuctionIdAsync(auction.Id, cancellationToken);
+        // Tối ưu hóa Realtime: Sử dụng LockVersion làm totalBids thay vì thực hiện query SQL Count(*) qua mạng
+        var totalBids = (int)auction.LockVersion;
+
+        var maskedNameFallback = participant.UserAccount?.UserName != null && participant.UserAccount.UserName.Length > 3
+            ? participant.UserAccount.UserName[..2] + "***" + participant.UserAccount.UserName[^1..]
+            : ("***" + request.UserId.ToString()[^4..]);
 
         var fallbackDto = new BidDto
         {
@@ -200,12 +259,13 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
             AuctionId = fallbackBid.AuctionId,
             ParticipantId = fallbackBid.ParticipantId,
             UserAccountId = participant.UserAccountId,
-            UserNameMasked = "***" + request.UserId.ToString()[^4..],
+            UserNameMasked = maskedNameFallback,
             BidAmount = fallbackBid.BidAmount,
             PlacedAt = fallbackBid.PlacedAt,
             Status = fallbackBid.Status
         };
 
+        // Bắn SignalR Broadcast Realtime tức thì tới phòng con của phiên
         await _realtimeNotifier.NotifyNewBidAsync(
             auction.Id,
             fallbackDto,
@@ -223,5 +283,99 @@ public class PlaceBidCommandHandler : IRequestHandler<PlaceBidCommand, BidDto>
         }
 
         return fallbackDto;
+    }
+
+    private async Task<bool> TryRecoverAuctionCacheAsync(Guid auctionId, CancellationToken cancellationToken)
+    {
+        var auction = await _unitOfWork.Auctions.GetDetailByIdAsync(auctionId, cancellationToken);
+        if (auction == null)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        var canParticipateInWindow = auction.AuctionStatus == AuctionStatus.ACTIVE
+            || (auction.AuctionStatus == AuctionStatus.SCHEDULE
+                && now >= auction.StartAt
+                && now < auction.EndAt
+                && auction.Participants.Count > 0);
+
+        if (!canParticipateInWindow || now >= auction.EndAt)
+        {
+            return false;
+        }
+
+        await _redisCache.WarmUpAuctionAsync(auction, cancellationToken);
+        return true;
+    }
+
+    private async Task SynchronizeJitActivationAsync(
+        Guid auctionId,
+        decimal fallbackPrice,
+        CancellationToken cancellationToken)
+    {
+        var auction = await _unitOfWork.Auctions.GetByIdAsync(auctionId, cancellationToken);
+        if (auction == null)
+        {
+            return;
+        }
+
+        var transitionedToActive = false;
+
+        if (auction.AuctionStatus == AuctionStatus.SCHEDULE)
+        {
+            AuctionActivationHelper.ActivateAndFreezeWallets(auction);
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                transitionedToActive = true;
+            }
+            catch
+            {
+                // Đọc mới hoàn toàn từ DB (tránh entity cũ trong ChangeTracker) nếu PersistenceWorker hoặc Scheduler vừa chạm LockVersion
+                var reloaded = await _unitOfWork.Auctions.GetFreshByIdAsync(auctionId, cancellationToken);
+                if (reloaded == null)
+                {
+                    throw;
+                }
+
+                if (reloaded.AuctionStatus == AuctionStatus.SCHEDULE)
+                {
+                    AuctionActivationHelper.ActivateAndFreezeWallets(reloaded);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    auction = reloaded;
+                    transitionedToActive = true;
+                }
+                else if (reloaded.AuctionStatus == AuctionStatus.ACTIVE)
+                {
+                    auction = reloaded;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        if (!transitionedToActive)
+        {
+            return;
+        }
+
+        await _delayQueue.CancelJobAsync(auctionId, AuctionDelayJobTypes.AUCTION_PRE_WARM, cancellationToken);
+        await _delayQueue.CancelJobAsync(auctionId, AuctionDelayJobTypes.AUCTION_START, cancellationToken);
+
+        var postStartJob = AuctionActivationHelper.BuildPostStartJob(auction);
+        if (postStartJob != null)
+        {
+            await _delayQueue.EnqueueJobAsync(postStartJob, cancellationToken);
+        }
+
+        await _realtimeNotifier.NotifyAuctionStatusChangedAsync(
+            auctionId,
+            AuctionStatus.ACTIVE.ToString(),
+            null,
+            auction.CurrentPrice > 0 ? auction.CurrentPrice : fallbackPrice,
+            cancellationToken);
     }
 }

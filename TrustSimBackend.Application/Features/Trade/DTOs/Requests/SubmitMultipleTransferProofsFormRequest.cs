@@ -16,4 +16,7 @@ public class SubmitMultipleTransferProofsFormRequest
 
     /// <summary>Ghi chú mô tả thêm về hình ảnh/thủ tục.</summary>
     public string? Description { get; set; }
+
+    /// <summary>Khóa chống gửi trùng lặp khi bấm nộp nhiều lần liên tiếp (tùy chọn, hoặc truyền qua Header X-Idempotency-Key).</summary>
+    public string? IdempotencyKey { get; set; }
 }

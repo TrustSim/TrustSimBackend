@@ -21,6 +21,12 @@ namespace TrustSimBackend.Domain.Entities.Financial
         /// <summary>Trạng thái hoạt động của ví: ACTIVE (bình thường), FROZEN (đóng băng), LOCKED.</summary>
         public WalletStatus WalletStatus { get; set; } = WalletStatus.ACTIVE;
 
+        /// <summary>Thời điểm ví bị đóng băng (null nếu ví đang hoạt động bình thường).</summary>
+        public DateTime? FrozenAt { get; set; }
+
+        /// <summary>Lý do đóng băng ví (chờ giải ngân, vi phạm quy tắc, gian lận...).</summary>
+        public string? FrozenReason { get; set; }
+
         /// <summary>
         /// Phiên bản khóa phục vụ Optimistic Concurrency Control (tránh trừ tiền đồng thời gây số dư âm).
         /// </summary>

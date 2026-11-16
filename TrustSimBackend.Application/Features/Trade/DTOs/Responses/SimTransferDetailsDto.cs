@@ -1,11 +1,11 @@
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 
-
 /// <summary>
 /// DTO chi tiết tiến trình bàn giao SIM, sang tên và giải ngân tiền Escrow.
 /// </summary>
 public record SimTransferDetailsDto(
     Guid TradeId,
+    Guid AuctionId,
     string TradeTransactionCode,
     Guid? SimTransferId,
     string SimTransferStatus,
@@ -16,6 +16,8 @@ public record SimTransferDetailsDto(
     bool IsBuyer,
     bool CanSubmitProof,
     bool CanConfirmTransfer,
+    bool HasPendingSellerProof,
+    bool HasPendingBuyerProof,
     string SimPhoneNumber,
     IReadOnlyList<TransferProofDto> Proofs,
     decimal EscrowAmount,

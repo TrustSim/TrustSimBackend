@@ -10,7 +10,7 @@ using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
 
-namespace TrustSimBackend.Infrastructure.Services;
+namespace TrustSimBackend.Infrastructure.Workers.Trade;
 
 /// <summary>
 /// Background Service tiêu thụ các task ký số hợp đồng bất đồng bộ từ Redis Stream "stream:contracts:sign".
@@ -72,7 +72,6 @@ public class PdfSigningBackgroundWorker : BackgroundService
 
         var db = _redis.GetDatabase();
 
-        // Tạo Consumer Group nếu chưa tồn tại
         try
         {
             await db.StreamCreateConsumerGroupAsync(StreamKey, GroupName, StreamPosition.Beginning, createStream: true);
@@ -85,7 +84,6 @@ public class PdfSigningBackgroundWorker : BackgroundService
         {
             try
             {
-                // Ưu tiên xử lý các message pending (chưa hoàn tất), sau đó đọc message mới (">")
                 var entries = await db.StreamReadGroupAsync(StreamKey, GroupName, ConsumerName, "0", count: 5);
                 if (entries == null || entries.Length == 0)
                 {
@@ -116,7 +114,6 @@ public class PdfSigningBackgroundWorker : BackgroundService
                         }
                     }
 
-                    // Acknowledge (XACK) thông điệp
                     await db.StreamAcknowledgeAsync(StreamKey, GroupName, entry.Id);
                 }
             }
@@ -145,7 +142,6 @@ public class PdfSigningBackgroundWorker : BackgroundService
         var trade = await unitOfWork.TradeTransactions.GetByIdAsync(tradeId, ct);
         if (trade == null) return;
 
-        // Đảm bảo TransferContract tồn tại
         if (trade.TransferContract == null)
         {
             var newContract = new TransferContract
@@ -160,26 +156,19 @@ public class PdfSigningBackgroundWorker : BackgroundService
 
         _logger.LogInformation("[PdfSigningWorker] Bắt đầu sinh và ký số Hợp đồng cho giao dịch {TradeCode}...", trade.TradeTransactionCode);
 
-        // 1. Sinh bản byte PDF từ template
         var rawPdfBytes = await pdfContractService.GenerateRawPdfBytesAsync(trade.Id, isAutoEnforced, ct);
-
-        // 2. Lấy thông tin hộp dấu Audit
         var stampBoxes = await pdfContractService.GetStampBoxesAsync(trade.Id, isAutoEnforced, ct);
-
-        // 3. Ký số PAdES X.509 + TSA
         var signResult = await pdfSigner.SignPdfPadesAsync(
-            rawPdfBytes, 
-            "Xác nhận chuyển nhượng quyền sử dụng số thuê bao viễn thông", 
-            "Hà Nội, Việt Nam", 
-            stampBoxes, 
+            rawPdfBytes,
+            "Xác nhận chuyển nhượng quyền sử dụng số thuê bao viễn thông",
+            "Hà Nội, Việt Nam",
+            stampBoxes,
             ct);
 
-        // 4. Upload lên Cloud Storage (Supabase / Local)
         var simPhone = trade.SimNumber?.PhoneNumber?.Replace("+", "") ?? "SIM";
         var fileName = $"HopDong_{trade.TradeTransactionCode}_{simPhone}_Signed.pdf";
         var fileUrl = await cloudStorage.UploadImageBytesAsync(signResult.SignedPdfBytes, fileName, "contracts", "application/pdf", ct);
 
-        // 5. Cập nhật Database
         trade.TransferContract.DocumentUrl = fileUrl;
         trade.TransferContract.DocumentHash = signResult.Sha256Hash;
         trade.TransferContract.PadesSignatureSerial = signResult.CertificateSerial;
@@ -190,14 +179,11 @@ public class PdfSigningBackgroundWorker : BackgroundService
         trade.TransferContract.SealedAt = signResult.SignedAt;
         trade.TransferContract.ContractStatus = ContractStatus.FULLY_SIGNED;
         trade.TransferContract.BlockchainTxHash = $"0x{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{trade.TradeTransactionCode}_{signResult.Sha256Hash}_{signResult.SignedAt:O}"))).ToLowerInvariant()}";
-        
-        // Chuyển TradeTransaction sang PendingTransfer
         trade.TradeTransactionStatus = TradeTransactionStatus.PendingTransfer;
 
         await unitOfWork.SaveChangesAsync(ct);
         _logger.LogInformation("[PdfSigningWorker] ✅ Niêm phong PAdES thành công: {Url} (Hash: {Hash})", fileUrl, signResult.Sha256Hash);
 
-        // Bắn thông báo và gửi email cho cả 2 bên (Action URL trỏ trực tiếp tới File PDF PAdES trên Supabase CDN)
         await notificationService.SendNotificationAsync(
             trade.BuyerId,
             NotificationType.CONTRACT_FULLY_SIGNED,

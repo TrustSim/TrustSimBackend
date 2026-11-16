@@ -108,7 +108,19 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
         _unitOfWork.SimNumbers.Update(sim);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Đẩy tác vụ kích hoạt phiên vào Redis ZSET Delay Queue
+        // Đẩy tác vụ Pre-Warm (StartAt - 5s) và kích hoạt phiên vào Redis ZSET Delay Queue
+        var nowUtc = DateTime.UtcNow;
+        var preWarmAt = auction.StartAt.AddSeconds(-5);
+        if (auction.StartAt > nowUtc.AddSeconds(1))
+        {
+            await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
+            {
+                AuctionId = auction.Id,
+                JobType = AuctionDelayJobTypes.AUCTION_PRE_WARM,
+                ExecuteAt = preWarmAt > nowUtc ? preWarmAt : nowUtc
+            }, cancellationToken);
+        }
+
         await _delayQueue.EnqueueJobAsync(new AuctionDelayJob
         {
             AuctionId = auction.Id,
@@ -132,7 +144,8 @@ public class CreateAuctionCommandHandler : IRequestHandler<CreateAuctionCommand,
             AuthorId = auction.AuthorId,
             SimNumberId = auction.SimNumberId,
             SimPhoneNumber = sim.PhoneNumber,
-            CarrierName = sim.PhonePrefix?.SimCarrier?.CarrierName ?? string.Empty
+            CarrierName = sim.PhonePrefix?.SimCarrier?.CarrierName ?? string.Empty,
+            ServerUtcNow = nowUtc
         };
 
         // Bắn sự kiện realtime tới trang danh sách /auctions

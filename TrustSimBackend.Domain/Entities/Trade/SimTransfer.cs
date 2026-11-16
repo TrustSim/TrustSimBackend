@@ -43,10 +43,15 @@ namespace TrustSimBackend.Domain.Entities.Trade
         public IReadOnlyCollection<TransferProof> TransferProofs => _transferProofs.AsReadOnly();
 
         /// <summary>
-        /// Bổ sung bằng chứng chuyển nhượng SIM từ nhà mạng.
+        /// Bổ sung bằng chứng chuyển nhượng SIM từ nhà mạng (chống trùng lặp khi EF Core đã tự fixup).
         /// </summary>
         public void AddTransferProof(TransferProof proof)
         {
+            if (_transferProofs.Any(p => p.Id == proof.Id) || _transferProofs.Contains(proof))
+            {
+                return;
+            }
+
             _transferProofs.Add(proof);
         }
         

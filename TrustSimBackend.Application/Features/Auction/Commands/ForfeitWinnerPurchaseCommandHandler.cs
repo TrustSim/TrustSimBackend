@@ -69,7 +69,7 @@ public class ForfeitWinnerPurchaseCommandHandler : IRequestHandler<ForfeitWinner
         decimal totalDepositAmount = lockedDeposits.Sum(d => d.DepositAmount);
         decimal compensationAmount = 0m;
 
-        if (lockedDeposits.Count > 0)
+        if (lockedDeposits.Count > 0 && winnerWallet.LockedBalance >= totalDepositAmount)
         {
             compensationAmount = Math.Round(totalDepositAmount * 0.50m, 2);
             auctionResult.SellerCompensationAmount = compensationAmount;
@@ -203,7 +203,7 @@ public class ForfeitWinnerPurchaseCommandHandler : IRequestHandler<ForfeitWinner
             }
 
             // Hoàn cọc cam kết bán cho Người bán khi phiên kết thúc thất bại không có Á quân
-            if (auction.AuctionRule?.SellerDepositAmount > 0)
+            if (auction.AuctionRule?.SellerDepositAmount > 0 && sellerWallet.LockedBalance >= auction.AuctionRule.SellerDepositAmount)
             {
                 var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
                 var relJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(

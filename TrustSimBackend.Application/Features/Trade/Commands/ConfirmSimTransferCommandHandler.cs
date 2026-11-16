@@ -7,6 +7,7 @@ using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Application.Features.Trade.Helpers;
 using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Entities.Sim;
 using TrustSimBackend.Domain.Entities.Trade;
@@ -77,7 +78,8 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             throw new BadRequestException("Giao dịch chuyển nhượng SIM này đã bị hủy bỏ.");
         }
 
-        var hasApprovedSellerProof = trade.SimTransfer.TransferProofs
+        var mergedProofs = SimTransferMappingHelper.GetMergedProofs(trade);
+        var hasApprovedSellerProof = mergedProofs
             .Any(p => p.ProofType == TransferProofType.SELLER_HANDOVER && p.ProofStatus == ProofStatus.APPROVED);
 
         if (!hasApprovedSellerProof)
@@ -92,41 +94,59 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
         trade.TradeTransactionStatus = TradeTransactionStatus.Completed;
         trade.CompletedAt = now;
 
-        // Duyệt toàn bộ bằng chứng chuyển nhượng đã nộp
-        foreach (var p in trade.SimTransfer.TransferProofs)
+        // Chỉ duyệt các bộ bằng chứng đang ở trạng thái PENDING (giữ nguyên lịch sử REJECTED / WITHDRAWN)
+        foreach (var p in mergedProofs.Where(p => p.ProofStatus == ProofStatus.PENDING))
         {
             p.ProofStatus = ProofStatus.APPROVED;
             p.VerifiedAt = now;
         }
 
         // 2. Chuyển giao quyền sở hữu SIM (SimOwnership, SimVerification & SimNumber.SimStatus)
-        var oldOwnership = await _unitOfWork.SimOwnerships.GetActiveOwnershipBySimNumberIdAsync(trade.SimNumberId, cancellationToken);
-        if (oldOwnership != null)
+        var activeOwnerships = (await _unitOfWork.SimOwnerships.GetActiveOwnershipsBySimNumberIdAsync(trade.SimNumberId, cancellationToken))?.ToList() ?? new List<SimOwnership>();
+        if (activeOwnerships.Count == 0)
+        {
+            var singleActive = await _unitOfWork.SimOwnerships.GetActiveOwnershipBySimNumberIdAsync(trade.SimNumberId, cancellationToken);
+            if (singleActive != null)
+            {
+                activeOwnerships.Add(singleActive);
+            }
+        }
+
+        foreach (var oldOwnership in activeOwnerships.Where(o => o.UserAccountId != trade.BuyerId))
         {
             oldOwnership.OwnershipStatus = OwnershipStatus.ENDED;
             _unitOfWork.SimOwnerships.Update(oldOwnership);
         }
 
-        var newBuyerOwnership = new SimOwnership
+        var existingBuyerOwnership = activeOwnerships.FirstOrDefault(o => o.UserAccountId == trade.BuyerId);
+        if (existingBuyerOwnership == null)
         {
-            Id = Guid.NewGuid(),
-            SimNumberId = trade.SimNumberId,
-            UserAccountId = trade.BuyerId,
-            OwnershipStatus = OwnershipStatus.ACTIVE,
-            AcquistionType = AcquistionType.AUCTION_TRANSFER
-        };
-        await _unitOfWork.SimOwnerships.AddAsync(newBuyerOwnership, cancellationToken);
+            var newBuyerOwnership = new SimOwnership
+            {
+                Id = Guid.NewGuid(),
+                SimNumberId = trade.SimNumberId,
+                UserAccountId = trade.BuyerId,
+                OwnershipStatus = OwnershipStatus.ACTIVE,
+                AcquistionType = AcquistionType.AUCTION_TRANSFER
+            };
+            await _unitOfWork.SimOwnerships.AddAsync(newBuyerOwnership, cancellationToken);
 
-        var verification = new SimVerification
+            var verification = new SimVerification
+            {
+                Id = Guid.NewGuid(),
+                SimOwnershipId = newBuyerOwnership.Id,
+                VerificationStatus = VerificationStatus.VERIFIED,
+                VerificationMethod = "AUCTION_TRANSFER_APPROVED",
+                RequestedAt = now,
+                VerifiedAt = now
+            };
+            await _unitOfWork.SimVerifications.AddAsync(verification, cancellationToken);
+        }
+        else
         {
-            Id = Guid.NewGuid(),
-            SimOwnershipId = newBuyerOwnership.Id,
-            VerificationStatus = VerificationStatus.VERIFIED,
-            VerificationMethod = "AUCTION_TRANSFER_APPROVED",
-            RequestedAt = now,
-            VerifiedAt = now
-        };
-        await _unitOfWork.SimVerifications.AddAsync(verification, cancellationToken);
+            existingBuyerOwnership.OwnershipStatus = OwnershipStatus.ACTIVE;
+            _unitOfWork.SimOwnerships.Update(existingBuyerOwnership);
+        }
 
         if (trade.SimNumber != null)
         {
@@ -135,7 +155,19 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
         }
 
         // 3. Khởi tạo, niêm phong chữ ký số PAdES và lưu trữ Văn bản 3: Biên bản nghiệm thu và thanh lý giao dịch điện tử
-        if (trade.TransferContract != null && string.IsNullOrWhiteSpace(trade.TransferContract.LiquidationDocumentUrl))
+        if (trade.TransferContract == null)
+        {
+            trade.TransferContract = new TransferContract
+            {
+                Id = Guid.NewGuid(),
+                TradeTransactionId = trade.Id,
+                ContractStatus = ContractStatus.FULLY_SIGNED,
+                DocumentUrl = string.Empty,
+                DocumentHash = string.Empty
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(trade.TransferContract.LiquidationDocumentUrl))
         {
             try
             {
@@ -153,12 +185,25 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
 
                 var simPhone = trade.SimNumber?.PhoneNumber?.Replace("+", "") ?? "SIM";
                 var liqFileName = $"BienBanThanhLy_{trade.TradeTransactionCode}_{simPhone}_Signed.pdf";
-                var liqUrl = await _cloudStorageService.UploadImageBytesAsync(
-                    signResult.SignedPdfBytes,
-                    liqFileName,
-                    "contracts",
-                    "application/pdf",
-                    cancellationToken);
+                string liqUrl;
+                try
+                {
+                    liqUrl = await _cloudStorageService.UploadImageBytesAsync(
+                        signResult.SignedPdfBytes,
+                        liqFileName,
+                        "contracts",
+                        "application/pdf",
+                        cancellationToken);
+                }
+                catch (Exception uploadEx)
+                {
+                    _logger.LogWarning(uploadEx, "[ConfirmSimTransfer] Lỗi upload Cloud, fallback lưu local file cho {TradeCode}", trade.TradeTransactionCode);
+                    var localDir = Path.Combine(AppContext.BaseDirectory, "uploads", "contracts");
+                    Directory.CreateDirectory(localDir);
+                    var localPath = Path.Combine(localDir, liqFileName);
+                    await File.WriteAllBytesAsync(localPath, signResult.SignedPdfBytes, cancellationToken);
+                    liqUrl = $"/uploads/contracts/{liqFileName}";
+                }
 
                 trade.TransferContract.LiquidationDocumentUrl = liqUrl;
                 trade.TransferContract.LiquidationDocumentHash = signResult.Sha256Hash;
@@ -179,26 +224,26 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             trade.TransferContract.ContractStatus = ContractStatus.COMPLETED;
         }
 
-        // 4. Giải ngân tiền Escrow qua sổ cái kép (Nợ 2030 / Có 2010 Seller + Có 4010 Sàn)
+        // 4. Giải ngân tiền Escrow qua sổ cái kép & Mở khóa ví cả 2 bên
         var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
         var platformFeePercent = 0.05m;
         var platformFeeAmount = Math.Round(escrowAmount * platformFeePercent, 2);
         var netSellerPayout = escrowAmount - platformFeeAmount;
         string? journalCode = null;
 
-        if (trade.Escrow != null && trade.Escrow.EscrowStatus == EscrowStatus.HELD && escrowAmount > 0)
+        var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(trade.SellerId, cancellationToken);
+        if (sellerWallet == null)
         {
-            var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(trade.SellerId, cancellationToken);
-            if (sellerWallet == null)
-            {
-                throw new NotFoundException($"Không tìm thấy ví tiền của người bán ID '{trade.SellerId}'.");
-            }
+            throw new NotFoundException($"Không tìm thấy ví tiền của người bán ID '{trade.SellerId}'.");
+        }
 
-            if (sellerWallet.WalletStatus == WalletStatus.LOCKED)
-            {
-                throw new BadRequestException("Ví tiền người bán đang bị khóa kỷ luật, không thể nhận tiền giải ngân.");
-            }
+        if (sellerWallet.WalletStatus == WalletStatus.LOCKED)
+        {
+            throw new BadRequestException("Ví tiền người bán đang bị khóa kỷ luật, không thể nhận tiền giải ngân.");
+        }
 
+        if (trade.Escrow != null && (trade.Escrow.EscrowStatus == EscrowStatus.HELD || trade.Escrow.EscrowStatus == EscrowStatus.FROZEN) && escrowAmount > 0)
+        {
             var journal = await _ledgerService.PostEscrowReleaseAsync(
                 sellerWallet.Id,
                 escrowAmount,
@@ -257,6 +302,67 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             }
         }
 
+        // Mở khóa trạng thái ví Người Bán
+        sellerWallet.WalletStatus = WalletStatus.ACTIVE;
+        sellerWallet.FrozenAt = null;
+        sellerWallet.FrozenReason = null;
+        _unitOfWork.Wallets.Update(sellerWallet);
+
+        // Mở khóa trạng thái ví Người Mua và giải phóng cọc còn kẹt nếu có
+        var buyerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(trade.BuyerId, cancellationToken);
+        if (buyerWallet != null)
+        {
+            buyerWallet.WalletStatus = WalletStatus.ACTIVE;
+            buyerWallet.FrozenAt = null;
+            buyerWallet.FrozenReason = null;
+
+            if (trade.AuctionId != Guid.Empty)
+            {
+                var participant = await _unitOfWork.Auctions.GetParticipantAsync(trade.AuctionId, trade.BuyerId, cancellationToken);
+                if (participant != null)
+                {
+                    var remainingLockedDeposits = participant.Deposits
+                        .Where(d => d.DepositStatus == DepositStatus.LOCKED)
+                        .ToList();
+
+                    foreach (var dep in remainingLockedDeposits)
+                    {
+                        if (buyerWallet.LockedBalance >= dep.DepositAmount)
+                        {
+                            dep.DepositStatus = DepositStatus.RELEASED;
+                            dep.ReleasedAT = now;
+
+                            var relJournal = await _ledgerService.PostAuctionDepositReleaseAsync(
+                                buyerWallet.Id,
+                                dep.DepositAmount,
+                                dep.Id,
+                                cancellationToken);
+
+                            var refundTx = new AuctionTransaction
+                            {
+                                Id = Guid.NewGuid(),
+                                WalletId = buyerWallet.Id,
+                                AuctionId = trade.AuctionId,
+                                AuctionDeposit = dep,
+                                AuctionTransactionType = AuctionTransactionType.AUCTION_DEPOSIT_RELEASED,
+                                TransactionStatus = TransactionStatus.COMPLETED,
+                                Amount = dep.DepositAmount,
+                                BalanceBefore = buyerWallet.AvailableBalance,
+                                BalanceAfter = buyerWallet.AvailableBalance,
+                                LedgerJournalId = relJournal.Id,
+                                JournalCode = relJournal.JournalCode,
+                                CreatedAt = now,
+                                CompletedAt = now
+                            };
+                            await _unitOfWork.AuctionTransactions.AddAsync(refundTx, cancellationToken);
+                        }
+                    }
+                }
+            }
+
+            _unitOfWork.Wallets.Update(buyerWallet);
+        }
+
         // Hủy tác vụ hẹn giờ tự động giải ngân LIQUIDATION_DEADLINE vì Người Mua đã chủ động nghiệm thu
         await _delayQueue.CancelJobAsync(trade.AuctionId, AuctionDelayJobTypes.LIQUIDATION_DEADLINE, cancellationToken);
 
@@ -290,40 +396,10 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
             sendEmail: true,
             cancellationToken: cancellationToken);
 
-        var proofs = trade.SimTransfer.TransferProofs
-            .OrderByDescending(p => p.CreatedDate)
-            .Select(p => new TransferProofDto(
-                p.Id,
-                p.ImageUrl,
-                p.Description,
-                p.ProofStatus.ToString(),
-                p.VerifiedAt,
-                p.CreatedDate,
-                p.ProofType.ToString()
-            )).ToList();
-
-        return new SimTransferDetailsDto(
-            TradeId: trade.Id,
-            TradeTransactionCode: trade.TradeTransactionCode,
-            SimTransferId: trade.SimTransfer.Id,
-            SimTransferStatus: trade.SimTransfer.SimTransferStatus.ToString(),
-            StartAt: trade.SimTransfer.StartAt,
-            Deadline: trade.SimTransfer.Deadline,
-            CancelledReason: trade.SimTransfer.CancelledReason,
-            IsSeller: false,
-            IsBuyer: true,
-            CanSubmitProof: false,
-            CanConfirmTransfer: false,
-            SimPhoneNumber: trade.SimNumber?.PhoneNumber ?? "Chưa xác định",
-            Proofs: proofs,
-            EscrowAmount: escrowAmount,
-            EscrowStatus: (trade.Escrow?.EscrowStatus ?? EscrowStatus.RELEASED).ToString(),
-            PlatformFeePercent: platformFeePercent,
-            PlatformFeeAmount: platformFeeAmount,
-            NetSellerPayout: netSellerPayout,
-            CompletedAt: now,
-            LiquidationDocumentUrl: trade.TransferContract?.LiquidationDocumentUrl,
-            Message: $"Chúc mừng! Đã hoàn tất chuyển quyền sở hữu SIM và giải ngân thành công {netSellerPayout:N0} VNĐ về ví người bán."
-        );
+        return SimTransferMappingHelper.BuildSimTransferDetailsDto(
+            trade,
+            request.UserId,
+            isAdmin: false,
+            message: $"Chúc mừng! Đã hoàn tất chuyển quyền sở hữu SIM và giải ngân thành công {netSellerPayout:N0} VNĐ về ví người bán.");
     }
 }

@@ -4,11 +4,11 @@ using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 
 /// <summary>
-/// Command dành cho Bên Bán nộp ảnh biên bản sang tên SIM của nhà mạng.
+/// Query lấy thông tin chi tiết tiến trình bàn giao SIM theo ID Phiên Đấu Giá (AuctionId).
 /// </summary>
-public record SubmitTransferProofCommand(
-    Guid TradeId,
+public record GetSimTransferDetailsByAuctionQuery(
+    Guid AuctionId,
     Guid UserId,
-    string ImageUrl,
-    string? Description
+    bool IsAdmin = false
 ) : IRequest<SimTransferDetailsDto>;
+

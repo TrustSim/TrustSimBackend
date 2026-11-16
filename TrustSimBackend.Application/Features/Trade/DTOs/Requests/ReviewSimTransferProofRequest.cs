@@ -1,16 +1,13 @@
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 
 /// <summary>
-/// Yêu cầu Admin duyệt hồ sơ bằng chứng sang tên SIM từ Bên Bán hoặc Bên Mua.
+/// Yêu cầu Admin duyệt hoặc từ chối một bộ bằng chứng chuyển nhượng SIM.
 /// </summary>
 public class ReviewSimTransferProofRequest
 {
-    /// <summary>Đối tượng duyệt: SELLER hoặc BUYER.</summary>
-    public string TargetParty { get; set; } = "SELLER";
-
-    /// <summary>True: Duyệt hồ sơ, False: Từ chối yêu cầu nộp lại.</summary>
+    /// <summary>True: Duyệt chấp thuận bộ bằng chứng, False: Từ chối toàn bộ ảnh trong bộ bằng chứng.</summary>
     public bool IsApproved { get; set; }
 
-    /// <summary>Lý do từ chối (nếu có).</summary>
+    /// <summary>Lý do từ chối (bắt buộc khi IsApproved = false).</summary>
     public string? RejectionReason { get; set; }
 }

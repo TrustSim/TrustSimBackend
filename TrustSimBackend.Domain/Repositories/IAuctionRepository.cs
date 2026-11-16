@@ -10,6 +10,7 @@ namespace TrustSimBackend.Domain.Repositories;
 public interface IAuctionRepository
 {
     Task<Auction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Auction?> GetFreshByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Auction?> GetDetailByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Auction?> GetByCodeAsync(string auctionCode, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<Auction> Items, int TotalCount)> GetPagedAsync(

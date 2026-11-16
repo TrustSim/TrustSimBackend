@@ -13,13 +13,16 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILedgerService _ledgerService;
+    private readonly IRedisAuctionCacheService? _redisCache;
 
     public RegisterParticipantCommandHandler(
         IUnitOfWork unitOfWork,
-        ILedgerService ledgerService)
+        ILedgerService ledgerService,
+        IRedisAuctionCacheService? redisCache = null)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
+        _redisCache = redisCache;
     }
 
     public async Task<bool> Handle(RegisterParticipantCommand request, CancellationToken cancellationToken)
@@ -73,6 +76,7 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
         var depositRequired = auction.AuctionRule?.DepositAmount ?? 0;
         AuctionTransaction? auctionTransaction = null;
         AuctionDeposit? deposit = null;
+        Wallet? wallet = null;
 
         var participant = new AuctionParticipant
         {
@@ -85,7 +89,7 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
 
         if (depositRequired > 0)
         {
-            var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
+            wallet = await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
             if (wallet == null)
             {
                 throw new NotFoundException("Không tìm thấy ví tiền của người dùng. Vui lòng liên hệ bộ phận hỗ trợ.");
@@ -145,6 +149,17 @@ public class RegisterParticipantCommandHandler : IRequestHandler<RegisterPartici
 
         await _unitOfWork.Auctions.AddParticipantAsync(participant, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_redisCache != null)
+        {
+            wallet ??= await _unitOfWork.Wallets.GetByUserIdAsync(request.UserId, cancellationToken);
+            await _redisCache.SyncParticipantRegistrationAsync(
+                auction.Id,
+                participant,
+                depositRequired,
+                wallet,
+                cancellationToken);
+        }
 
         return true;
     }

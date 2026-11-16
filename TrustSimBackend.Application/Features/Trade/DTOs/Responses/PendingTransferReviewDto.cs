@@ -1,7 +1,7 @@
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 
 /// <summary>
-/// DTO chứa thông tin giao dịch có hồ sơ bằng chứng sang tên chờ Admin duyệt.
+/// DTO chứa thông tin giao dịch có bộ hồ sơ bằng chứng sang tên chờ Admin duyệt.
 /// </summary>
 public record PendingTransferReviewDto(
     Guid TradeId,
@@ -25,5 +25,7 @@ public record PendingTransferReviewDto(
     string AuctionStatus = "",
     decimal WinningPrice = 0m,
     int PendingSellerProofCount = 0,
-    int PendingBuyerProofCount = 0
+    int PendingBuyerProofCount = 0,
+    int PendingSellerImageCount = 0,
+    int PendingBuyerImageCount = 0
 );

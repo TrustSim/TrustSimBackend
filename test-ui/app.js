@@ -70,8 +70,23 @@ let state = {
   activeAuction: null,     // Detailed auction object
   activeRoomId: null,      // Group joined in SignalR
   countdownTimer: null,    // Interval timer
+  serverClockOffsetMs: 0,  // Chênh lệch (ServerUTC - ClientNow) để đếm ngược chuẩn theo giờ Server
+  boundarySyncTimer: null, // Timer fallback đồng bộ trạng thái đúng lúc StartAt nếu SignalR tới chậm
+  boundaryRetryCount: 0,
   logs: []                 // Event logs
 };
+
+function getServerNowMs() {
+  return Date.now() + (state.serverClockOffsetMs || 0);
+}
+
+function calibrateServerClock(serverUtcIso, reqStartMs, reqEndMs) {
+  if (!serverUtcIso) return;
+  const serverMs = new Date(serverUtcIso).getTime();
+  if (isNaN(serverMs)) return;
+  const approxRttHalf = Math.max(0, (reqEndMs - reqStartMs) / 2);
+  state.serverClockOffsetMs = Math.round((serverMs + approxRttHalf) - reqEndMs);
+}
 
 // ─── Theme Management ───
 function initTheme() {
@@ -375,7 +390,20 @@ function registerSignalREvents(connection) {
       // Cập nhật DOM bảng Realtime ngay lập tức mà không gọi loadBids đè xóa
       prependBidToTable(bid, newCurrentPrice, totalBids);
     }
-    fetchUserWallet();
+
+    // Tối ưu hóa hiệu năng & Chống Request Storm:
+    // Chỉ cập nhật ví nếu người dùng hiện tại là người vừa đặt giá hoặc là người vừa bị vượt giá (outbid)
+    const myUserId = (state.currentUser?.userId || '').toLowerCase();
+    const bidderUserId = (bid.userAccountId || bid.UserAccountId || '').toLowerCase();
+    const wasLeader = state.activeAuction?.leadingBidderUserId && state.activeAuction.leadingBidderUserId.toLowerCase() === myUserId;
+
+    if (state.activeAuction) {
+      state.activeAuction.leadingBidderUserId = bidderUserId;
+    }
+
+    if (myUserId && (myUserId === bidderUserId || wasLeader)) {
+      fetchUserWallet();
+    }
   });
 
   // 2. ReceivePriceDrop: (currentPrice, nextDropInSeconds)
@@ -404,6 +432,11 @@ function registerSignalREvents(connection) {
   connection.on('ReceiveAuctionStatusChanged', (auctionId, status, winnerId, finalPrice) => {
     addLog('SYSTEM', `📢 Phiên ${auctionId.substring(0, 8)} chuyển trạng thái -> ${status}`);
     if (state.activeAuction && state.activeAuction.id.toLowerCase() === auctionId.toLowerCase()) {
+      if (state.boundarySyncTimer) {
+        clearTimeout(state.boundarySyncTimer);
+        state.boundarySyncTimer = null;
+      }
+      state.boundaryRetryCount = 0;
       state.activeAuction.auctionStatus = status;
       const tag = document.getElementById('stageStatusTag');
       if (tag) {
@@ -412,7 +445,7 @@ function registerSignalREvents(connection) {
       }
       updateStageParticipantStatus(); // Tự động mở khóa nút Gửi trả giá / Mua ngay khi phiên ACTIVE
       updateBidStepLimits();          // Cập nhật lại các mốc bước giá
-      startCountdown(state.activeAuction.endAt, state.activeAuction.startAt, status);
+      startCountdown(state.activeAuction.endAt, state.activeAuction.startAt, status, state.activeAuction.result?.auctionResultStatus);
     }
     debouncedRefreshAll();
   });
@@ -783,15 +816,20 @@ function debouncedRefreshAll() {
 async function loadAuctions() {
   const container = document.getElementById('auctionsListContainer');
   try {
+    const reqStartMs = Date.now();
     const res = await fetch(`${API_BASE_URL}/api/auctions?pageSize=50`, {
       headers: state.currentUser?.token ? { 'Authorization': `Bearer ${state.currentUser.token}` } : {}
     });
+    const reqEndMs = Date.now();
     const data = await res.json();
     if (!res.ok || !data.success) {
       throw new Error(data.message || 'Lỗi tải danh sách phiên');
     }
 
     state.auctions = data.data.items || [];
+    if (state.auctions.length > 0 && state.auctions[0].serverUtcNow) {
+      calibrateServerClock(state.auctions[0].serverUtcNow, reqStartMs, reqEndMs);
+    }
     updateMyAuctionsCounter();
     renderAuctionsList();
   } catch (err) {
@@ -853,7 +891,7 @@ function renderAuctionsList() {
     const isSelected = state.activeAuctionId === a.id;
     const isFailed = a.result?.auctionResultStatus === 'FAILED' || a.auctionStatus === 'FAILED';
     const displayStatus = isFailed ? 'FAILED' : a.auctionStatus;
-    const statusClass = (displayStatus === 'ACTIVE' || a.auctionStatus === 1) ? 'active' : ((displayStatus === 'SCHEDULE' || displayStatus === 'UPCOMING' || a.auctionStatus === 0) ? 'upcoming' : 'end');
+    const statusClass = (displayStatus === 'ACTIVE' || a.auctionStatus === 2) ? 'active' : ((displayStatus === 'SCHEDULE' || displayStatus === 'UPCOMING' || a.auctionStatus === 1 || a.auctionStatus === 0) ? 'upcoming' : 'end');
     const phoneRaw = a.simPhoneNumber || a.phoneNumber || a.simNumber?.phoneNumber || '';
     const simText = formatSimNumber(phoneRaw);
     const carrier = a.carrierName || '';
@@ -885,27 +923,41 @@ function renderAuctionsList() {
 }
 
 // ─── 5. Select & Render Live Auction Stage ───
-async function selectAuction(auctionId) {
+async function selectAuction(auctionId, isBoundaryRetry = false) {
   state.activeAuctionId = auctionId;
-  renderAuctionsList();
+  if (!isBoundaryRetry) {
+    state.boundaryRetryCount = 0;
+  }
+  if (state.boundarySyncTimer) {
+    clearTimeout(state.boundarySyncTimer);
+    state.boundarySyncTimer = null;
+  }
+  if (!isBoundaryRetry) {
+    renderAuctionsList();
+  }
 
   document.getElementById('arenaPlaceholder').style.display = 'none';
   document.getElementById('arenaContent').style.display = 'flex';
 
   try {
+    const reqStartMs = Date.now();
     const res = await fetch(`${API_BASE_URL}/api/auctions/${auctionId}`, {
       headers: state.currentUser?.token ? { 'Authorization': `Bearer ${state.currentUser.token}` } : {}
     });
+    const reqEndMs = Date.now();
     const data = await res.json();
     if (!res.ok || !data.success) {
       throw new Error(data.message || 'Lỗi tải chi tiết phiên');
     }
 
     const a = data.data;
+    calibrateServerClock(a.serverUtcNow, reqStartMs, reqEndMs);
     state.activeAuction = a;
 
     // Join WebSocket Group
-    await joinAuctionGroup(auctionId);
+    if (!isBoundaryRetry) {
+      await joinAuctionGroup(auctionId);
+    }
 
     // Populate Stage Banner
     document.getElementById('stageTypeTag').textContent = a.auctionType;
@@ -986,10 +1038,14 @@ async function selectAuction(auctionId) {
       document.getElementById('settlementPanel').style.display = 'none';
     }
 
-    // Load Bids History
-    await loadBids(auctionId);
+    // Load Bids History (bỏ qua khi chỉ retry đồng bộ trạng thái mở phiên mà vẫn là SCHEDULE)
+    if (!isBoundaryRetry || a.auctionStatus !== 'SCHEDULE') {
+      await loadBids(auctionId);
+    }
   } catch (err) {
-    alert(`Lỗi tải phiên: ${err.message}`);
+    if (!isBoundaryRetry) {
+      alert(`Lỗi tải phiên: ${err.message}`);
+    }
   }
 }
 
@@ -1100,7 +1156,7 @@ function startCountdown(endAtStr, startAtStr, status, resultStatus) {
   const startAt = new Date(startAtStr).getTime();
 
   function update() {
-    const now = Date.now();
+    const now = getServerNowMs();
     const liveStatus = String(state.activeAuction?.auctionStatus || curStatus).toUpperCase();
     const liveResultStatus = String(state.activeAuction?.result?.auctionResultStatus || curResultStatus).toUpperCase();
 
@@ -1120,20 +1176,11 @@ function startCountdown(endAtStr, startAtStr, status, resultStatus) {
       digits.textContent = formatDuration(startAt - now);
       digits.style.color = 'var(--accent-primary)';
     } else if (now >= startAt && now < endAt && (liveStatus === 'UPCOMING' || liveStatus === 'SCHEDULE' || liveStatus === '0' || liveStatus === '1')) {
-      // Khi đã chạm mốc giờ bắt đầu -> Tự động chuyển giao diện sang ACTIVE và active nút gửi trả giá
-      if (state.activeAuction) {
-        state.activeAuction.auctionStatus = 'ACTIVE';
-        const tag = document.getElementById('stageStatusTag');
-        if (tag) {
-          tag.textContent = 'ACTIVE';
-          tag.className = 'status-tag active';
-        }
-        updateStageParticipantStatus();
-        updateBidStepLimits();
-      }
-      label.textContent = 'Thời gian còn lại';
-      digits.textContent = formatDuration(endAt - now);
+      // Đã chạm StartAt theo giờ Server nhưng chưa nhận được trạng thái ACTIVE thật từ SignalR -> chờ đồng bộ từ Server thay vì bật nút sớm
+      label.textContent = 'Trạng thái';
+      digits.textContent = 'ĐANG MỞ PHIÊN...';
       digits.style.color = 'var(--accent-gold)';
+      scheduleBoundarySync(state.activeAuction?.id);
     } else if (now < endAt && (liveStatus === 'ACTIVE' || liveStatus === '2')) {
       label.textContent = 'Thời gian còn lại';
       digits.textContent = formatDuration(endAt - now);
@@ -1147,6 +1194,37 @@ function startCountdown(endAtStr, startAtStr, status, resultStatus) {
 
   update();
   state.countdownTimer = setInterval(update, 1000);
+}
+
+function scheduleBoundarySync(auctionId) {
+  const retryDelaysMs = [350, 500, 700, 1000, 1200];
+  if (!auctionId || state.boundarySyncTimer || state.boundaryRetryCount >= retryDelaysMs.length) {
+    if (state.boundaryRetryCount >= retryDelaysMs.length) {
+      const digits = document.getElementById('countdownDigits');
+      if (digits && digits.textContent === 'ĐANG MỞ PHIÊN...') {
+        digits.textContent = 'CHỜ SERVER MỞ PHIÊN (TẢI LẠI)';
+      }
+    }
+    return;
+  }
+
+  const isSignalRConnected = state.hubConnection && state.hubConnection.state === signalR.HubConnectionState.Connected;
+  const delayMs = (!isSignalRConnected && state.boundaryRetryCount === 0)
+    ? 120
+    : retryDelaysMs[state.boundaryRetryCount];
+
+  state.boundarySyncTimer = setTimeout(async () => {
+    state.boundarySyncTimer = null;
+    if (!state.activeAuctionId || state.activeAuctionId !== auctionId) return;
+
+    const currentStatus = String(state.activeAuction?.auctionStatus || '').toUpperCase();
+    if (currentStatus === 'ACTIVE' || currentStatus === 'END' || currentStatus === 'CANCELLED' || currentStatus === 'FAILED') {
+      return;
+    }
+
+    state.boundaryRetryCount += 1;
+    await selectAuction(auctionId, true);
+  }, delayMs);
 }
 
 function formatDuration(ms) {

@@ -8,7 +8,7 @@ using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 namespace TrustSimBackend.API.Controllers;
 
 /// <summary>
-/// Controller quản lý tiến trình bàn giao SIM, tiếp nhận biên bản sang tên nhà mạng và xác nhận giải ngân Escrow.
+/// Controller quản lý tiến trình bàn giao SIM, tiếp nhận bộ bằng chứng sang tên nhà mạng và xác nhận giải ngân Escrow.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -29,32 +29,25 @@ public class SimTransfersController : BaseApiController
     }
 
     /// <summary>
-    /// [Bên Bán] Nộp ảnh bằng chứng/biên bản chuyển nhượng SIM từ điểm giao dịch nhà mạng (URL đơn lẻ).
+    /// [Bên Bán / Bên Mua / Admin] Lấy chi tiết tiến trình bàn giao SIM dựa theo ID Phiên Đấu Giá (AuctionId).
     /// </summary>
-    /// <param name="tradeId">ID của giao dịch chuyển nhượng SIM.</param>
-    /// <param name="request">Chứa đường dẫn ảnh biên bản và mô tả.</param>
-    [HttpPost("{tradeId:guid}/proof")]
+    /// <param name="auctionId">ID của phiên đấu giá SIM.</param>
+    [HttpGet("by-auction/{auctionId:guid}")]
     [Authorize]
     [ProducesResponseType(typeof(ApiResponse<SimTransferDetailsDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> SubmitProof([FromRoute] Guid tradeId, [FromBody] SubmitProofRequest request)
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDetailsByAuction([FromRoute] Guid auctionId)
     {
-        var command = new SubmitTransferProofCommand(
-            TradeId: tradeId,
-            UserId: CurrentUserId,
-            ImageUrl: request.ImageUrl,
-            Description: request.Description
-        );
-
-        var result = await Mediator.Send(command);
-        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Nộp biên bản sang tên thành công."));
+        var result = await Mediator.Send(new GetSimTransferDetailsByAuctionQuery(auctionId, CurrentUserId, IsAdmin));
+        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, "Lấy thông tin tiến trình bàn giao SIM theo phiên đấu giá thành công."));
     }
 
     /// <summary>
-    /// [Bên Bán / Bên Mua] Nộp nhiều tệp hình ảnh bằng chứng sang tên SIM từ thiết bị (Multipart/Form-Data).
+    /// [Bên Bán / Bên Mua] Nộp bộ bằng chứng gồm nhiều hình ảnh sang tên SIM từ thiết bị (Multipart/Form-Data).
+    /// Hỗ trợ IdempotencyKey qua Form hoặc Header (Idempotency-Key / X-Idempotency-Key) để chống nộp trùng.
     /// </summary>
     /// <param name="tradeId">ID của giao dịch chuyển nhượng SIM.</param>
-    /// <param name="request">Chứa danh sách files ảnh, loại bằng chứng (SELLER_HANDOVER hoặc BUYER_RECEIPT) và mô tả.</param>
+    /// <param name="request">Danh sách ảnh, loại bằng chứng (SELLER_HANDOVER hoặc BUYER_RECEIPT), mô tả và IdempotencyKey.</param>
     [HttpPost("{tradeId:guid}/proofs")]
     [Authorize]
     [Consumes("multipart/form-data")]
@@ -62,25 +55,69 @@ public class SimTransfersController : BaseApiController
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SubmitMultipleProofs([FromRoute] Guid tradeId, [FromForm] SubmitMultipleTransferProofsFormRequest request)
     {
+        var idempotencyKey = ResolveIdempotencyKey(request.IdempotencyKey);
         var command = new SubmitMultipleTransferProofsCommand(
             TradeId: tradeId,
             UserId: CurrentUserId,
             Files: request.Files,
             ProofType: request.ProofType,
-            Description: request.Description
+            Description: request.Description,
+            IdempotencyKey: idempotencyKey
         );
 
         var result = await Mediator.Send(command);
-        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Nộp danh sách bằng chứng thành công."));
+        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Nộp bộ bằng chứng thành công."));
     }
 
     /// <summary>
-    /// [Admin] Lấy danh sách toàn bộ các giao dịch chuyển nhượng đang chờ duyệt hồ sơ bằng chứng sang tên.
+    /// [Bên Bán / Bên Mua] Nộp bộ bằng chứng gồm nhiều hình ảnh sang tên SIM theo ID Phiên Đấu Giá (AuctionId) (Multipart/Form-Data).
+    /// Hỗ trợ IdempotencyKey qua Form hoặc Header (Idempotency-Key / X-Idempotency-Key) để chống nộp trùng.
+    /// </summary>
+    /// <param name="auctionId">ID của phiên đấu giá SIM.</param>
+    /// <param name="request">Danh sách ảnh, loại bằng chứng (SELLER_HANDOVER hoặc BUYER_RECEIPT), mô tả và IdempotencyKey.</param>
+    [HttpPost("by-auction/{auctionId:guid}/proofs")]
+    [Authorize]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<SimTransferDetailsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SubmitMultipleProofsByAuction([FromRoute] Guid auctionId, [FromForm] SubmitMultipleTransferProofsFormRequest request)
+    {
+        var idempotencyKey = ResolveIdempotencyKey(request.IdempotencyKey);
+        var command = new SubmitMultipleTransferProofsByAuctionCommand(
+            AuctionId: auctionId,
+            UserId: CurrentUserId,
+            Files: request.Files,
+            ProofType: request.ProofType,
+            Description: request.Description,
+            IdempotencyKey: idempotencyKey
+        );
+
+        var result = await Mediator.Send(command);
+        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Nộp bộ bằng chứng theo phiên đấu giá thành công."));
+    }
+
+    /// <summary>
+    /// [Bên Bán / Bên Mua] Thu hồi (hủy) bộ bằng chứng đang ở trạng thái PENDING để được phép tải lên bộ bằng chứng mới.
+    /// </summary>
+    /// <param name="transferProofId">ID của bộ bằng chứng (TransferProof) cần thu hồi.</param>
+    [HttpPost("proofs/{transferProofId:guid}/withdraw")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<SimTransferDetailsDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> WithdrawProof([FromRoute] Guid transferProofId)
+    {
+        var result = await Mediator.Send(new WithdrawTransferProofCommand(transferProofId, CurrentUserId));
+        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Đã thu hồi bộ bằng chứng thành công."));
+    }
+
+    /// <summary>
+    /// [Admin / Consultant] Lấy danh sách toàn bộ các giao dịch chuyển nhượng đang chờ duyệt hồ sơ bằng chứng sang tên.
     /// </summary>
     /// <param name="auctionId">Lọc theo ID phiên đấu giá (tùy chọn).</param>
     /// <param name="keyword">Từ khóa tìm kiếm theo mã phiên, mã giao dịch, số SIM, tên người bán/mua (tùy chọn).</param>
     [HttpGet("admin/pending-reviews")]
-    [Authorize(Roles = "ADMIN,Admin")]
+    [Authorize(Roles = "ADMIN,Admin,CONSULTANT,Consultant")]
     [ProducesResponseType(typeof(ApiResponse<List<PendingTransferReviewDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPendingReviews(
         [FromQuery] Guid? auctionId = null,
@@ -91,12 +128,12 @@ public class SimTransfersController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Lấy danh sách hồ sơ bằng chứng chuyển nhượng chờ duyệt được gom nhóm theo Phiên đấu giá (Auction).
+    /// [Admin / Consultant] Lấy danh sách bộ bằng chứng chuyển nhượng chờ duyệt được gom nhóm theo Phiên đấu giá (Auction).
     /// </summary>
     /// <param name="auctionId">Lọc theo ID phiên đấu giá (tùy chọn).</param>
     /// <param name="keyword">Từ khóa tìm kiếm theo mã phiên, mã giao dịch, số SIM, tên người bán/mua (tùy chọn).</param>
     [HttpGet("admin/pending-reviews/by-auction")]
-    [Authorize(Roles = "ADMIN,Admin")]
+    [Authorize(Roles = "ADMIN,Admin,CONSULTANT,Consultant")]
     [ProducesResponseType(typeof(ApiResponse<List<AuctionPendingTransferReviewGroupDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPendingReviewsGroupedByAuction(
         [FromQuery] Guid? auctionId = null,
@@ -107,11 +144,11 @@ public class SimTransfersController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Lấy hồ sơ bằng chứng chuyển nhượng chờ duyệt của một Phiên đấu giá cụ thể.
+    /// [Admin / Consultant] Lấy hồ sơ bằng chứng chuyển nhượng chờ duyệt của một Phiên đấu giá cụ thể.
     /// </summary>
     /// <param name="auctionId">ID của phiên đấu giá.</param>
     [HttpGet("admin/auction/{auctionId:guid}/review")]
-    [Authorize(Roles = "ADMIN,Admin")]
+    [Authorize(Roles = "ADMIN,Admin,CONSULTANT,Consultant")]
     [ProducesResponseType(typeof(ApiResponse<AuctionPendingTransferReviewGroupDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPendingReviewByAuction([FromRoute] Guid auctionId)
@@ -126,27 +163,27 @@ public class SimTransfersController : BaseApiController
     }
 
     /// <summary>
-    /// [Admin] Duyệt hoặc từ chối hồ sơ bằng chứng sang tên của Bên Bán hoặc Bên Mua.
+    /// [Admin / Consultant] Duyệt hoặc từ chối trực tiếp một bộ bằng chứng (TransferProof) và toàn bộ ảnh con bên trong.
     /// Khi cả 2 bên đều đã được duyệt hợp lệ, hệ thống tự động niêm phong Văn Bản Số 3 và hoàn tất giao dịch.
     /// </summary>
-    /// <param name="tradeId">ID của giao dịch chuyển nhượng SIM.</param>
-    /// <param name="request">Thông tin phê duyệt (targetParty, isApproved, rejectionReason).</param>
-    [HttpPost("admin/{tradeId:guid}/review")]
-    [Authorize(Roles = "ADMIN,Admin")]
+    /// <param name="transferProofId">ID của bộ bằng chứng cần duyệt/từ chối.</param>
+    /// <param name="request">Thông tin phê duyệt (isApproved, rejectionReason).</param>
+    [HttpPost("admin/proofs/{transferProofId:guid}/review")]
+    [Authorize(Roles = "ADMIN,Admin,CONSULTANT,Consultant")]
     [ProducesResponseType(typeof(ApiResponse<SimTransferDetailsDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ReviewProof([FromRoute] Guid tradeId, [FromBody] ReviewSimTransferProofRequest request)
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReviewProof([FromRoute] Guid transferProofId, [FromBody] ReviewSimTransferProofRequest request)
     {
         var command = new ReviewSimTransferProofCommand(
-            TradeId: tradeId,
+            TransferProofId: transferProofId,
             AdminUserId: CurrentUserId,
-            TargetParty: request.TargetParty,
             IsApproved: request.IsApproved,
             RejectionReason: request.RejectionReason
         );
 
         var result = await Mediator.Send(command);
-        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Đã xử lý duyệt hồ sơ thành công."));
+        return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Đã xử lý duyệt bộ bằng chứng thành công."));
     }
 
     /// <summary>
@@ -166,5 +203,31 @@ public class SimTransfersController : BaseApiController
 
         var result = await Mediator.Send(command);
         return Ok(ApiResponse<SimTransferDetailsDto>.SuccessResult(result, result.Message ?? "Xác nhận nhận SIM và giải ngân thành công."));
+    }
+
+    private string? ResolveIdempotencyKey(string? formKey)
+    {
+        if (!string.IsNullOrWhiteSpace(formKey))
+        {
+            return formKey.Trim();
+        }
+
+        var headers = HttpContext?.Request?.Headers;
+        if (headers == null)
+        {
+            return null;
+        }
+
+        if (headers.TryGetValue("Idempotency-Key", out var headerKey) && !string.IsNullOrWhiteSpace(headerKey))
+        {
+            return headerKey.ToString().Trim();
+        }
+
+        if (headers.TryGetValue("X-Idempotency-Key", out var xHeaderKey) && !string.IsNullOrWhiteSpace(xHeaderKey))
+        {
+            return xHeaderKey.ToString().Trim();
+        }
+
+        return null;
     }
 }

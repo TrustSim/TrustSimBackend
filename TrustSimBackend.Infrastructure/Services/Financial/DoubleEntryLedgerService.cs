@@ -56,6 +56,9 @@ public class DoubleEntryLedgerService : ILedgerService
         await _chainLock.WaitAsync(cancellationToken);
         try
         {
+            // Kiểm tra bất biến tài chính trước khi ghi sổ hoặc thay đổi bất kỳ ví nào
+            await ValidateWalletBalancesBeforePostingAsync(entries, cancellationToken);
+
             var journalId = Guid.NewGuid();
             var journalCode = $"JRN-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(100000, 999999)}";
             var now = new DateTime((DateTime.UtcNow.Ticks / 10) * 10, DateTimeKind.Utc);
@@ -150,6 +153,46 @@ public class DoubleEntryLedgerService : ILedgerService
         }
     }
 
+    /// <summary>
+    /// Bảo vệ bất biến tài chính: không cho phép số dư khả dụng hoặc số dư phong tỏa của ví bị âm sau khi hạch toán chứng từ.
+    /// </summary>
+    private async Task ValidateWalletBalancesBeforePostingAsync(
+        IReadOnlyList<LedgerEntryParam> entries,
+        CancellationToken cancellationToken)
+    {
+        var walletIds = entries
+            .Where(e => e.WalletId.HasValue && (e.AccountType == FinancialAccountType.USER_AVAILABLE || e.AccountType == FinancialAccountType.USER_LOCKED))
+            .Select(e => e.WalletId!.Value)
+            .Distinct()
+            .ToList();
+
+        foreach (var walletId in walletIds)
+        {
+            var wallet = await _unitOfWork.Wallets.GetByIdAsync(walletId, cancellationToken);
+            if (wallet == null) continue;
+
+            var walletEntries = entries.Where(e => e.WalletId == walletId).ToList();
+            var availableDelta = walletEntries
+                .Where(e => e.AccountType == FinancialAccountType.USER_AVAILABLE)
+                .Sum(e => e.EntryType == LedgerEntryType.CREDIT ? e.Amount : -e.Amount);
+            var lockedDelta = walletEntries
+                .Where(e => e.AccountType == FinancialAccountType.USER_LOCKED)
+                .Sum(e => e.EntryType == LedgerEntryType.CREDIT ? e.Amount : -e.Amount);
+
+            if (wallet.AvailableBalance + availableDelta < 0)
+            {
+                throw new InvalidOperationException(
+                    $"[VI PHẠM BẤT BIẾN TÀI CHÍNH] Số dư khả dụng của ví '{walletId}' ({wallet.AvailableBalance:N0} VNĐ) không đủ để khấu trừ {Math.Abs(availableDelta):N0} VNĐ.");
+            }
+
+            if (wallet.LockedBalance + lockedDelta < 0)
+            {
+                throw new InvalidOperationException(
+                    $"[VI PHẠM BẤT BIẾN TÀI CHÍNH] Số dư phong tỏa của ví '{walletId}' ({wallet.LockedBalance:N0} VNĐ) không đủ để giải phóng/khấu trừ {Math.Abs(lockedDelta):N0} VNĐ.");
+            }
+        }
+    }
+
     private async Task UpdateMaterializedWalletBalanceAsync(
         Guid walletId,
         FinancialAccountType accountType,
@@ -169,6 +212,11 @@ public class DoubleEntryLedgerService : ILedgerService
                 }
                 else if (entryType == LedgerEntryType.DEBIT)
                 {
+                    if (wallet.AvailableBalance < amount)
+                    {
+                        throw new InvalidOperationException(
+                            $"[VI PHẠM BẤT BIẾN TÀI CHÍNH] Không thể khấu trừ {amount:N0} VNĐ từ số dư khả dụng của ví '{walletId}' ({wallet.AvailableBalance:N0} VNĐ).");
+                    }
                     wallet.AvailableBalance -= amount; // Giảm nợ User -> Giảm khả dụng
                 }
                 break;
@@ -180,6 +228,11 @@ public class DoubleEntryLedgerService : ILedgerService
                 }
                 else if (entryType == LedgerEntryType.DEBIT)
                 {
+                    if (wallet.LockedBalance < amount)
+                    {
+                        throw new InvalidOperationException(
+                            $"[VI PHẠM BẤT BIẾN TÀI CHÍNH] Không thể giải phóng {amount:N0} VNĐ từ số dư phong tỏa của ví '{walletId}' ({wallet.LockedBalance:N0} VNĐ).");
+                    }
                     wallet.LockedBalance -= amount; // Giải phóng tiền phong tỏa
                 }
                 break;

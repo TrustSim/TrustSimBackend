@@ -42,4 +42,9 @@ public class AuctionDto
 
     // Kết quả phiên đấu giá (nếu đã kết thúc hoặc đang giải quyết sau phiên)
     public AuctionResultDto? Result { get; set; }
+
+    /// <summary>
+    /// Thời gian UTC hiện tại của máy chủ tại thời điểm phản hồi để Client hiệu chỉnh đồng hồ đếm ngược.
+    /// </summary>
+    public DateTime ServerUtcNow { get; set; } = DateTime.UtcNow;
 }

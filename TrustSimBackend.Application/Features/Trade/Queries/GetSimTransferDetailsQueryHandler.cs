@@ -1,7 +1,11 @@
+using System.Security.Cryptography;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using TrustSimBackend.Application.Common.Exceptions;
+using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Application.Features.Trade.Helpers;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
@@ -11,13 +15,28 @@ namespace TrustSimBackend.Application.Features.Trade.Queries;
 /// <summary>
 /// Handler xử lý lấy thông tin chi tiết tiến trình bàn giao SIM và giải ngân Escrow.
 /// </summary>
-public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferDetailsQuery, SimTransferDetailsDto>
+public class GetSimTransferDetailsQueryHandler : 
+    IRequestHandler<GetSimTransferDetailsQuery, SimTransferDetailsDto>,
+    IRequestHandler<GetSimTransferDetailsByAuctionQuery, SimTransferDetailsDto>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPdfContractService _pdfContractService;
+    private readonly IPdfSigningService _pdfSigningService;
+    private readonly ICloudStorageService _cloudStorageService;
+    private readonly ILogger<GetSimTransferDetailsQueryHandler> _logger;
 
-    public GetSimTransferDetailsQueryHandler(IUnitOfWork unitOfWork)
+    public GetSimTransferDetailsQueryHandler(
+        IUnitOfWork unitOfWork,
+        IPdfContractService pdfContractService,
+        IPdfSigningService pdfSigningService,
+        ICloudStorageService cloudStorageService,
+        ILogger<GetSimTransferDetailsQueryHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _pdfContractService = pdfContractService;
+        _pdfSigningService = pdfSigningService;
+        _cloudStorageService = cloudStorageService;
+        _logger = logger;
     }
 
     public async Task<SimTransferDetailsDto> Handle(GetSimTransferDetailsQuery request, CancellationToken cancellationToken)
@@ -28,13 +47,35 @@ public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferD
             throw new NotFoundException($"Không tìm thấy giao dịch chuyển nhượng có ID '{request.TradeId}'.");
         }
 
-        var isBuyer = trade.BuyerId == request.UserId;
-        var isSeller = trade.SellerId == request.UserId;
+        return await ProcessDetailsInternalAsync(trade, request.UserId, request.IsAdmin, cancellationToken);
+    }
 
-        if (!isBuyer && !isSeller && !request.IsAdmin)
+    public async Task<SimTransferDetailsDto> Handle(GetSimTransferDetailsByAuctionQuery request, CancellationToken cancellationToken)
+    {
+        var trade = await _unitOfWork.TradeTransactions.GetByAuctionIdAsync(request.AuctionId, cancellationToken);
+        if (trade == null)
+        {
+            throw new NotFoundException($"Không tìm thấy giao dịch chuyển nhượng cho phiên đấu giá '{request.AuctionId}'.");
+        }
+
+        return await ProcessDetailsInternalAsync(trade, request.UserId, request.IsAdmin, cancellationToken);
+    }
+
+    private async Task<SimTransferDetailsDto> ProcessDetailsInternalAsync(
+        TradeTransaction trade,
+        Guid userId,
+        bool isAdmin,
+        CancellationToken cancellationToken)
+    {
+        var isBuyer = trade.BuyerId == userId;
+        var isSeller = trade.SellerId == userId;
+
+        if (!isBuyer && !isSeller && !isAdmin)
         {
             throw new ForbiddenAccessException("Bạn không có quyền truy cập thông tin bàn giao SIM của giao dịch này.");
         }
+
+        var needsSave = false;
 
         // Tự động kiểm tra và khởi tạo SimTransfer nếu cả 2 bên đã hoàn tất ký hợp đồng
         var buyerSig = trade.TransferContract?.DigitalSignatures?.FirstOrDefault(s => s.SignatureRole == SignatureRole.BUYER);
@@ -65,56 +106,81 @@ public class GetSimTransferDetailsQueryHandler : IRequestHandler<GetSimTransferD
 
             await _unitOfWork.TradeTransactions.AddSimTransferAsync(newSimTransfer, cancellationToken);
             trade.SimTransfer = newSimTransfer;
+            needsSave = true;
+        }
+
+        // Tự động sinh bù Văn bản số 3 nếu giao dịch đã hoàn tất mà chưa có URL
+        var isCompleted = trade.TradeTransactionStatus == TradeTransactionStatus.Completed;
+        if (isCompleted && string.IsNullOrWhiteSpace(trade.TransferContract?.LiquidationDocumentUrl))
+        {
+            try
+            {
+                if (trade.TransferContract == null)
+                {
+                    trade.TransferContract = new TransferContract
+                    {
+                        Id = Guid.NewGuid(),
+                        TradeTransactionId = trade.Id,
+                        ContractStatus = ContractStatus.COMPLETED,
+                        DocumentUrl = string.Empty,
+                        DocumentHash = string.Empty
+                    };
+                }
+
+                var rawLiqBytes = await _pdfContractService.GenerateLiquidationMinutePdfAsync(trade.Id, cancellationToken);
+                var isAuto = trade.TransferContract.IsAutoEnforced;
+                var stampBoxes = await _pdfContractService.GetStampBoxesAsync(trade.Id, isAuto, cancellationToken);
+
+                var signResult = await _pdfSigningService.SignPdfPadesAsync(
+                    rawLiqBytes,
+                    "Nghiệm thu hoàn tất chuyển quyền sử dụng SIM và thanh lý giao dịch điện tử",
+                    "Hà Nội, Việt Nam",
+                    stampBoxes,
+                    cancellationToken);
+
+                var simPhone = trade.SimNumber?.PhoneNumber?.Replace("+", "") ?? "SIM";
+                var liqFileName = $"BienBanThanhLy_{trade.TradeTransactionCode}_{simPhone}_Signed.pdf";
+                string liqUrl;
+                try
+                {
+                    liqUrl = await _cloudStorageService.UploadImageBytesAsync(
+                        signResult.SignedPdfBytes,
+                        liqFileName,
+                        "contracts",
+                        "application/pdf",
+                        cancellationToken);
+                }
+                catch (Exception uploadEx)
+                {
+                    _logger.LogWarning(uploadEx, "[SimTransferDetails] Fallback lưu local file cho {TradeCode}", trade.TradeTransactionCode);
+                    var localDir = Path.Combine(AppContext.BaseDirectory, "uploads", "contracts");
+                    Directory.CreateDirectory(localDir);
+                    var localPath = Path.Combine(localDir, liqFileName);
+                    await File.WriteAllBytesAsync(localPath, signResult.SignedPdfBytes, cancellationToken);
+                    liqUrl = $"/uploads/contracts/{liqFileName}";
+                }
+
+                trade.TransferContract.LiquidationDocumentUrl = liqUrl;
+                trade.TransferContract.LiquidationDocumentHash = signResult.Sha256Hash;
+                trade.TransferContract.LiquidationSealedAt = signResult.SignedAt;
+                trade.TransferContract.ContractStatus = ContractStatus.COMPLETED;
+                needsSave = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SimTransferDetails] ⚠️ Lỗi trong On-Demand Auto-Seal Biên bản thanh lý cho {TradeCode}", trade.TradeTransactionCode);
+            }
+        }
+
+        if (needsSave)
+        {
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        var simTransfer = trade.SimTransfer;
-        var proofs = simTransfer?.TransferProofs?
-            .OrderByDescending(p => p.CreatedDate)
-            .Select(p => new TransferProofDto(
-                p.Id,
-                p.ImageUrl,
-                p.Description,
-                p.ProofStatus.ToString(),
-                p.VerifiedAt,
-                p.CreatedDate,
-                p.ProofType.ToString()
-            )).ToList() ?? new List<TransferProofDto>();
-
-        var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
-        var platformFeePercent = 0.05m;
-        var platformFeeAmount = Math.Round(escrowAmount * platformFeePercent, 2);
-        var netSellerPayout = escrowAmount - platformFeeAmount;
-
-        var transferStatus = simTransfer?.SimTransferStatus ?? SimTransferStatus.PENDING_SELLER_ACTION;
-        var hasApprovedSellerProof = simTransfer?.TransferProofs?
-            .Any(p => p.ProofType == TransferProofType.SELLER_HANDOVER && p.ProofStatus == ProofStatus.APPROVED) == true;
-        var canSubmitProof = (isSeller && !hasApprovedSellerProof && (transferStatus == SimTransferStatus.PENDING_SELLER_ACTION || transferStatus == SimTransferStatus.SELLER_PROOF_SUBMITTED))
-            || (isBuyer && hasApprovedSellerProof && (transferStatus == SimTransferStatus.PENDING_BUYER_ACTION || transferStatus == SimTransferStatus.BUYER_PROOF_SUBMITTED));
-        var canConfirmTransfer = isBuyer && hasApprovedSellerProof && (transferStatus == SimTransferStatus.PENDING_BUYER_ACTION || transferStatus == SimTransferStatus.BUYER_PROOF_SUBMITTED);
-
-        return new SimTransferDetailsDto(
-            TradeId: trade.Id,
-            TradeTransactionCode: trade.TradeTransactionCode,
-            SimTransferId: simTransfer?.Id,
-            SimTransferStatus: transferStatus.ToString(),
-            StartAt: simTransfer?.StartAt,
-            Deadline: simTransfer?.Deadline,
-            CancelledReason: simTransfer?.CancelledReason,
-            IsSeller: isSeller,
-            IsBuyer: isBuyer,
-            CanSubmitProof: canSubmitProof,
-            CanConfirmTransfer: canConfirmTransfer,
-            SimPhoneNumber: trade.SimNumber?.PhoneNumber ?? "Chưa xác định",
-            Proofs: proofs,
-            EscrowAmount: escrowAmount,
-            EscrowStatus: (trade.Escrow?.EscrowStatus ?? EscrowStatus.HELD).ToString(),
-            PlatformFeePercent: platformFeePercent,
-            PlatformFeeAmount: platformFeeAmount,
-            NetSellerPayout: netSellerPayout,
-            CompletedAt: trade.TradeTransactionStatus == TradeTransactionStatus.Completed ? trade.CompletedAt : null,
-            LiquidationDocumentUrl: trade.TransferContract?.LiquidationDocumentUrl,
-            Message: "Lấy thông tin tiến trình bàn giao SIM thành công."
-        );
+        return SimTransferMappingHelper.BuildSimTransferDetailsDto(
+            trade,
+            userId,
+            isAdmin,
+            message: "Lấy thông tin tiến trình bàn giao SIM thành công.");
     }
 }

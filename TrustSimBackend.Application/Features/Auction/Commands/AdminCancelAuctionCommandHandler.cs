@@ -18,19 +18,22 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
     private readonly IAuctionDelayQueueService _delayQueue;
     private readonly INotificationService _notificationService;
+    private readonly IRedisAuctionCacheService? _redisCache;
 
     public AdminCancelAuctionCommandHandler(
         IUnitOfWork unitOfWork,
         ILedgerService ledgerService,
         IAuctionRealtimeNotifier realtimeNotifier,
         IAuctionDelayQueueService delayQueue,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IRedisAuctionCacheService? redisCache = null)
     {
         _unitOfWork = unitOfWork;
         _ledgerService = ledgerService;
         _realtimeNotifier = realtimeNotifier;
         _delayQueue = delayQueue;
         _notificationService = notificationService;
+        _redisCache = redisCache;
     }
 
     public async Task<bool> Handle(AdminCancelAuctionCommand request, CancellationToken cancellationToken)
@@ -50,6 +53,7 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
         auction.UpdatedDate = now;
 
         // 1. Hủy các timers trong Delay Queue
+        await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.AUCTION_PRE_WARM, cancellationToken);
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.AUCTION_START, cancellationToken);
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.AUCTION_END, cancellationToken);
         await _delayQueue.CancelJobAsync(auction.Id, AuctionDelayJobTypes.DUTCH_PRICE_DROP, cancellationToken);
@@ -74,7 +78,7 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
             var wallet = await _unitOfWork.Wallets.GetByUserIdAsync(participant.UserAccountId, cancellationToken);
             var deposit = participant.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
 
-            if (wallet != null && deposit != null)
+            if (wallet != null && deposit != null && wallet.LockedBalance >= deposit.DepositAmount)
             {
                 deposit.DepositStatus = DepositStatus.RELEASED;
                 deposit.ReleasedAT = now;
@@ -126,7 +130,7 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
         if (auction.AuctionRule?.SellerDepositAmount > 0)
         {
             var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(auction.AuthorId, cancellationToken);
-            if (sellerWallet != null)
+            if (sellerWallet != null && sellerWallet.LockedBalance >= auction.AuctionRule.SellerDepositAmount)
             {
                 var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
                 var relJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(
@@ -186,6 +190,23 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
         _unitOfWork.Auctions.Update(auction);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        if (_redisCache != null)
+        {
+            await _redisCache.InvalidateAuctionCacheAsync(auction.Id, cancellationToken);
+        }
+
+        await _realtimeNotifier.NotifyAuctionStatusChangedAsync(
+            auction.Id,
+            AuctionStatus.CANCELLED.ToString(),
+            null,
+            auction.CurrentPrice,
+            cancellationToken);
+
+        await _realtimeNotifier.NotifyAuctionFailedAsync(
+            auction.Id,
+            $"Phiên đấu giá đã bị Admin hủy vì lý do: {request.Reason}",
+            cancellationToken);
+
         // Gửi thông báo cho Seller
         await _notificationService.SendNotificationAsync(
             userId: auction.AuthorId,
@@ -196,11 +217,6 @@ public class AdminCancelAuctionCommandHandler : IRequestHandler<AdminCancelAucti
             referenceId: auction.Id,
             sendEmail: true,
             cancellationToken: cancellationToken);
-
-        await _realtimeNotifier.NotifyAuctionFailedAsync(
-            auction.Id,
-            $"Phiên đấu giá đã bị Admin hủy vì lý do: {request.Reason}",
-            cancellationToken);
 
         return true;
     }

@@ -1,6 +1,7 @@
 using MediatR;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Application.Features.Trade.Helpers;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
@@ -8,7 +9,7 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Trade.Queries;
 
 /// <summary>
-/// Handler lấy danh sách giao dịch chuyển nhượng SIM có hồ sơ bằng chứng chờ Admin duyệt (dạng phẳng và gom nhóm theo Phiên đấu giá).
+/// Handler lấy danh sách giao dịch chuyển nhượng SIM có bộ bằng chứng chờ Admin duyệt (dạng phẳng và gom nhóm theo Phiên đấu giá).
 /// </summary>
 public class GetPendingTransferReviewsQueryHandler :
     IRequestHandler<GetPendingTransferReviewsQuery, List<PendingTransferReviewDto>>,
@@ -50,16 +51,20 @@ public class GetPendingTransferReviewsQueryHandler :
 
                 var allSellerProofs = group
                     .SelectMany(d => d.SellerProofs)
+                    .DistinctBy(p => p.Id)
                     .OrderByDescending(p => p.CreatedDate)
                     .ToList();
 
                 var allBuyerProofs = group
                     .SelectMany(d => d.BuyerProofs)
+                    .DistinctBy(p => p.Id)
                     .OrderByDescending(p => p.CreatedDate)
                     .ToList();
 
                 var pendingSellerCount = group.Sum(d => d.PendingSellerProofCount);
                 var pendingBuyerCount = group.Sum(d => d.PendingBuyerProofCount);
+                var pendingSellerImageCount = group.Sum(d => d.PendingSellerImageCount);
+                var pendingBuyerImageCount = group.Sum(d => d.PendingBuyerImageCount);
 
                 return new AuctionPendingTransferReviewGroupDto(
                     AuctionId: group.Key,
@@ -74,6 +79,9 @@ public class GetPendingTransferReviewsQueryHandler :
                     TotalPendingProofsCount: pendingSellerCount + pendingBuyerCount,
                     PendingSellerProofCount: pendingSellerCount,
                     PendingBuyerProofCount: pendingBuyerCount,
+                    TotalPendingImagesCount: pendingSellerImageCount + pendingBuyerImageCount,
+                    PendingSellerImageCount: pendingSellerImageCount,
+                    PendingBuyerImageCount: pendingBuyerImageCount,
                     HasApprovedSeller: group.Any(d => d.HasApprovedSeller),
                     HasApprovedBuyer: group.Any(d => d.HasApprovedBuyer),
                     SellerProofs: allSellerProofs,
@@ -126,39 +134,30 @@ public class GetPendingTransferReviewsQueryHandler :
 
         foreach (var trade in trades)
         {
-            var proofs = trade.SimTransfer?.TransferProofs ?? (IReadOnlyCollection<TransferProof>)Array.Empty<TransferProof>();
+            var proofs = SimTransferMappingHelper.GetMergedProofs(trade)
+                .Where(p => p.ProofStatus != ProofStatus.WITHDRAWN)
+                .ToList();
 
             var sellerProofs = proofs
                 .Where(p => p.ProofType == TransferProofType.SELLER_HANDOVER)
-                .OrderByDescending(p => p.CreatedDate)
-                .Select(p => new TransferProofDto(
-                    p.Id,
-                    p.ImageUrl,
-                    p.Description,
-                    p.ProofStatus.ToString(),
-                    p.VerifiedAt,
-                    p.CreatedDate,
-                    p.ProofType.ToString()
-                )).ToList();
+                .Select(SimTransferMappingHelper.MapToTransferProofDto)
+                .ToList();
 
             var buyerProofs = proofs
                 .Where(p => p.ProofType == TransferProofType.BUYER_RECEIPT)
-                .OrderByDescending(p => p.CreatedDate)
-                .Select(p => new TransferProofDto(
-                    p.Id,
-                    p.ImageUrl,
-                    p.Description,
-                    p.ProofStatus.ToString(),
-                    p.VerifiedAt,
-                    p.CreatedDate,
-                    p.ProofType.ToString()
-                )).ToList();
+                .Select(SimTransferMappingHelper.MapToTransferProofDto)
+                .ToList();
 
             var hasApprovedSeller = sellerProofs.Any(p => p.ProofStatus == ProofStatus.APPROVED.ToString());
             var hasApprovedBuyer = buyerProofs.Any(p => p.ProofStatus == ProofStatus.APPROVED.ToString());
 
-            var pendingSellerCount = sellerProofs.Count(p => p.ProofStatus == ProofStatus.PENDING.ToString());
-            var pendingBuyerCount = buyerProofs.Count(p => p.ProofStatus == ProofStatus.PENDING.ToString());
+            var pendingSellerProofs = sellerProofs.Where(p => p.ProofStatus == ProofStatus.PENDING.ToString()).ToList();
+            var pendingBuyerProofs = buyerProofs.Where(p => p.ProofStatus == ProofStatus.PENDING.ToString()).ToList();
+
+            var pendingSellerCount = pendingSellerProofs.Count;
+            var pendingBuyerCount = pendingBuyerProofs.Count;
+            var pendingSellerImageCount = pendingSellerProofs.Sum(p => p.Images.Count);
+            var pendingBuyerImageCount = pendingBuyerProofs.Sum(p => p.Images.Count);
 
             var sellerName = trade.Seller?.UserProfile?.FullName ?? trade.Seller?.UserName ?? "Người Bán";
             var buyerName = trade.Buyer?.UserProfile?.FullName ?? trade.Buyer?.UserName ?? "Người Mua";
@@ -190,7 +189,9 @@ public class GetPendingTransferReviewsQueryHandler :
                 AuctionStatus: trade.Auction?.AuctionStatus.ToString() ?? string.Empty,
                 WinningPrice: winningPrice,
                 PendingSellerProofCount: pendingSellerCount,
-                PendingBuyerProofCount: pendingBuyerCount
+                PendingBuyerProofCount: pendingBuyerCount,
+                PendingSellerImageCount: pendingSellerImageCount,
+                PendingBuyerImageCount: pendingBuyerImageCount
             ));
         }
 

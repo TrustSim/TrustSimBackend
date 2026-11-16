@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,12 +9,12 @@ using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Infrastructure.Persistence;
 
-namespace TrustSimBackend.Infrastructure.Services;
+namespace TrustSimBackend.Infrastructure.Workers.Auction;
 
 /// <summary>
 /// Worker đồng bộ dữ liệu đặt giá bất đồng bộ (Write-Behind Persistence Engine).
 /// Tiêu thụ message từ Redis Stream 'stream:auction:bids', gom batch mỗi 500ms hoặc khi đủ 50 bản ghi,
-/// thực hiện Bulk Insert/Update vào SQL Server và commit XACK an toàn.
+/// thực hiện Bulk Insert/Update vào PostgreSQL và commit XACK an toàn.
 /// </summary>
 public class AuctionBidPersistenceWorker : BackgroundService
 {
@@ -71,7 +71,6 @@ public class AuctionBidPersistenceWorker : BackgroundService
 
         var db = _redis.GetDatabase();
 
-        // 1. Tạo Consumer Group nếu chưa tồn tại
         try
         {
             await db.StreamCreateConsumerGroupAsync(StreamKey, ConsumerGroupName, "0-0", createStream: true);
@@ -89,12 +88,10 @@ public class AuctionBidPersistenceWorker : BackgroundService
         var batchBuffer = new List<(RedisValue MessageId, BidMessagePayload Payload)>();
         var lastFlushTime = DateTime.UtcNow;
 
-        // 2. Vòng lặp tiêu thụ Micro-Batching
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                // Đọc tin nhắn mới từ Stream
                 var entries = await db.StreamReadGroupAsync(
                     StreamKey,
                     ConsumerGroupName,
@@ -131,7 +128,6 @@ public class AuctionBidPersistenceWorker : BackgroundService
 
                 var elapsedMs = (DateTime.UtcNow - lastFlushTime).TotalMilliseconds;
 
-                // Điều kiện xả lô (Flush condition): Đủ 50 phần tử HOẶC Đã quá 500ms
                 if (batchBuffer.Count >= BatchSize || (batchBuffer.Count > 0 && elapsedMs >= FlushIntervalMs))
                 {
                     await FlushBatchToSqlDatabaseAsync(db, batchBuffer, stoppingToken);
@@ -140,7 +136,6 @@ public class AuctionBidPersistenceWorker : BackgroundService
                 }
                 else if (entries.Length == 0)
                 {
-                    // Hàng đợi trống, nghỉ 100ms trước khi thăm dò tiếp
                     await Task.Delay(100, stoppingToken);
                 }
             }
@@ -151,7 +146,6 @@ public class AuctionBidPersistenceWorker : BackgroundService
             }
         }
 
-        // Xả nốt các bản ghi còn sót lại trước khi tắt ứng dụng
         if (batchBuffer.Count > 0)
         {
             await FlushBatchToSqlDatabaseAsync(db, batchBuffer, CancellationToken.None);
@@ -167,12 +161,10 @@ public class AuctionBidPersistenceWorker : BackgroundService
 
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<TrustSimDbContext>();
-
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var sw = Stopwatch.StartNew();
 
         try
         {
-            // 1. Chuẩn bị danh sách Bids để Bulk Insert
             var bidEntities = batch.Select(b => new Bid
             {
                 Id = b.Payload.bidId,
@@ -183,16 +175,13 @@ public class AuctionBidPersistenceWorker : BackgroundService
                 Status = BidStatus.ACCEPTED
             }).ToList();
 
-            // 2. Nhóm theo AuctionId để cập nhật CurrentPrice, LockVersion, EndAt
             var auctionGroups = batch.GroupBy(b => b.Payload.auctionId);
             foreach (var ag in auctionGroups)
             {
-                var auctionId = ag.Key;
-                var maxBidItem = ag.MaxBy(x => x.Payload.bidAmount);
-                var maxBid = maxBidItem.Payload;
+                var maxBid = ag.MaxBy(x => x.Payload.bidAmount).Payload;
                 if (maxBid != null)
                 {
-                    var auction = await context.Auctions.FindAsync(new object[] { auctionId }, cancellationToken);
+                    var auction = await context.Auctions.FindAsync(new object[] { ag.Key }, cancellationToken);
                     if (auction != null)
                     {
                         if (maxBid.bidAmount > auction.CurrentPrice)
@@ -215,15 +204,13 @@ public class AuctionBidPersistenceWorker : BackgroundService
                 }
             }
 
-            // 3. Cập nhật thống kê người chơi (AcceptedBidCount, SnipeCount)
             var participantGroups = batch.GroupBy(b => b.Payload.participantId);
             foreach (var pg in participantGroups)
             {
-                var pId = pg.Key;
                 var count = pg.Count();
                 var snipeCount = pg.Count(x => x.Payload.isSnipeExtended);
 
-                var participant = await context.AuctionParticipants.FindAsync(new object[] { pId }, cancellationToken);
+                var participant = await context.AuctionParticipants.FindAsync(new object[] { pg.Key }, cancellationToken);
                 if (participant != null)
                 {
                     participant.AcceptedBidCount += count;
@@ -234,7 +221,6 @@ public class AuctionBidPersistenceWorker : BackgroundService
             await context.Bids.AddRangeAsync(bidEntities, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
 
-            // 4. Gửi XACK xác nhận các tin nhắn đã commit an toàn vào Cơ sở dữ liệu
             var messageIds = batch.Select(b => b.MessageId).ToArray();
             await db.StreamAcknowledgeAsync(StreamKey, ConsumerGroupName, messageIds);
 
@@ -244,7 +230,6 @@ public class AuctionBidPersistenceWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "[PersistenceWorker] Lỗi nghiêm trọng khi ghi lô {Count} bids vào CSDL. Đang chuyển sang DLQ.", batch.Count);
-            // Đẩy vào Dead-Letter Queue (DLQ) để bảo toàn dữ liệu
             try
             {
                 foreach (var item in batch)

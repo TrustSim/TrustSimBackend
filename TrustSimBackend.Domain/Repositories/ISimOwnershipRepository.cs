@@ -12,6 +12,7 @@ public interface ISimOwnershipRepository
     Task<SimOwnership?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<SimOwnership?> GetActiveOwnershipByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default);
     Task<SimOwnership?> GetActiveOwnershipBySimNumberIdAsync(Guid simNumberId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<SimOwnership>> GetActiveOwnershipsBySimNumberIdAsync(Guid simNumberId, CancellationToken cancellationToken = default);
     Task<SimOwnership?> GetLatestOwnershipByUserAndSimNumberIdAsync(Guid userId, Guid simNumberId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<SimOwnership>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<(IReadOnlyList<SimOwnership> Items, int TotalCount)> GetPagedByUserIdAsync(
