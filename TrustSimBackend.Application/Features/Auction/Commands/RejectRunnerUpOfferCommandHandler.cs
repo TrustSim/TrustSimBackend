@@ -62,7 +62,7 @@ public class RejectRunnerUpOfferCommandHandler : IRequestHandler<RejectRunnerUpO
         // Hoàn cọc cho Runner-Up nếu còn giữ
         var runnerUpDeposit = participant.Deposits.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED);
         var runnerUpWallet = await _unitOfWork.Wallets.GetByUserIdAsync(participant.UserAccountId, cancellationToken);
-        if (runnerUpDeposit != null && runnerUpWallet != null)
+        if (runnerUpDeposit != null && runnerUpWallet != null && runnerUpWallet.LockedBalance >= runnerUpDeposit.DepositAmount)
         {
             runnerUpDeposit.DepositStatus = DepositStatus.RELEASED;
             runnerUpDeposit.ReleasedAT = now;
@@ -110,7 +110,7 @@ public class RejectRunnerUpOfferCommandHandler : IRequestHandler<RejectRunnerUpO
         if (auction.AuctionRule?.SellerDepositAmount > 0)
         {
             var sellerWallet = await _unitOfWork.Wallets.GetByUserIdAsync(auction.AuthorId, cancellationToken);
-            if (sellerWallet != null)
+            if (sellerWallet != null && sellerWallet.LockedBalance >= auction.AuctionRule.SellerDepositAmount)
             {
                 var sellerDeposit = auction.AuctionRule.SellerDepositAmount;
                 var relJournal = await _ledgerService.PostSellerListingDepositReleaseAsync(

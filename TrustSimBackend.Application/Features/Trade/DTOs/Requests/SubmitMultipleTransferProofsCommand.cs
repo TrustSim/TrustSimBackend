@@ -6,12 +6,13 @@ using TrustSimBackend.Domain.Enums;
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 
 /// <summary>
-/// Command nộp nhiều bằng chứng chuyển nhượng SIM (Bên Bán hoặc Bên Mua).
+/// Command nộp bộ bằng chứng chuyển nhượng SIM (chứa nhiều hình ảnh) theo TradeId.
 /// </summary>
 public record SubmitMultipleTransferProofsCommand(
     Guid TradeId,
     Guid UserId,
     List<IFormFile> Files,
     TransferProofType ProofType,
-    string? Description
+    string? Description,
+    string? IdempotencyKey = null
 ) : IRequest<SimTransferDetailsDto>;

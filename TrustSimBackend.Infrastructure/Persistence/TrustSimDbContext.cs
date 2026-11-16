@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using TrustSimBackend.Domain.Base;
 using TrustSimBackend.Domain.Entities.Ai;
 using TrustSimBackend.Domain.Entities.Auctions;
 using TrustSimBackend.Domain.Entities.Chat;
@@ -26,6 +28,7 @@ public class TrustSimDbContext : IdentityDbContext<UserAccount, IdentityRole<Gui
     public DbSet<SimTransfer> SimTransfers => Set<SimTransfer>();
     public DbSet<TransferContract> TransferContracts => Set<TransferContract>();
     public DbSet<TransferProof> TransferProofs => Set<TransferProof>();
+    public DbSet<TransferProofImage> TransferProofImages => Set<TransferProofImage>();
     public DbSet<DigitalSignature> DigitalSignatures => Set<DigitalSignature>();
     #endregion
 
@@ -109,6 +112,21 @@ public class TrustSimDbContext : IdentityDbContext<UserAccount, IdentityRole<Gui
 
         // Tự động quét và áp dụng tất cả các file cấu hình Fluent API (IEntityTypeConfiguration) nằm trong Assembly này.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TrustSimDbContext).Assembly);
+
+        // Tự động cấu hình Global Query Filter cho tất cả các thực thể triển khai ISoftDelete
+        // Chỉ áp dụng trên Root Entity Type (BaseType == null) để tránh lỗi runtime của EF Core
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType) && entityType.BaseType == null)
+            {
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var isDeletedProperty = Expression.Property(parameter, nameof(ISoftDelete.IsDeleted));
+                var compareExpression = Expression.Equal(isDeletedProperty, Expression.Constant(false));
+                var lambda = Expression.Lambda(compareExpression, parameter);
+
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+            }
+        }
     }
     /// <summary>
     /// Kích hoạt tự động chuyển đổi tên Entity và Property sang snake_case

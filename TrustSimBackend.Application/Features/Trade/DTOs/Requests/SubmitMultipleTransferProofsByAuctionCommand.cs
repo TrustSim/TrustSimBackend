@@ -1,0 +1,18 @@
+using MediatR;
+using Microsoft.AspNetCore.Http;
+using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Domain.Enums;
+
+namespace TrustSimBackend.Application.Features.Trade.DTOs.Requests;
+
+/// <summary>
+/// Command nộp bộ bằng chứng chuyển nhượng SIM (chứa nhiều hình ảnh) theo AuctionId.
+/// </summary>
+public record SubmitMultipleTransferProofsByAuctionCommand(
+    Guid AuctionId,
+    Guid UserId,
+    List<IFormFile> Files,
+    TransferProofType ProofType,
+    string? Description,
+    string? IdempotencyKey = null
+) : IRequest<SimTransferDetailsDto>;

@@ -1,4 +1,5 @@
 using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Domain.Entities.Financial;
 
 namespace TrustSimBackend.Application.Common.Interfaces;
 
@@ -14,7 +15,8 @@ public record LuaBidResult(
     decimal NewCurrentPrice,
     long NewEndAtMs,
     bool WasExtended,
-    long LockVersion);
+    long LockVersion,
+    bool JustActivated = false);
 
 public record LeaderboardTopEntry(
     Guid ParticipantId,
@@ -28,9 +30,44 @@ public record LeaderboardTopEntry(
 public interface IRedisAuctionCacheService
 {
     /// <summary>
-    /// Nạp trước toàn bộ dữ liệu phiên, quy tắc, người tham gia và số dư ví vào Redis RAM khi mở phòng.
+    /// Nạp trước toàn bộ dữ liệu phiên, quy tắc, người tham gia và số dư ví vào Redis RAM.
     /// </summary>
     Task WarmUpAuctionAsync(Auction auction, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Kiểm tra xem phiên đấu giá đã tồn tại trên Redis RAM (và đúng trạng thái nếu yêu cầu) hay chưa.
+    /// </summary>
+    Task<bool> IsAuctionWarmedUpAsync(Guid auctionId, bool requireActiveStatus = false, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bật nhanh trạng thái phiên từ SCHEDULE sang ACTIVE trên Redis RAM (dùng sau bước Pre-Warm).
+    /// Trả về false nếu phiên chưa có trên Redis hoặc chưa có người tham gia để caller fallback sang WarmUp đầy đủ.
+    /// </summary>
+    Task<bool> ActivateAuctionInCacheAsync(Guid auctionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Đồng bộ người tham gia mới đặt cọc và số dư ví của họ vào Redis RAM nếu phiên đã được Pre-Warm.
+    /// </summary>
+    Task SyncParticipantRegistrationAsync(
+        Guid auctionId,
+        AuctionParticipant participant,
+        decimal initialDeposit,
+        Wallet? wallet,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cập nhật giá hiện tại của phiên Hà Lan trên Redis Cache.
+    /// </summary>
+    Task UpdateAuctionPriceInCacheAsync(
+        Guid auctionId,
+        decimal newPrice,
+        long lockVersion,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy mốc thời gian kết thúc phiên (EndAt UTC) hiện đang lưu trên Redis nếu tồn tại (bao gồm Anti-Sniping).
+    /// </summary>
+    Task<DateTime?> GetCachedEndAtUtcAsync(Guid auctionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Thực thi Lua Script đặt giá nguyên tử siêu tốc (<1ms) trên Redis.
@@ -57,4 +94,9 @@ public interface IRedisAuctionCacheService
     /// Gắn TTL và dọn dẹp các Key phiên sau khi hoàn tất quyết toán.
     /// </summary>
     Task EvictAuctionCacheWithTtlAsync(Guid auctionId, TimeSpan ttl, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Xóa ngay key trạng thái phiên trên Redis (khi phiên bị hủy/đóng).
+    /// </summary>
+    Task InvalidateAuctionCacheAsync(Guid auctionId, CancellationToken cancellationToken = default);
 }

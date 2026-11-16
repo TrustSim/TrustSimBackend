@@ -1,9 +1,11 @@
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Domain.Entities.Auctions;
+using TrustSimBackend.Domain.Entities.Financial;
 using TrustSimBackend.Domain.Enums;
 
 namespace TrustSimBackend.Infrastructure.Services;
@@ -13,6 +15,7 @@ namespace TrustSimBackend.Infrastructure.Services;
 /// </summary>
 public class RedisAuctionCacheService : IRedisAuctionCacheService
 {
+    private const string EmbeddedLuaResourceName = "TrustSimBackend.Infrastructure.Scripts.place_bid.lua";
     private readonly IConnectionMultiplexer? _redis;
     private readonly ILogger<RedisAuctionCacheService> _logger;
     private static string? _cachedLuaScript;
@@ -50,83 +53,28 @@ public class RedisAuctionCacheService : IRedisAuctionCacheService
         }
     }
 
-    private string LoadLuaScript()
+    /// <summary>
+    /// Nạp duy nhất từ tệp Scripts/place_bid.lua (hoặc EmbeddedResource đi kèm assembly) để tránh trùng lặp script.
+    /// </summary>
+    public static string LoadLuaScript()
     {
         if (_cachedLuaScript != null) return _cachedLuaScript;
         lock (_scriptLock)
         {
             if (_cachedLuaScript != null) return _cachedLuaScript;
+
             var scriptPath = Path.Combine(AppContext.BaseDirectory, "Scripts", "place_bid.lua");
             if (File.Exists(scriptPath))
             {
                 _cachedLuaScript = File.ReadAllText(scriptPath);
+                return _cachedLuaScript;
             }
-            else
-            {
-                // Fallback nhúng trực tiếp nếu file build chưa copy ra output folder
-                _cachedLuaScript = @"
-                    local status = redis.call('HGET', KEYS[1], 'status')
-                    if not status or status ~= 'ACTIVE' then
-                        return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_NOT_ACTIVE', message = 'Phiên đấu giá chưa mở hoặc đã kết thúc.' })
-                    end
-                    local endAtMs = tonumber(redis.call('HGET', KEYS[1], 'endAtMs')) or 0
-                    local nowMs = tonumber(ARGV[4])
-                    if nowMs >= endAtMs then
-                        return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_ENDED', message = 'Đã hết thời gian đặt giá.' })
-                    end
-                    local pStatus = redis.call('HGET', KEYS[3], 'status')
-                    if not pStatus or pStatus == 'BANNED' then
-                        return cjson.encode({ success = false, errorCode = 'ERR_PARTICIPANT_BANNED', message = 'Bạn không có quyền tham gia trả giá trong phiên này.' })
-                    end
-                    local topBidderParticipantId = redis.call('HGET', KEYS[1], 'topBidderParticipantId')
-                    if topBidderParticipantId == ARGV[1] then
-                        return cjson.encode({ success = false, errorCode = 'ERR_SELF_OUTBID', message = 'Bạn đang là người giữ mức giá cao nhất hiện tại.' })
-                    end
-                    local currentPrice = tonumber(redis.call('HGET', KEYS[1], 'currentPrice')) or 0
-                    local minIncrement = tonumber(redis.call('HGET', KEYS[1], 'minIncrement')) or 100000
-                    local maxMultiplier = tonumber(redis.call('HGET', KEYS[1], 'maxMultiplier')) or 10
-                    local bidAmount = tonumber(ARGV[3])
-                    local minRequired = currentPrice + minIncrement
-                    local maxAllowed = currentPrice + (maxMultiplier * minIncrement)
-                    if bidAmount < minRequired then
-                        return cjson.encode({ success = false, errorCode = 'ERR_BID_TOO_LOW', message = 'Giá đặt phải lớn hơn hoặc bằng ' .. tostring(minRequired) .. ' VNĐ.' })
-                    end
-                    if bidAmount > maxAllowed then
-                        return cjson.encode({ success = false, errorCode = 'ERR_BID_EXCEEDS_MAX_STEP', message = 'Giá đặt vượt quá mức tăng tối đa cho phép (' .. tostring(maxAllowed) .. ' VNĐ).' })
-                    end
-                    local marginRate = tonumber(redis.call('HGET', KEYS[1], 'marginRate')) or 0.10
-                    local initialDeposit = tonumber(redis.call('HGET', KEYS[3], 'initialDeposit')) or 0
-                    local requiredMarginA = bidAmount * marginRate
-                    local deltaMargin = requiredMarginA - initialDeposit
-                    local walletBalance = tonumber(redis.call('HGET', KEYS[4], 'availableBalance')) or 0
-                    if deltaMargin > 0 and walletBalance < deltaMargin then
-                        return cjson.encode({ success = false, errorCode = 'ERR_INSUFFICIENT_MARGIN', message = 'Số dư ví không đủ đáp ứng ký quỹ ' .. tostring(requiredMarginA) .. ' VNĐ. Cần bổ sung thêm ' .. tostring(deltaMargin) .. ' VNĐ.' })
-                    end
-                    local wasExtended = 0
-                    local extensionThresholdMs = tonumber(redis.call('HGET', KEYS[1], 'extensionThresholdMs')) or 30000
-                    local extensionDurationMs = tonumber(redis.call('HGET', KEYS[1], 'extensionDurationMs')) or 30000
-                    local maxSnipeExtensions = tonumber(redis.call('HGET', KEYS[1], 'maxSnipeExtensions')) or 3
-                    local currentSnipeCount = tonumber(redis.call('HGET', KEYS[3], 'snipeExtensionCount')) or 0
-                    local remainingMs = endAtMs - nowMs
-                    if remainingMs > 0 and remainingMs <= extensionThresholdMs and currentSnipeCount < maxSnipeExtensions then
-                        endAtMs = endAtMs + extensionDurationMs
-                        redis.call('HSET', KEYS[1], 'endAtMs', endAtMs)
-                        redis.call('HINCRBY', KEYS[3], 'snipeExtensionCount', 1)
-                        wasExtended = 1
-                    end
-                    redis.call('HSET', KEYS[1], 'currentPrice', bidAmount)
-                    redis.call('HSET', KEYS[1], 'topBidderParticipantId', ARGV[1])
-                    redis.call('HSET', KEYS[1], 'topBidderUserId', ARGV[2])
-                    local newLockVersion = redis.call('HINCRBY', KEYS[1], 'lockVersion', 1)
-                    local zsetMember = ARGV[1] .. ':' .. ARGV[5] .. ':' .. ARGV[4]
-                    redis.call('ZADD', KEYS[2], bidAmount, zsetMember)
-                    redis.call('HINCRBY', KEYS[3], 'acceptedBidCount', 1)
-                    redis.call('HSET', KEYS[3], 'lastBidTimeMs', ARGV[4])
-                    local streamPayload = cjson.encode({ bidId = ARGV[5], auctionId = ARGV[6], participantId = ARGV[1], userId = ARGV[2], bidAmount = bidAmount, placedAtMs = nowMs, isSnipeExtended = (wasExtended == 1), newEndAtMs = endAtMs, lockVersion = newLockVersion })
-                    redis.call('XADD', 'stream:auction:bids', '*', 'payload', streamPayload)
-                    return cjson.encode({ success = true, bidId = ARGV[5], auctionId = ARGV[6], participantId = ARGV[1], userId = ARGV[2], bidAmount = bidAmount, newCurrentPrice = bidAmount, newEndAtMs = endAtMs, wasExtended = (wasExtended == 1), lockVersion = newLockVersion })
-                ";
-            }
+
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream(EmbeddedLuaResourceName)
+                ?? throw new InvalidOperationException($"Không tìm thấy Lua script '{EmbeddedLuaResourceName}'.");
+            using var reader = new StreamReader(stream);
+            _cachedLuaScript = reader.ReadToEnd();
             return _cachedLuaScript;
         }
     }
@@ -141,9 +89,11 @@ public class RedisAuctionCacheService : IRedisAuctionCacheService
             var stateKey = $"auction:{auction.Id}:state";
             var rule = auction.AuctionRule;
 
+            var startAtMs = new DateTimeOffset(auction.StartAt.ToUniversalTime()).ToUnixTimeMilliseconds();
             var endAtMs = new DateTimeOffset(auction.EndAt.ToUniversalTime()).ToUnixTimeMilliseconds();
+            var participantCount = auction.Participants?.Count ?? 0;
 
-            var hashEntries = new HashEntry[]
+            var hashEntries = new List<HashEntry>
             {
                 new("auctionId", auction.Id.ToString()),
                 new("status", auction.AuctionStatus.ToString()),
@@ -152,51 +102,191 @@ public class RedisAuctionCacheService : IRedisAuctionCacheService
                 new("minIncrement", (long)(rule?.MinimumBidIncrement ?? 100000)),
                 new("maxMultiplier", rule?.MaxStepMultiplier ?? 10),
                 new("marginRate", (double)(rule?.MarginPercentage ?? 0.10m)),
+                new("startAtMs", startAtMs),
                 new("endAtMs", endAtMs),
+                new("participantCount", participantCount),
                 new("lockVersion", (long)auction.LockVersion),
                 new("extensionThresholdMs", (long)((rule?.ExtensionThresholdSeconds ?? 30) * 1000)),
                 new("extensionDurationMs", (long)((rule?.ExtensionDurationSeconds ?? 30) * 1000)),
                 new("maxSnipeExtensions", rule?.MaxSnipeExtensionsPerParticipant ?? 3)
             };
 
-            await db.HashSetAsync(stateKey, hashEntries);
+            // Khôi phục người đang dẫn đầu & leaderboard khi nạp lại cache giữa phiên
+            var topAcceptedBid = auction.Bids?
+                .Where(b => b.Status == BidStatus.ACCEPTED || b.Status == BidStatus.WINNING || b.Status == BidStatus.OUTBIB)
+                .OrderByDescending(b => b.BidAmount)
+                .FirstOrDefault();
+
+            if (topAcceptedBid != null)
+            {
+                var topParticipant = auction.Participants?.FirstOrDefault(p => p.Id == topAcceptedBid.ParticipantId);
+                hashEntries.Add(new("topBidderParticipantId", topAcceptedBid.ParticipantId.ToString()));
+                if (topParticipant != null)
+                {
+                    hashEntries.Add(new("topBidderUserId", topParticipant.UserAccountId.ToString()));
+                }
+
+                var leaderboardKey = $"auction:{auction.Id}:leaderboard";
+                var placedMs = new DateTimeOffset(topAcceptedBid.PlacedAt.ToUniversalTime()).ToUnixTimeMilliseconds();
+                await db.SortedSetAddAsync(
+                    leaderboardKey,
+                    $"{topAcceptedBid.ParticipantId}:{topAcceptedBid.Id}:{placedMs}",
+                    (double)topAcceptedBid.BidAmount);
+            }
+
+            await db.HashSetAsync(stateKey, hashEntries.ToArray());
 
             // Nạp thông tin người tham gia & số dư ví
             if (auction.Participants != null)
             {
                 foreach (var p in auction.Participants)
                 {
-                    var pKey = $"auction:{auction.Id}:participant:{p.Id}";
                     var initialDep = p.Deposits?.FirstOrDefault(d => d.DepositStatus == DepositStatus.LOCKED)?.DepositAmount ?? 0m;
-
-                    await db.HashSetAsync(pKey, new HashEntry[]
-                    {
-                        new("userId", p.UserAccountId.ToString()),
-                        new("status", p.Status.ToString()),
-                        new("initialDeposit", (long)initialDep),
-                        new("acceptedBidCount", p.AcceptedBidCount),
-                        new("snipeExtensionCount", p.SnipeExtensionCount)
-                    });
-
-                    if (p.UserAccount?.Wallet != null)
-                    {
-                        var wKey = $"wallet:{p.UserAccountId}:balance";
-                        await db.HashSetAsync(wKey, new HashEntry[]
-                        {
-                            new("availableBalance", (long)p.UserAccount.Wallet.AvailableBalance),
-                            new("lockedBalance", (long)p.UserAccount.Wallet.LockedBalance),
-                            new("status", p.UserAccount.Wallet.WalletStatus.ToString())
-                        });
-                    }
+                    await WriteParticipantAndWalletHashesAsync(db, auction.Id, p, initialDep, p.UserAccount?.Wallet);
                 }
             }
 
-            _logger.LogInformation("[RedisCache] 🔥 Đã Warm-up thành công phiên {AuctionId} ({Code}) vào Redis RAM.", auction.Id, auction.AuctionCode);
+            _logger.LogInformation(
+                "[RedisCache] 🔥 Đã Warm-up phiên {AuctionId} ({Code}, Status={Status}, Participants={Count}) vào Redis RAM.",
+                auction.Id, auction.AuctionCode, auction.AuctionStatus, participantCount);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[RedisCache] Lỗi Warm-up phiên {AuctionId}", auction.Id);
         }
+    }
+
+    public async Task<bool> IsAuctionWarmedUpAsync(
+        Guid auctionId,
+        bool requireActiveStatus = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (_redis == null || !_redis.IsConnected) return false;
+
+        try
+        {
+            var db = _redis.GetDatabase();
+            var status = await db.HashGetAsync($"auction:{auctionId}:state", "status");
+            if (status.IsNullOrEmpty)
+            {
+                return false;
+            }
+
+            return !requireActiveStatus || string.Equals((string?)status, AuctionStatus.ACTIVE.ToString(), StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> ActivateAuctionInCacheAsync(Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        if (_redis == null || !_redis.IsConnected) return false;
+
+        try
+        {
+            var db = _redis.GetDatabase();
+            const string script = @"
+                local status = redis.call('HGET', KEYS[1], 'status')
+                if not status then
+                    return 0
+                end
+                local pCount = tonumber(redis.call('HGET', KEYS[1], 'participantCount')) or 0
+                if pCount <= 0 then
+                    return 0
+                end
+                if status == 'SCHEDULE' then
+                    redis.call('HSET', KEYS[1], 'status', 'ACTIVE')
+                    return 1
+                end
+                if status == 'ACTIVE' then
+                    return 1
+                end
+                return 0";
+
+            var result = await db.ScriptEvaluateAsync(script, new RedisKey[] { $"auction:{auctionId}:state" });
+            return !result.IsNull && (int)result == 1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[RedisCache] Lỗi bật nhanh ACTIVE trên Redis cho phiên {AuctionId}", auctionId);
+            return false;
+        }
+    }
+
+    public async Task SyncParticipantRegistrationAsync(
+        Guid auctionId,
+        AuctionParticipant participant,
+        decimal initialDeposit,
+        Wallet? wallet,
+        CancellationToken cancellationToken = default)
+    {
+        if (_redis == null || !_redis.IsConnected) return;
+
+        try
+        {
+            var db = _redis.GetDatabase();
+            var stateKey = $"auction:{auctionId}:state";
+
+            await WriteParticipantAndWalletHashesAsync(db, auctionId, participant, initialDeposit, wallet);
+
+            if (await db.KeyExistsAsync(stateKey))
+            {
+                await db.HashIncrementAsync(stateKey, "participantCount", 1);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[RedisCache] Lỗi đồng bộ participant {ParticipantId} vào Redis cho phiên {AuctionId}", participant.Id, auctionId);
+        }
+    }
+
+    public async Task UpdateAuctionPriceInCacheAsync(
+        Guid auctionId,
+        decimal newPrice,
+        long lockVersion,
+        CancellationToken cancellationToken = default)
+    {
+        if (_redis == null || !_redis.IsConnected) return;
+
+        try
+        {
+            var db = _redis.GetDatabase();
+            var stateKey = $"auction:{auctionId}:state";
+            if (!await db.KeyExistsAsync(stateKey)) return;
+
+            await db.HashSetAsync(stateKey, new HashEntry[]
+            {
+                new("currentPrice", (long)newPrice),
+                new("lockVersion", lockVersion)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[RedisCache] Lỗi cập nhật giá Redis cho phiên {AuctionId}", auctionId);
+        }
+    }
+
+    public async Task<DateTime?> GetCachedEndAtUtcAsync(Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        if (_redis == null || !_redis.IsConnected) return null;
+
+        try
+        {
+            var db = _redis.GetDatabase();
+            var val = await db.HashGetAsync($"auction:{auctionId}:state", "endAtMs");
+            if (val.HasValue && long.TryParse((string?)val, out var endAtMs) && endAtMs > 0)
+            {
+                return DateTimeOffset.FromUnixTimeMilliseconds(endAtMs).UtcDateTime;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[RedisCache] Lỗi đọc endAtMs từ Redis cho phiên {AuctionId}", auctionId);
+        }
+
+        return null;
     }
 
     public async Task<LuaBidResult> PlaceBidAtomicAsync(
@@ -264,8 +354,9 @@ public class RedisAuctionCacheService : IRedisAuctionCacheService
             var newEndAtMs = root.GetProperty("newEndAtMs").GetInt64();
             var wasExtended = root.TryGetProperty("wasExtended", out var we) && we.GetBoolean();
             var lockVersion = root.GetProperty("lockVersion").GetInt64();
+            var justActivated = root.TryGetProperty("justActivated", out var ja) && ja.GetBoolean();
 
-            return new LuaBidResult(true, null, null, bidId, auctionId, participantId, userId, bidAmount, newCurrentPrice, newEndAtMs, wasExtended, lockVersion);
+            return new LuaBidResult(true, null, null, bidId, auctionId, participantId, userId, bidAmount, newCurrentPrice, newEndAtMs, wasExtended, lockVersion, justActivated);
         }
         catch (Exception ex)
         {
@@ -348,6 +439,54 @@ public class RedisAuctionCacheService : IRedisAuctionCacheService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[RedisCache] Lỗi gắn TTL cho phiên {AuctionId}", auctionId);
+        }
+    }
+
+    public async Task InvalidateAuctionCacheAsync(Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        if (_redis == null || !_redis.IsConnected) return;
+
+        try
+        {
+            var db = _redis.GetDatabase();
+            await db.KeyDeleteAsync(new RedisKey[]
+            {
+                $"auction:{auctionId}:state",
+                $"auction:{auctionId}:leaderboard"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[RedisCache] Lỗi xóa cache Redis cho phiên {AuctionId}", auctionId);
+        }
+    }
+
+    private static async Task WriteParticipantAndWalletHashesAsync(
+        IDatabase db,
+        Guid auctionId,
+        AuctionParticipant participant,
+        decimal initialDeposit,
+        Wallet? wallet)
+    {
+        var pKey = $"auction:{auctionId}:participant:{participant.Id}";
+        await db.HashSetAsync(pKey, new HashEntry[]
+        {
+            new("userId", participant.UserAccountId.ToString()),
+            new("status", participant.Status.ToString()),
+            new("initialDeposit", (long)initialDeposit),
+            new("acceptedBidCount", participant.AcceptedBidCount),
+            new("snipeExtensionCount", participant.SnipeExtensionCount)
+        });
+
+        if (wallet != null)
+        {
+            var wKey = $"wallet:{participant.UserAccountId}:balance";
+            await db.HashSetAsync(wKey, new HashEntry[]
+            {
+                new("availableBalance", (long)wallet.AvailableBalance),
+                new("lockedBalance", (long)wallet.LockedBalance),
+                new("status", wallet.WalletStatus.ToString())
+            });
         }
     }
 }

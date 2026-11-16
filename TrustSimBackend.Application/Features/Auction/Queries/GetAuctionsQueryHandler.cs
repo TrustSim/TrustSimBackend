@@ -27,6 +27,8 @@ public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedRe
 
         var currentUserId = _currentUserService.IsAuthenticated ? _currentUserService.UserId : null;
 
+        var nowUtc = DateTime.UtcNow;
+
         var dtos = items.Select(a => new AuctionDto
         {
             Id = a.Id,
@@ -53,7 +55,8 @@ public class GetAuctionsQueryHandler : IRequestHandler<GetAuctionsQuery, PagedRe
             MinBidStep = a.AuctionRule?.MinimumBidIncrement ?? 500_000,
             DutchDecreaseAmount = a.AuctionRule?.DutchDecreaseAmount ?? 0,
             DutchDecreaseIntervalSeconds = a.AuctionRule?.DutchDecreaseIntervalSeconds ?? 0,
-            IsUserRegistered = currentUserId.HasValue && a.Participants.Any(p => p.UserAccountId == currentUserId.Value)
+            IsUserRegistered = currentUserId.HasValue && a.Participants.Any(p => p.UserAccountId == currentUserId.Value),
+            ServerUtcNow = nowUtc
         }).ToList();
 
         return PagedResult<AuctionDto>.Create(dtos, totalCount, request.Filter.PageIndex, request.Filter.PageSize);

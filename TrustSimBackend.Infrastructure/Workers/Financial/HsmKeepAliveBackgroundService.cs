@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 
-namespace TrustSimBackend.Infrastructure.Services.Hsm;
+namespace TrustSimBackend.Infrastructure.Workers.Financial;
 
 /// <summary>
 /// Tiến trình nền định kỳ ping endpoint /health của SoftHSMv2 microservice mỗi 5 phút
@@ -15,7 +15,6 @@ public class HsmKeepAliveBackgroundService : BackgroundService
     private readonly ISoftHsmClient _hsmClient;
     private readonly SoftHsmSettings _settings;
     private readonly ILogger<HsmKeepAliveBackgroundService> _logger;
-
     private static readonly TimeSpan PingInterval = TimeSpan.FromMinutes(5);
 
     public HsmKeepAliveBackgroundService(
@@ -37,10 +36,8 @@ public class HsmKeepAliveBackgroundService : BackgroundService
         }
 
         _logger.LogInformation("[SoftHSM KeepAlive] Khởi động tiến trình giữ nhiệt SoftHSM định kỳ mỗi 5 phút.");
-
         using var timer = new PeriodicTimer(PingInterval);
 
-        // Ping ngay lần đầu khi container khởi động để đánh thức SoftHSM
         await PingHsmAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))

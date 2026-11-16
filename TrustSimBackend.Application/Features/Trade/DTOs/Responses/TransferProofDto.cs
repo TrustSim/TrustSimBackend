@@ -1,14 +1,20 @@
 namespace TrustSimBackend.Application.Features.Trade.DTOs.Responses;
 
 /// <summary>
-/// DTO thông tin một ảnh bằng chứng nộp biên bản sang tên SIM của nhà mạng hoặc nghiệm thu của người mua.
+/// DTO thông tin một bộ hồ sơ bằng chứng chuyển nhượng SIM (1 TransferProof chứa nhiều hình ảnh con).
 /// </summary>
 public record TransferProofDto(
     Guid Id,
-    string ImageUrl,
-    string? Description,
+    Guid AuctionId,
+    Guid? SimTransferId,
+    string ProofType,
     string ProofStatus,
-    DateTime VerifiedAt,
+    string? Description,
+    string? RejectionReason,
+    Guid SubmittedByUserId,
+    Guid? VerifiedByAdminId,
+    DateTime? VerifiedAt,
+    DateTime? WithdrawnAt,
     DateTime CreatedDate,
-    string ProofType = "SELLER_HANDOVER"
+    IReadOnlyList<TransferProofImageDto> Images
 );

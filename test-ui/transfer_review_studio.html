@@ -4,33 +4,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TrustSim - Auction Transfer Proof, Admin Review & Liquidation QA Studio</title>
+  <title>TrustSim - Transfer Proof &amp; Admin Review Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
   <style>
     :root {
       --bg-dark: #070b14;
-      --bg-card: rgba(15, 23, 42, 0.82);
-      --bg-panel: rgba(9, 14, 26, 0.9);
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-glow: rgba(56, 189, 248, 0.35);
+      --bg-card: rgba(15, 23, 42, 0.88);
+      --bg-panel: #090f1d;
+      --bg-elevated: #111b30;
+      --border-subtle: rgba(148, 163, 184, 0.14);
+      --border-glow: rgba(56, 189, 248, 0.42);
 
       --primary: #38bdf8;
       --emerald: #10b981;
       --amber: #f59e0b;
       --rose: #f43f5e;
-      --purple: #a855f7;
+      --slate: #64748b;
 
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --text-dim: #64748b;
 
       --radius-sm: 8px;
-      --radius-md: 14px;
+      --radius-md: 12px;
       --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
     }
@@ -44,9 +46,8 @@
     body {
       background-color: var(--bg-dark);
       background-image:
-        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.13) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.13) 0px, transparent 50%),
-        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 48%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 48%);
       background-attachment: fixed;
       color: var(--text-main);
       font-family: var(--font-main);
@@ -57,8 +58,8 @@
     }
 
     header {
-      background: rgba(10, 14, 23, 0.92);
-      backdrop-filter: blur(16px);
+      background: rgba(10, 14, 23, 0.94);
+      backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border-subtle);
       padding: 12px 22px;
       display: flex;
@@ -81,7 +82,7 @@
       width: 38px;
       height: 38px;
       border-radius: 10px;
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(56, 189, 248, 0.25));
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(56, 189, 248, 0.22));
       border: 1px solid rgba(16, 185, 129, 0.45);
       display: flex;
       align-items: center;
@@ -130,6 +131,37 @@
       cursor: pointer;
     }
 
+    .signalr-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+
+    .signalr-pill.connected {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #34d399;
+    }
+
+    .signalr-pill.disconnected {
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fb7185;
+    }
+
+    .signalr-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+
     .btn {
       padding: 7px 12px;
       border-radius: var(--radius-sm);
@@ -143,12 +175,18 @@
       justify-content: center;
       gap: 6px;
       text-decoration: none;
-      transition: all 0.16s ease;
+      transition: all 0.15s ease;
+      white-space: nowrap;
     }
 
     .btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
+    }
+
+    .btn-sm {
+      padding: 5px 9px;
+      font-size: 11px;
     }
 
     .btn-secondary {
@@ -159,13 +197,12 @@
 
     .btn-secondary:hover:not(:disabled) {
       background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.22);
+      border-color: rgba(255, 255, 255, 0.24);
     }
 
     .btn-primary {
       background: linear-gradient(135deg, #0284c7, #2563eb);
       color: #fff;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
     }
 
     .btn-primary:hover:not(:disabled) {
@@ -175,7 +212,6 @@
     .btn-emerald {
       background: linear-gradient(135deg, #059669, #10b981);
       color: #fff;
-      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
     }
 
     .btn-emerald:hover:not(:disabled) {
@@ -188,19 +224,21 @@
       font-weight: 700;
     }
 
+    .btn-amber:hover:not(:disabled) {
+      filter: brightness(1.06);
+    }
+
     .btn-rose {
       background: linear-gradient(135deg, #be123c, #e11d48);
       color: #fff;
     }
 
-    .btn-purple {
-      background: linear-gradient(135deg, #7c3aed, #a855f7);
-      color: #fff;
+    .btn-rose:hover:not(:disabled) {
+      filter: brightness(1.08);
     }
 
-    /* Account & Wallet Switcher Bar */
     .account-bar {
-      background: rgba(15, 23, 42, 0.72);
+      background: rgba(15, 23, 42, 0.78);
       border-bottom: 1px solid var(--border-subtle);
       padding: 10px 22px;
       display: flex;
@@ -257,19 +295,18 @@
       border-radius: var(--radius-sm);
     }
 
-    /* Main Layout */
     .layout {
-      max-width: 1560px;
+      max-width: 1640px;
       width: 100%;
       margin: 18px auto;
-      padding: 0 20px 28px;
+      padding: 0 20px 32px;
       display: grid;
-      grid-template-columns: 420px 1fr;
+      grid-template-columns: 390px 1fr;
       gap: 18px;
       flex: 1;
     }
 
-    @media (max-width: 1180px) {
+    @media (max-width: 1200px) {
       .layout {
         grid-template-columns: 1fr;
       }
@@ -277,7 +314,6 @@
 
     .card {
       background: var(--bg-card);
-      backdrop-filter: blur(12px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       display: flex;
@@ -293,6 +329,7 @@
       justify-content: space-between;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .card-title {
@@ -361,18 +398,41 @@
       border: 1px solid rgba(244, 63, 94, 0.35);
     }
 
-    .badge-purple {
-      background: rgba(168, 85, 247, 0.16);
-      color: #d8b4fe;
-      border: 1px solid rgba(168, 85, 247, 0.35);
+    .badge-muted {
+      background: rgba(100, 116, 139, 0.2);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
-    /* Auction Group Cards */
+    /* Queue Filter Tabs */
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .filter-tab {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .filter-tab.active {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
     .auction-list {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      max-height: 540px;
+      max-height: 520px;
       overflow-y: auto;
       padding-right: 4px;
     }
@@ -389,7 +449,7 @@
 
     .auction-card.selected {
       border-color: var(--primary);
-      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.28);
     }
 
     .trade-item {
@@ -406,11 +466,10 @@
 
     .trade-item:hover,
     .trade-item.active {
-      background: rgba(56, 189, 248, 0.1);
+      background: rgba(56, 189, 248, 0.12);
       border-color: rgba(56, 189, 248, 0.45);
     }
 
-    /* Right Workspace Grid */
     .workspace-col {
       display: flex;
       flex-direction: column;
@@ -419,7 +478,7 @@
 
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 10px;
     }
 
@@ -447,10 +506,10 @@
     .two-col {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 16px;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 980px) {
       .two-col {
         grid-template-columns: 1fr;
       }
@@ -466,16 +525,16 @@
       gap: 10px;
     }
 
-    .proof-gallery {
-      display: flex;
-      flex-wrap: wrap;
+    /* Upload Staging Grid */
+    .staged-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
       gap: 8px;
-      min-height: 54px;
     }
 
-    .proof-thumb {
-      width: 118px;
-      background: rgba(15, 23, 42, 0.9);
+    .staged-item {
+      position: relative;
+      background: #020617;
       border: 1px solid var(--border-subtle);
       border-radius: 6px;
       overflow: hidden;
@@ -483,20 +542,195 @@
       flex-direction: column;
     }
 
-    .proof-thumb img {
+    .staged-item img {
       width: 100%;
-      height: 76px;
-      object-fit: cover;
-      cursor: zoom-in;
+      height: 70px;
+      object-fit: contain;
       background: #020617;
     }
 
-    .proof-thumb-meta {
-      padding: 5px 6px;
+    .staged-del {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(225, 29, 72, 0.9);
+      color: #fff;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .staged-name {
+      padding: 3px 5px;
       font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Proof Batch Cards */
+    .proof-batch-list {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 12px;
+    }
+
+    .proof-batch-card {
+      background: rgba(9, 15, 29, 0.9);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .proof-batch-card.is-pending {
+      border-color: rgba(245, 158, 11, 0.55);
+      box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.15);
+    }
+
+    .proof-batch-card.is-approved {
+      border-color: rgba(16, 185, 129, 0.5);
+    }
+
+    .proof-batch-card.is-rejected {
+      border-color: rgba(244, 63, 94, 0.45);
+    }
+
+    .proof-batch-card.is-withdrawn {
+      opacity: 0.65;
+    }
+
+    .proof-batch-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .proof-images-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+
+    .proof-img-card {
+      background: #020617;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: zoom-in;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .proof-img-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    .proof-img-wrap {
+      position: relative;
+      height: 126px;
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+    }
+
+    .proof-img-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .proof-img-index {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: rgba(2, 6, 23, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #f8fafc;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .proof-img-zoom-hint {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      background: rgba(2, 6, 23, 0.8);
+      color: var(--primary);
+      font-size: 11px;
+      padding: 3px 6px;
+      border-radius: 4px;
+    }
+
+    .proof-img-caption {
+      padding: 6px 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .reject-reason-box {
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fecdd3;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .reason-chips {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .reason-chip {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      background: rgba(244, 63, 94, 0.08);
+      color: #fda4af;
+      cursor: pointer;
+    }
+
+    .reason-chip:hover {
+      background: rgba(244, 63, 94, 0.2);
+    }
+
+    .idempotency-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
     }
 
     .console-log {
@@ -506,7 +740,7 @@
       padding: 10px 12px;
       font-family: var(--font-mono);
       font-size: 11px;
-      max-height: 260px;
+      max-height: 240px;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-word;
@@ -532,16 +766,16 @@
       text-transform: uppercase;
     }
 
-    /* Modals */
+    /* Modals & Lightbox */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(2, 6, 23, 0.85);
+      background: rgba(2, 6, 23, 0.88);
       backdrop-filter: blur(6px);
       display: none;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 18px;
       z-index: 1000;
     }
 
@@ -553,12 +787,19 @@
       background: #0f172a;
       border: 1px solid var(--border-glow);
       border-radius: var(--radius-md);
-      max-width: 920px;
+      max-width: 980px;
       width: 100%;
-      max-height: 88vh;
+      max-height: 90vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+    }
+
+    .modal-box.lightbox-box {
+      max-width: 1280px;
+      width: 96vw;
+      height: 90vh;
+      max-height: 90vh;
     }
 
     .modal-head {
@@ -567,6 +808,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .modal-body {
@@ -574,6 +817,7 @@
       overflow-y: auto;
       background: #fff;
       color: #0f172a;
+      flex: 1;
     }
 
     .modal-body.dark {
@@ -581,7 +825,120 @@
       color: #f8fafc;
     }
 
-    /* Toast */
+    .lightbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      flex: 1;
+      min-height: 0;
+      background: #020617;
+    }
+
+    @media (max-width: 920px) {
+      .lightbox-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+      }
+    }
+
+    .lightbox-stage-col {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border-right: 1px solid var(--border-subtle);
+    }
+
+    .lightbox-toolbar {
+      padding: 8px 12px;
+      background: #090f1d;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .lightbox-canvas-wrap {
+      flex: 1;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #030712;
+      background-image:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.03) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.03) 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      padding: 16px;
+      position: relative;
+    }
+
+    .lightbox-canvas-wrap img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      transition: transform 0.15s ease;
+      transform-origin: center center;
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+    }
+
+    .lightbox-thumbs {
+      padding: 8px 12px;
+      background: #090f1d;
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .lightbox-thumb-item {
+      width: 68px;
+      height: 50px;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      background: #020617;
+      overflow: hidden;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .lightbox-thumb-item.active {
+      border-color: var(--primary);
+    }
+
+    .lightbox-thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .lightbox-meta-col {
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: #090f1d;
+    }
+
+    .meta-kv {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+    }
+
+    .meta-kv span {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
     .toast-stack {
       position: fixed;
       bottom: 20px;
@@ -603,7 +960,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      max-width: 420px;
+      max-width: 440px;
     }
   </style>
 </head>
@@ -615,7 +972,7 @@
       <div class="brand-logo"><i class="fa-solid fa-user-shield"></i></div>
       <div>
         <div class="brand-title">TrustSim Transfer Proof &amp; Admin Review Studio</div>
-        <div class="brand-subtitle">2-Party Proof Upload • Auction-Grouped Review • Document #3 &amp; Escrow Verification</div>
+        <div class="brand-subtitle">Batch TransferProof (1-N Images) • Auction-Scoped • Idempotent Submit &amp; Withdraw • Evidence Lightbox</div>
       </div>
     </div>
 
@@ -627,6 +984,10 @@
           <option value="https://localhost:7120" style="background:#0f172a;color:#f8fafc;">https://localhost:7120</option>
           <option value="http://localhost:5000" style="background:#0f172a;color:#f8fafc;">http://localhost:5000</option>
         </select>
+      </div>
+      <div id="signalrPill" class="signalr-pill disconnected" title="Trạng thái kết nối SignalR Realtime">
+        <span class="signalr-dot"></span>
+        <span id="signalrStatusText">SignalR</span>
       </div>
       <a href="index.html" class="btn btn-secondary"><i class="fa-solid fa-gavel"></i> Arena</a>
       <a href="vision_ocr_studio.html" class="btn btn-secondary"><i class="fa-solid fa-eye"></i> Gemini OCR</a>
@@ -652,7 +1013,7 @@
       <span style="color: var(--text-dim);">|</span>
       <span>Khả dụng: <strong id="walletAvail" style="color: var(--emerald);">--</strong></span>
       <span>Tạm giữ: <strong id="walletLocked" style="color: var(--amber);">--</strong></span>
-      <button class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px;" onclick="refreshWalletAndSims()">
+      <button class="btn btn-secondary btn-sm" onclick="refreshWalletAndSims()">
         <i class="fa-solid fa-rotate"></i>
       </button>
     </div>
@@ -665,16 +1026,21 @@
       <!-- Admin Auction Queue Card -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fa-solid fa-layer-group" style="color: var(--purple);"></i> Hàng Đợi Duyệt Theo Auction</div>
-          <span class="badge badge-purple" id="auctionQueueCountBadge">0 phiên</span>
+          <div class="card-title"><i class="fa-solid fa-layer-group" style="color: var(--primary);"></i> Hàng Đợi Duyệt Theo Auction</div>
+          <span class="badge badge-info" id="auctionQueueCountBadge">0 phiên</span>
         </div>
         <div class="card-body">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
             <input type="text" id="filterAuctionId" class="form-control" placeholder="Filter auctionId (GUID)..." />
             <input type="text" id="filterKeyword" class="form-control" placeholder="Từ khóa (Mã GD / SĐT / Tên)..." />
           </div>
+          <div class="filter-tabs" id="queueFilterTabs">
+            <button type="button" class="filter-tab active" data-filter="ALL" onclick="setQueueFilter('ALL')">Tất cả</button>
+            <button type="button" class="filter-tab" data-filter="PENDING_SELLER" onclick="setQueueFilter('PENDING_SELLER')">Chờ duyệt Seller</button>
+            <button type="button" class="filter-tab" data-filter="PENDING_BUYER" onclick="setQueueFilter('PENDING_BUYER')">Chờ duyệt Buyer</button>
+          </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-purple" style="flex: 1;" onclick="loadAuctionGroupedQueue()">
+            <button class="btn btn-primary" style="flex: 1;" onclick="loadAuctionGroupedQueue()">
               <i class="fa-solid fa-magnifying-glass"></i> Tải Hàng Đợi Theo Auction
             </button>
             <button class="btn btn-secondary" onclick="loadFlatPendingQueue()" title="Đối chiếu API danh sách phẳng /pending-reviews">
@@ -683,28 +1049,29 @@
           </div>
           <div id="auctionQueueContainer" class="auction-list">
             <div style="text-align: center; padding: 24px; color: var(--text-dim); font-size: 12px;">
-              Đăng nhập <strong>admin</strong> rồi bấm <strong>Tải Hàng Đợi Theo Auction</strong> để kiểm tra <code>GET /api/SimTransfers/admin/pending-reviews/by-auction</code>.
+              Đăng nhập <strong>admin</strong> rồi bấm <strong>Tải Hàng Đợi Theo Auction</strong> để kiểm duyệt hồ sơ.
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Direct Trade Lookup Card -->
+      <!-- Direct Auction / Trade Lookup Card -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fa-solid fa-right-left" style="color: var(--primary);"></i> Chọn / Nạp Nhanh TradeTransaction</div>
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="loadMyTrades()">
-            <i class="fa-solid fa-rotate"></i> Nạp GD
+          <div class="card-title"><i class="fa-solid fa-gavel" style="color: var(--amber);"></i> Chọn Phiên Đấu Giá SIM Tham Gia</div>
+          <button class="btn btn-secondary btn-sm" onclick="loadMyTrades()">
+            <i class="fa-solid fa-rotate"></i> Tải Phiên Của Tôi
           </button>
         </div>
         <div class="card-body">
-          <select id="myTradesSelect" class="form-control" onchange="selectTradeId(this.value)">
-            <option value="">-- Chọn giao dịch từ API --</option>
+          <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Phiên đấu giá / Giao dịch liên quan:</label>
+          <select id="myTradesSelect" class="form-control" onchange="handleSelectTradeOrAuction(this.value)">
+            <option value="">-- Chọn Phiên Đấu Giá / SIM của bạn --</option>
           </select>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="manualTradeIdInput" class="form-control" placeholder="Nhập tradeId (GUID) bất kỳ..." />
-            <button class="btn btn-primary" onclick="selectTradeId(document.getElementById('manualTradeIdInput').value.trim())">
-              Nạp
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <input type="text" id="manualTradeIdInput" class="form-control" placeholder="Nhập AuctionId, TradeId, Mã GD (TRD-...), hoặc Số SIM..." />
+            <button class="btn btn-primary" onclick="searchAndLoadTradeOrAuction()">
+              <i class="fa-solid fa-magnifying-glass"></i> Tìm
             </button>
           </div>
         </div>
@@ -718,12 +1085,12 @@
         <div class="card-header">
           <div class="card-title">
             <i class="fa-solid fa-sim-card" style="color: var(--primary);"></i>
-            <span>Chi Tiết Chuyển Nhượng &amp; Escrow:</span>
+            <span>Chi Tiết Bàn Giao &amp; Kiểm Duyệt:</span>
             <code id="activeTradeCode" style="color: var(--primary);">--</code>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <span class="badge badge-warn" id="activeTransferStatusBadge">CHƯA CHỌN TRADE</span>
-            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="reloadActiveTrade()">
+            <button class="btn btn-secondary btn-sm" onclick="reloadActiveTrade()">
               <i class="fa-solid fa-rotate"></i> Làm mới
             </button>
           </div>
@@ -733,6 +1100,10 @@
             <div class="metric-box">
               <div class="metric-label">Số SIM</div>
               <div class="metric-value" id="metaSimPhone">--</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Auction ID</div>
+              <div class="metric-value" id="metaAuctionId" style="font-size: 11px; word-break: break-all;">--</div>
             </div>
             <div class="metric-box">
               <div class="metric-label">Escrow / Giá Trúng</div>
@@ -747,122 +1118,127 @@
               <div class="metric-value" id="metaEscrowStatus">--</div>
             </div>
             <div class="metric-box">
-              <div class="metric-label">Quyền Tài Khoản Hiện Tại</div>
-              <div class="metric-value" id="metaPartyFlags" style="font-size: 12px;">--</div>
+              <div class="metric-label">Quyền Hiện Tại</div>
+              <div class="metric-value" id="metaPartyFlags" style="font-size: 11px;">--</div>
             </div>
           </div>
           <div id="transferMessageBanner" style="display: none; font-size: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #bae6fd;"></div>
         </div>
       </div>
 
-      <!-- Two-Party Proof Upload + Inline Gemini OCR -->
+      <!-- Two-Party Evidence Inspection & Submission -->
       <div class="two-col">
-        <!-- Seller Proof Upload -->
+        <!-- Column 1: SELLER_HANDOVER -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-store" style="color: var(--amber);"></i> 1. Người Bán Upload (SELLER_HANDOVER)</div>
-            <span class="badge badge-warn" id="sellerProofCountBadge">0 ảnh</span>
+            <div class="card-title"><i class="fa-solid fa-store" style="color: var(--amber);"></i> 1. Bên Bán (SELLER_HANDOVER)</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="badge badge-warn" id="adminSellerStateBadge">SELLER: --</span>
+              <span class="badge badge-muted" id="sellerProofCountBadge">0 bộ / 0 ảnh</span>
+            </div>
           </div>
           <div class="card-body">
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <input type="file" id="sellerFileInput" multiple accept="image/*" style="display: none;" onchange="handlePartyFilePick('SELLER', event)" />
-              <button class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('sellerFileInput').click()">
-                <i class="fa-solid fa-images"></i> Chọn Ảnh Từ Máy
-              </button>
-              <button class="btn btn-secondary" onclick="createSampleProofFile('SELLER')" title="Tạo file PNG hợp lệ trên trình duyệt để test nhanh">
-                <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--amber);"></i> Tạo Ảnh Mẫu
-              </button>
-              <button class="btn btn-secondary" onclick="runInlineOcrForParty('SELLER')" title="Gọi POST /api/Vision/ocr/detect-text với ảnh đầu tiên vừa chọn">
-                <i class="fa-solid fa-eye" style="color: var(--primary);"></i> OCR Thử
+            <!-- Upload box for Seller -->
+            <div id="sellerPendingLockNotice" style="display: none; font-size: 12px; padding: 10px 12px; border-radius: 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fcd34d;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span>⏳ Đang có <strong>1 bộ bằng chứng PENDING</strong>. Phải thu hồi bộ đang chờ trước khi nộp bộ mới.</span>
+                <button type="button" class="btn btn-rose btn-sm" id="btnWithdrawSellerPending" onclick="withdrawPendingByParty('SELLER')">
+                  <i class="fa-solid fa-rotate-left"></i> Thu hồi bộ đang chờ
+                </button>
+              </div>
+            </div>
+
+            <div id="sellerUploadBox" class="party-box">
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <input type="file" id="sellerFileInput" multiple accept="image/*" style="display: none;" onchange="handlePartyFilePick('SELLER', event)" />
+                <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('sellerFileInput').click()">
+                  <i class="fa-solid fa-images"></i> Chọn Ảnh Từ Máy
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="createSampleProofFile('SELLER')" title="Tạo 1 ảnh PNG mẫu (bấm nhiều lần để tạo nhiều ảnh)">
+                  <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--amber);"></i> + Ảnh Mẫu
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="runInlineOcrForParty('SELLER')" title="OCR ảnh đầu tiên vừa chọn">
+                  <i class="fa-solid fa-eye" style="color: var(--primary);"></i> OCR Thử
+                </button>
+              </div>
+              <div id="sellerStagedGrid" class="staged-grid"></div>
+              <div id="sellerSelectedHint" style="font-size: 11px; color: var(--text-muted);">Chưa chọn tệp ảnh nào.</div>
+              <input type="text" id="sellerDescInput" class="form-control" placeholder="Mô tả: Phiếu sang tên tại quầy giao dịch nhà mạng..." />
+              <div class="idempotency-strip">
+                <span>Idempotency: <code id="sellerIdemKeyLabel">--</code></span>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="regenerateIdempotencyKey('SELLER')" title="Tạo Idempotency Key mới">
+                  <i class="fa-solid fa-key"></i> Đổi Key
+                </button>
+              </div>
+              <button type="button" class="btn btn-amber" id="btnSubmitSellerProof" onclick="submitPartyProofs('SELLER_HANDOVER')">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Bộ Bằng Chứng Bên Bán
               </button>
             </div>
-            <div id="sellerSelectedHint" style="font-size: 11px; color: var(--text-muted);">Chưa chọn tệp ảnh nào.</div>
-            <input type="text" id="sellerDescInput" class="form-control" placeholder="Mô tả: Phiếu sang tên tại quầy giao dịch nhà mạng..." />
-            <button class="btn btn-amber" onclick="submitPartyProofs('SELLER_HANDOVER')">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Bằng Chứng Bên Bán (SELLER_HANDOVER)
-            </button>
 
-            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Bằng chứng đã lưu trên hệ thống:</div>
-            <div class="proof-gallery" id="sellerProofGallery">
-              <span style="font-size: 11px; color: var(--text-dim);">Chưa có ảnh nào.</span>
+            <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">
+              Danh sách các bộ bằng chứng (TransferProof):
+            </div>
+            <div class="proof-batch-list" id="sellerProofBatches">
+              <div style="font-size: 12px; color: var(--text-dim);">Chưa có bộ bằng chứng nào.</div>
             </div>
           </div>
         </div>
 
-        <!-- Buyer Proof Upload -->
+        <!-- Column 2: BUYER_RECEIPT -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-mobile-screen" style="color: var(--primary);"></i> 2. Người Mua Upload (BUYER_RECEIPT - Chỉ sau khi Admin duyệt Seller)</div>
-            <span class="badge badge-info" id="buyerProofCountBadge">0 ảnh</span>
+            <div class="card-title"><i class="fa-solid fa-mobile-screen" style="color: var(--primary);"></i> 2. Bên Mua (BUYER_RECEIPT)</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <span class="badge badge-warn" id="adminBuyerStateBadge">BUYER: --</span>
+              <span class="badge badge-muted" id="buyerProofCountBadge">0 bộ / 0 ảnh</span>
+            </div>
           </div>
           <div class="card-body">
             <div id="buyerPrereqBanner" style="font-size: 11px; padding: 8px 10px; border-radius: 6px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35); color: #fbbf24;">
-              ⏳ Quy tắc tuần tự: Phải chờ Admin duyệt bằng chứng của Bên Bán (<code>SELLER_HANDOVER = APPROVED</code>) trước khi Bên Mua được phép nộp ảnh nghiệm thu. (Bấm nộp sớm sẽ test kịch bản chặn HTTP 400).
+              ⏳ Quy tắc tuần tự: Phải chờ Admin duyệt bộ bằng chứng của Bên Bán (<code>SELLER_HANDOVER = APPROVED</code>) trước khi Bên Mua được nộp ảnh nghiệm thu.
             </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <input type="file" id="buyerFileInput" multiple accept="image/*" style="display: none;" onchange="handlePartyFilePick('BUYER', event)" />
-              <button class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('buyerFileInput').click()">
-                <i class="fa-solid fa-camera"></i> Chọn Ảnh Từ Máy
-              </button>
-              <button class="btn btn-secondary" onclick="createSampleProofFile('BUYER')" title="Tạo file PNG hợp lệ trên trình duyệt để test nhanh">
-                <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i> Tạo Ảnh Mẫu
-              </button>
-              <button class="btn btn-secondary" onclick="runInlineOcrForParty('BUYER')" title="Gọi POST /api/Vision/ocr/detect-text với ảnh đầu tiên vừa chọn">
-                <i class="fa-solid fa-eye" style="color: var(--primary);"></i> OCR Thử
-              </button>
-            </div>
-            <div id="buyerSelectedHint" style="font-size: 11px; color: var(--text-muted);">Chưa chọn tệp ảnh nào.</div>
-            <input type="text" id="buyerDescInput" class="form-control" placeholder="Mô tả: Ảnh chụp SMS TTTB 1414 xác nhận chính chủ..." />
-            <button class="btn btn-primary" onclick="submitPartyProofs('BUYER_RECEIPT')">
-              <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Bằng Chứng Bên Mua (BUYER_RECEIPT)
-            </button>
 
-            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Bằng chứng đã lưu trên hệ thống:</div>
-            <div class="proof-gallery" id="buyerProofGallery">
-              <span style="font-size: 11px; color: var(--text-dim);">Chưa có ảnh nào.</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Admin Sequential Review Card -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fa-solid fa-gavel" style="color: var(--purple);"></i> 3. Admin Kiểm Duyệt Tuần Tự Bắt Buộc (Bước 1: Duyệt SELLER → Bước 2: Buyer Nộp Ảnh → Bước 3: Duyệt BUYER &amp; Giải Ngân)</div>
-          <div style="display: flex; gap: 6px;">
-            <span class="badge badge-warn" id="adminSellerStateBadge">SELLER: --</span>
-            <span class="badge badge-warn" id="adminBuyerStateBadge">BUYER: --</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-            <input type="text" id="adminRejectReason" class="form-control" style="flex: 1; min-width: 260px;" placeholder="Lý do từ chối (bắt buộc khi bấm Từ chối, VD: Ảnh biên bản bị mờ / sai CCCD)..." />
-            <button class="btn btn-secondary" onclick="document.getElementById('adminRejectReason').value='Ảnh biên bản bị mờ, thiếu dấu đỏ điểm giao dịch nhà mạng'">Mẫu Lý Do Mờ</button>
-          </div>
-
-          <div class="two-col">
-            <div class="party-box">
-              <div style="font-size: 12px; font-weight: 700; color: var(--amber);">Bước Duyệt 1 — Hồ Sơ Bên Bán (TargetParty = "SELLER")</div>
-              <div style="display: flex; gap: 8px;">
-                <button class="btn btn-emerald" style="flex: 1;" onclick="submitAdminReview('SELLER', true)">
-                  <i class="fa-solid fa-circle-check"></i> Duyệt SELLER (Mở khóa cho Buyer nộp)
-                </button>
-                <button class="btn btn-rose" style="flex: 1;" onclick="submitAdminReview('SELLER', false)">
-                  <i class="fa-solid fa-circle-xmark"></i> Từ Chối SELLER
+            <div id="buyerPendingLockNotice" style="display: none; font-size: 12px; padding: 10px 12px; border-radius: 8px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #7dd3fc;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span>⏳ Đang có <strong>1 bộ bằng chứng PENDING</strong>. Phải thu hồi bộ đang chờ trước khi nộp bộ mới.</span>
+                <button type="button" class="btn btn-rose btn-sm" id="btnWithdrawBuyerPending" onclick="withdrawPendingByParty('BUYER')">
+                  <i class="fa-solid fa-rotate-left"></i> Thu hồi bộ đang chờ
                 </button>
               </div>
             </div>
 
-            <div class="party-box">
-              <div style="font-size: 12px; font-weight: 700; color: var(--primary);">Bước Duyệt 2 — Hồ Sơ Bên Mua (TargetParty = "BUYER" - Sau khi Seller đã APPROVED)</div>
-              <div style="display: flex; gap: 8px;">
-                <button class="btn btn-emerald" style="flex: 1;" onclick="submitAdminReview('BUYER', true)">
-                  <i class="fa-solid fa-circle-check"></i> Duyệt BUYER &amp; Hoàn Tất Giải Ngân
+            <div id="buyerUploadBox" class="party-box">
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <input type="file" id="buyerFileInput" multiple accept="image/*" style="display: none;" onchange="handlePartyFilePick('BUYER', event)" />
+                <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="document.getElementById('buyerFileInput').click()">
+                  <i class="fa-solid fa-camera"></i> Chọn Ảnh Từ Máy
                 </button>
-                <button class="btn btn-rose" style="flex: 1;" onclick="submitAdminReview('BUYER', false)">
-                  <i class="fa-solid fa-circle-xmark"></i> Từ Chối BUYER
+                <button type="button" class="btn btn-secondary" onclick="createSampleProofFile('BUYER')" title="Tạo 1 ảnh PNG mẫu (bấm nhiều lần để tạo nhiều ảnh)">
+                  <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--primary);"></i> + Ảnh Mẫu
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="runInlineOcrForParty('BUYER')" title="OCR ảnh đầu tiên vừa chọn">
+                  <i class="fa-solid fa-eye" style="color: var(--primary);"></i> OCR Thử
                 </button>
               </div>
+              <div id="buyerStagedGrid" class="staged-grid"></div>
+              <div id="buyerSelectedHint" style="font-size: 11px; color: var(--text-muted);">Chưa chọn tệp ảnh nào.</div>
+              <input type="text" id="buyerDescInput" class="form-control" placeholder="Mô tả: Ảnh chụp SMS TTTB 1414 xác nhận chính chủ..." />
+              <div class="idempotency-strip">
+                <span>Idempotency: <code id="buyerIdemKeyLabel">--</code></span>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="regenerateIdempotencyKey('BUYER')" title="Tạo Idempotency Key mới">
+                  <i class="fa-solid fa-key"></i> Đổi Key
+                </button>
+              </div>
+              <button type="button" class="btn btn-primary" id="btnSubmitBuyerProof" onclick="submitPartyProofs('BUYER_RECEIPT')">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Nộp Bộ Bằng Chứng Bên Mua
+              </button>
+            </div>
+
+            <div style="font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;">
+              Danh sách các bộ bằng chứng (TransferProof):
+            </div>
+            <div class="proof-batch-list" id="buyerProofBatches">
+              <div style="font-size: 12px; color: var(--text-dim);">Chưa có bộ bằng chứng nào.</div>
             </div>
           </div>
         </div>
@@ -871,16 +1247,16 @@
       <!-- Post-Approval Verification: Doc #3, SimOwnership & Wallet Statement -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fa-solid fa-file-shield" style="color: var(--emerald);"></i> 4. Hậu Kiểm Sau Duyệt Đủ 2 Bên: Văn Bản Số 3, Quyền Sở Hữu SIM &amp; Giải Ngân Escrow</div>
+          <div class="card-title"><i class="fa-solid fa-file-shield" style="color: var(--emerald);"></i> 3. Hậu Kiểm Sau Duyệt Đủ 2 Bên: Văn Bản Số 3, Quyền Sở Hữu SIM &amp; Giải Ngân Escrow</div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-secondary" onclick="previewLiquidationDoc()"><i class="fa-solid fa-file-lines"></i> Xem Trước VB 3 (HTML)</button>
-            <button class="btn btn-emerald" onclick="downloadLiquidationPdf()"><i class="fa-solid fa-file-pdf"></i> Tải PDF VB 3 (PAdES)</button>
+            <button class="btn btn-secondary btn-sm" onclick="previewLiquidationDoc()"><i class="fa-solid fa-file-lines"></i> Xem Trước VB 3 (HTML)</button>
+            <button class="btn btn-emerald btn-sm" onclick="downloadLiquidationPdf()"><i class="fa-solid fa-file-pdf"></i> Tải PDF VB 3 (PAdES)</button>
           </div>
         </div>
         <div class="card-body">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 10px; background: rgba(2,6,23,0.55); border-radius: 8px; border: 1px solid var(--border-subtle);">
             <span style="font-size: 12px;">URL Văn Bản 3: <code id="liqUrlText" style="color: var(--emerald);">Chưa phát hành (cần Admin duyệt đủ Seller + Buyer)</code></span>
-            <button class="btn btn-secondary" style="font-size: 11px; padding: 5px 10px;" onclick="refreshWalletAndSims()">
+            <button class="btn btn-secondary btn-sm" onclick="refreshWalletAndSims()">
               <i class="fa-solid fa-arrows-rotate"></i> Đối Soát Ví &amp; Sở Hữu SIM Tài Khoản Hiện Tại
             </button>
           </div>
@@ -939,7 +1315,7 @@
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fa-solid fa-terminal" style="color: var(--primary);"></i> API Request / Response Inspector</div>
-          <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="document.getElementById('apiInspector').innerText = '// Sẵn sàng ghi log...'">Xóa log</button>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('apiInspector').innerText = '// Sẵn sàng ghi log...'">Xóa log</button>
         </div>
         <div class="card-body">
           <pre id="apiInspector" class="console-log">// Mọi HTTP request/response tới Vision, SimTransfers, Contracts, Wallets, Sims sẽ hiển thị JSON đầy đủ tại đây...</pre>
@@ -948,14 +1324,107 @@
     </div>
   </div>
 
-  <!-- Modal: Document #3 HTML Preview / Auction Review Inspector -->
+  <!-- Generic Preview Modal (VB 3 / JSON Inspector) -->
   <div class="modal-overlay" id="previewModal" onclick="if(event.target === this) closePreviewModal()">
     <div class="modal-box">
       <div class="modal-head">
         <strong id="previewModalTitle" style="font-size: 14px;">Xem Trước Tài Liệu</strong>
-        <button class="btn btn-secondary" onclick="closePreviewModal()"><i class="fa-solid fa-xmark"></i> Đóng</button>
+        <button class="btn btn-secondary btn-sm" onclick="closePreviewModal()"><i class="fa-solid fa-xmark"></i> Đóng</button>
       </div>
       <div class="modal-body" id="previewModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Evidence Lightbox Modal for Admin Image Inspection -->
+  <div class="modal-overlay" id="evidenceLightbox" onclick="if(event.target === this) closeEvidenceLightbox()">
+    <div class="modal-box lightbox-box">
+      <div class="modal-head">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <strong id="lbTitle" style="font-size: 14px;">Kiểm Tra Ảnh Bằng Chứng</strong>
+          <span class="badge badge-info" id="lbPartyBadge">--</span>
+          <span class="badge badge-warn" id="lbStatusBadge">--</span>
+          <span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);" id="lbCounter">1 / 1</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="closeEvidenceLightbox()"><i class="fa-solid fa-xmark"></i> Đóng (Esc)</button>
+      </div>
+
+      <div class="lightbox-grid">
+        <!-- Stage -->
+        <div class="lightbox-stage-col">
+          <div class="lightbox-toolbar">
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbPrev()" title="Ảnh trước (←)"><i class="fa-solid fa-chevron-left"></i> Trước</button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbNext()" title="Ảnh tiếp (→)">Sau <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbZoom(-0.25)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+              <span id="lbZoomLabel" style="font-size:11px;font-family:var(--font-mono);min-width:44px;text-align:center;">100%</span>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbZoom(0.25)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbRotate(-90)" title="Xoay trái 90°"><i class="fa-solid fa-rotate-left"></i></button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbRotate(90)" title="Xoay phải 90°"><i class="fa-solid fa-rotate-right"></i></button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="lbResetTransform()">Reset</button>
+              <a id="lbOpenFullLink" href="#" target="_blank" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-up-right-from-square"></i> Tab mới</a>
+            </div>
+          </div>
+
+          <div class="lightbox-canvas-wrap">
+            <img id="lbMainImg" src="" alt="Evidence" />
+          </div>
+
+          <div class="lightbox-thumbs" id="lbThumbStrip"></div>
+        </div>
+
+        <!-- Metadata & Admin Action Sidebar -->
+        <div class="lightbox-meta-col">
+          <div class="meta-kv">
+            <span>Số SIM / Giao dịch</span>
+            <strong id="lbTradeMeta">--</strong>
+          </div>
+          <div class="meta-kv">
+            <span>TransferProof ID</span>
+            <code id="lbProofId" style="font-size:10px;word-break:break-all;color:var(--primary);">--</code>
+          </div>
+          <div class="meta-kv">
+            <span>Tên tệp / Dung lượng</span>
+            <strong id="lbFileMeta">--</strong>
+          </div>
+          <div class="meta-kv">
+            <span>Thời gian nộp</span>
+            <strong id="lbCreatedAt">--</strong>
+          </div>
+          <div class="meta-kv">
+            <span>Ghi chú người nộp</span>
+            <div id="lbDesc" style="color:var(--text-main);">--</div>
+          </div>
+          <div class="meta-kv" id="lbRejectMetaRow" style="display:none;">
+            <span>Lý do từ chối</span>
+            <div id="lbRejectReasonDisplay" class="reject-reason-box"></div>
+          </div>
+
+          <button type="button" class="btn btn-secondary btn-sm" onclick="runOcrOnLightboxImage()">
+            <i class="fa-solid fa-eye" style="color: var(--primary);"></i> OCR Ảnh Đang Xem (Gemini)
+          </button>
+          <pre id="lbOcrOutput" class="console-log" style="display:none;max-height:150px;"></pre>
+
+          <div id="lbAdminReviewBox" style="display:none;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--border-subtle);">
+            <div style="font-size:11px;font-weight:700;color:var(--amber);">Thao Tác Kiểm Duyệt Bộ Này:</div>
+            <div class="reason-chips">
+              <button type="button" class="reason-chip" onclick="setLbRejectReason('Ảnh biên bản bị mờ / lóa sáng')">Mờ / lóa sáng</button>
+              <button type="button" class="reason-chip" onclick="setLbRejectReason('Thiếu dấu đỏ điểm giao dịch nhà mạng')">Thiếu dấu đỏ</button>
+              <button type="button" class="reason-chip" onclick="setLbRejectReason('Sai số thuê bao hoặc thông tin CCCD')">Sai SĐT/CCCD</button>
+            </div>
+            <input type="text" id="lbRejectReasonInput" class="form-control" placeholder="Nhập lý do nếu từ chối..." />
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn btn-emerald" style="flex:1;" onclick="reviewProofFromLightbox(true)">
+                <i class="fa-solid fa-circle-check"></i> Duyệt Bộ
+              </button>
+              <button type="button" class="btn btn-rose" style="flex:1;" onclick="reviewProofFromLightbox(false)">
+                <i class="fa-solid fa-circle-xmark"></i> Từ Chối
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -970,9 +1439,116 @@
     let activeTradeId = '';
     let activeAuctionId = '';
     let activeTradeDetails = null;
+    let cachedQueueGroups = [];
+    let currentQueueFilter = 'ALL';
+    let signalrConn = null;
+    let isSubmitting = { SELLER: false, BUYER: false };
+
     const pickedFiles = { SELLER: [], BUYER: [] };
+    const partyIdempotencyKeys = { SELLER: generateUuid(), BUYER: generateUuid() };
+
+    const lightboxState = {
+      proof: null,
+      images: [],
+      index: 0,
+      zoom: 1,
+      rotate: 0
+    };
+
+    function generateUuid() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return window.crypto.randomUUID();
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    }
+
+    function refreshIdempotencyLabels() {
+      const sLabel = document.getElementById('sellerIdemKeyLabel');
+      const bLabel = document.getElementById('buyerIdemKeyLabel');
+      if (sLabel) sLabel.innerText = partyIdempotencyKeys.SELLER;
+      if (bLabel) bLabel.innerText = partyIdempotencyKeys.BUYER;
+    }
+
+    function regenerateIdempotencyKey(party) {
+      partyIdempotencyKeys[party] = generateUuid();
+      refreshIdempotencyLabels();
+      showToast(`Đã tạo IdempotencyKey mới cho ${party}`, 'info');
+    }
+
+    function updateSignalRBadge(connected, msg) {
+      const pill = document.getElementById('signalrPill');
+      const text = document.getElementById('signalrStatusText');
+      if (!pill || !text) return;
+      if (connected) {
+        pill.className = 'signalr-pill connected';
+        text.textContent = msg || 'SignalR: Connected';
+      } else {
+        pill.className = 'signalr-pill disconnected';
+        text.textContent = msg || 'SignalR: Disconnected';
+      }
+    }
+
+    async function initSignalRConnection() {
+      if (typeof signalR === 'undefined') return;
+      if (signalrConn) {
+        try { await signalrConn.stop(); } catch (e) {}
+        signalrConn = null;
+      }
+
+      updateSignalRBadge(false, 'SignalR: Connecting...');
+      try {
+        signalrConn = new signalR.HubConnectionBuilder()
+          .withUrl(`${backendUrl}/hubs/auction`, { accessTokenFactory: () => currentToken })
+          .withAutomaticReconnect([0, 2000, 5000, 10000])
+          .configureLogging(signalR.LogLevel.Warning)
+          .build();
+
+        signalrConn.on('ReceivePersonalNotification', async (notification) => {
+          const title = notification.title || notification.Title || 'Thông báo mới';
+          const content = notification.content || notification.Content || '';
+          showToast(`🔔 [Realtime] ${title}: ${content}`, 'info');
+          await refreshWalletAndSims();
+          await loadMyTrades();
+          if (activeTradeId) await reloadActiveTrade();
+          if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
+        });
+
+        signalrConn.on('ReceiveAuctionStatusChanged', async (auctionId) => {
+          if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
+          if (activeAuctionId && activeAuctionId.toLowerCase() === (auctionId || '').toLowerCase() && activeTradeId) {
+            await reloadActiveTrade();
+          }
+        });
+
+        signalrConn.onreconnecting(() => updateSignalRBadge(false, 'SignalR: Reconnecting...'));
+        signalrConn.onreconnected(async () => {
+          updateSignalRBadge(true, 'SignalR: Connected');
+          if (currentUser?.userId) {
+            try { await signalrConn.invoke('JoinRoom', `user_${currentUser.userId.toLowerCase()}`); } catch (e) {}
+          }
+        });
+        signalrConn.onclose(() => updateSignalRBadge(false, 'SignalR: Disconnected'));
+
+        await signalrConn.start();
+        updateSignalRBadge(true, 'SignalR: Connected');
+        if (currentUser?.userId) {
+          try { await signalrConn.invoke('JoinRoom', `user_${currentUser.userId.toLowerCase()}`); } catch (e) {}
+        }
+      } catch (err) {
+        updateSignalRBadge(false, 'SignalR: Error');
+      }
+    }
+
+    function isCurrentUserAdmin() {
+      const r = (currentUser?.role || '').toUpperCase();
+      return r.includes('ADMIN') || r.includes('CONSULTANT');
+    }
 
     window.addEventListener('DOMContentLoaded', async () => {
+      refreshIdempotencyLabels();
       const params = new URLSearchParams(window.location.search);
       const userParam = params.get('user') || 'admin';
       const tradeParam = params.get('tradeId') || '';
@@ -984,12 +1560,18 @@
       }
     });
 
+    document.addEventListener('keydown', (e) => {
+      const lb = document.getElementById('evidenceLightbox');
+      if (!lb || !lb.classList.contains('active')) return;
+      if (e.key === 'Escape') closeEvidenceLightbox();
+      else if (e.key === 'ArrowLeft') lbPrev();
+      else if (e.key === 'ArrowRight') lbNext();
+    });
+
     function changeServer(url) {
       backendUrl = url;
       showToast(`Đã đổi Backend API: ${url}`, 'info');
-      if (currentUser?.userName) {
-        loginQuick(currentUser.userName);
-      }
+      if (currentUser?.userName) loginQuick(currentUser.userName);
     }
 
     async function apiCall(path, options = {}) {
@@ -1046,32 +1628,96 @@
 
         showToast(`Đã đăng nhập: ${currentUser.userName} (${currentUser.role})`, 'success');
         await Promise.all([refreshWalletAndSims(), loadMyTrades()]);
-        if (activeTradeId) {
-          await reloadActiveTrade();
-        }
+        if (activeTradeId) await reloadActiveTrade();
+        if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
+        await initSignalRConnection();
       } catch (err) {
         showToast(`Lỗi kết nối khi đăng nhập: ${err.message}`, 'error');
       }
     }
 
+    let myTradesCache = [];
+
     async function loadMyTrades() {
       const select = document.getElementById('myTradesSelect');
-      const isAdmin = (currentUser?.role || '').toUpperCase().includes('ADMIN');
-      const url = isAdmin ? '/api/TradeTransactions/admin?pageIndex=1&pageSize=30' : '/api/TradeTransactions?pageIndex=1&pageSize=30';
+      const url = isCurrentUserAdmin()
+        ? '/api/TradeTransactions/admin?pageIndex=1&pageSize=30'
+        : '/api/TradeTransactions?pageIndex=1&pageSize=30';
       try {
-        const { res, payload } = await apiCall(url);
-        const items = payload?.data?.items || [];
-        select.innerHTML = '<option value="">-- Chọn một giao dịch --</option>';
-        items.forEach(t => {
+        const { payload } = await apiCall(url);
+        myTradesCache = payload?.data?.items || [];
+        select.innerHTML = '<option value="">-- Chọn Phiên Đấu Giá / SIM của bạn --</option>';
+        myTradesCache.forEach(t => {
           const opt = document.createElement('option');
           opt.value = t.id;
-          opt.textContent = `[${t.status}] ${t.tradeTransactionCode} • ${t.simPhoneNumber} (${formatVnd(t.escrowAmount)})`;
+          const roleTag = (currentUser?.userId && t.sellerId === currentUser.userId)
+            ? 'Bên Bán'
+            : ((currentUser?.userId && t.buyerId === currentUser.userId) ? 'Bên Mua' : 'Giao Dịch');
+          opt.textContent = `[${roleTag}] SIM: ${t.simPhoneNumber} • Mã GD: ${t.tradeTransactionCode} (${formatVnd(t.escrowAmount)})`;
           if (t.id === activeTradeId) opt.selected = true;
           select.appendChild(opt);
         });
       } catch (err) {
         console.error(err);
       }
+    }
+
+    async function handleSelectTradeOrAuction(tradeId) {
+      if (!tradeId) return;
+      const matched = myTradesCache.find(x => x.id === tradeId);
+      const auctionId = matched?.auctionId || '';
+      await selectTradeId(tradeId, auctionId);
+    }
+
+    async function searchAndLoadTradeOrAuction() {
+      const query = document.getElementById('manualTradeIdInput').value.trim();
+      if (!query) {
+        showToast('Vui lòng nhập AuctionId, TradeId, Mã GD hoặc Số SIM...', 'error');
+        return;
+      }
+
+      const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query);
+      const cleanQ = query.toLowerCase();
+
+      const matched = (myTradesCache || []).find(t =>
+        t.id.toLowerCase() === cleanQ ||
+        (t.auctionId && t.auctionId.toLowerCase() === cleanQ) ||
+        (t.tradeTransactionCode && t.tradeTransactionCode.toLowerCase().includes(cleanQ)) ||
+        (t.simPhoneNumber && t.simPhoneNumber.replace(/\D/g, '').includes(cleanQ.replace(/\D/g, '')))
+      );
+
+      if (matched) {
+        document.getElementById('myTradesSelect').value = matched.id;
+        await selectTradeId(matched.id, matched.auctionId);
+        showToast(`Đã nạp giao dịch cho SIM ${matched.simPhoneNumber}!`, 'success');
+        return;
+      }
+
+      if (isGuid) {
+        try {
+          const { res, payload } = await apiCall(`/api/SimTransfers/by-auction/${query}`);
+          if (res.ok && (payload?.success ?? payload?.isSuccess) && payload?.data) {
+            activeTradeId = payload.data.tradeId;
+            activeAuctionId = payload.data.auctionId || query;
+            renderTradeDetails(payload.data);
+            showToast('Nạp thành công theo Auction ID!', 'success');
+            return;
+          }
+        } catch (e) {}
+
+        await selectTradeId(query);
+        return;
+      }
+
+      showToast(`Không tìm thấy giao dịch khớp với '${query}'.`, 'error');
+    }
+
+    function setQueueFilter(filter) {
+      currentQueueFilter = filter;
+      document.querySelectorAll('#queueFilterTabs .filter-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderAuctionQueueList();
     }
 
     async function loadAuctionGroupedQueue() {
@@ -1083,75 +1729,86 @@
       const queryStr = qs.toString() ? `?${qs.toString()}` : '';
 
       const container = document.getElementById('auctionQueueContainer');
-      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải hàng đợi theo Auction...</div>';
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải hàng đợi...</div>';
 
       try {
         const { res, payload } = await apiCall(`/api/SimTransfers/admin/pending-reviews/by-auction${queryStr}`);
         if (!res.ok || !(payload?.success ?? payload?.isSuccess)) {
-          container.innerHTML = `<div style="color:var(--rose);font-size:12px;padding:12px;">HTTP ${res.status}: ${escapeHtml(payload?.message || 'Cần quyền ADMIN để gọi endpoint này.')}</div>`;
+          container.innerHTML = `<div style="color:var(--rose);font-size:12px;padding:12px;">HTTP ${res.status}: ${escapeHtml(payload?.message || 'Cần quyền ADMIN để tải hàng đợi.')}</div>`;
           return;
         }
 
-        const groups = payload.data || [];
-        document.getElementById('auctionQueueCountBadge').innerText = `${groups.length} phiên`;
-        if (groups.length === 0) {
-          container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:12px;">Không có phiên đấu giá nào đang có hồ sơ chờ Admin duyệt.</div>';
-          return;
-        }
-
-        container.innerHTML = groups.map(g => {
-          const tradesHtml = (g.trades || []).map(t => `
-            <div class="trade-item ${t.tradeId === activeTradeId ? 'active' : ''}" onclick="selectTradeId('${t.tradeId}', '${g.auctionId}')">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-                <strong style="font-size:12px;color:var(--primary);font-family:var(--font-mono);">${escapeHtml(t.tradeTransactionCode)}</strong>
-                <span class="badge badge-warn">${escapeHtml(t.simTransferStatus)}</span>
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);">
-                Bán: <strong>${escapeHtml(t.sellerName)}</strong> | Mua: <strong>${escapeHtml(t.buyerName)}</strong>
-              </div>
-              <div style="display:flex;gap:8px;font-size:10px;color:var(--text-dim);">
-                <span>Seller chờ: <strong style="color:var(--amber);">${t.pendingSellerProofCount ?? 0}</strong></span>
-                <span>Buyer chờ: <strong style="color:var(--primary);">${t.pendingBuyerProofCount ?? 0}</strong></span>
-                <span>Đã duyệt: ${t.hasApprovedSeller ? '✅Seller' : '⏳Seller'} / ${t.hasApprovedBuyer ? '✅Buyer' : '⏳Buyer'}</span>
-              </div>
-            </div>
-          `).join('');
-
-          return `
-            <div class="auction-card ${g.auctionId === activeAuctionId ? 'selected' : ''}">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-                <div>
-                  <strong style="font-size:12px;color:#fff;font-family:var(--font-mono);">${escapeHtml(g.auctionCode || g.auctionId)}</strong>
-                  <span class="badge badge-info">${escapeHtml(g.auctionType)}</span>
-                </div>
-                <button class="btn btn-secondary" style="padding:3px 7px;font-size:10px;" onclick="inspectSingleAuction('${g.auctionId}')">
-                  <i class="fa-solid fa-code"></i> Chi tiết Auction
-                </button>
-              </div>
-              <div style="font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;">
-                <span>SIM: <strong style="color:#fff;">${escapeHtml(g.simPhoneNumber)}</strong></span>
-                <span>Giá: <strong style="color:var(--emerald);">${formatVnd(g.winningPrice)}</strong></span>
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:10px;">
-                <span class="badge badge-purple">Trades: ${g.totalTradesCount}</span>
-                <span class="badge badge-warn">Chờ duyệt: ${g.totalPendingProofsCount} (S:${g.pendingSellerProofCount} / B:${g.pendingBuyerProofCount})</span>
-                <span class="badge ${g.hasApprovedSeller ? 'badge-ok' : 'badge-warn'}">Seller ${g.hasApprovedSeller ? 'OK' : 'Pending'}</span>
-                <span class="badge ${g.hasApprovedBuyer ? 'badge-ok' : 'badge-warn'}">Buyer ${g.hasApprovedBuyer ? 'OK' : 'Pending'}</span>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:6px;">
-                ${tradesHtml || '<span style="font-size:11px;color:var(--text-dim);">Không có trade con</span>'}
-              </div>
-            </div>
-          `;
-        }).join('');
+        cachedQueueGroups = payload.data || [];
+        renderAuctionQueueList();
       } catch (err) {
         container.innerHTML = `<div style="color:var(--rose);font-size:12px;">Lỗi: ${escapeHtml(err.message)}</div>`;
       }
     }
 
+    function renderAuctionQueueList() {
+      const container = document.getElementById('auctionQueueContainer');
+      let groups = cachedQueueGroups || [];
+
+      if (currentQueueFilter === 'PENDING_SELLER') {
+        groups = groups.filter(g => (g.pendingSellerProofCount ?? 0) > 0);
+      } else if (currentQueueFilter === 'PENDING_BUYER') {
+        groups = groups.filter(g => (g.pendingBuyerProofCount ?? 0) > 0);
+      }
+
+      document.getElementById('auctionQueueCountBadge').innerText = `${groups.length} phiên`;
+      if (groups.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim);font-size:12px;">Không có phiên đấu giá nào khớp bộ lọc.</div>';
+        return;
+      }
+
+      container.innerHTML = groups.map(g => {
+        const tradesHtml = (g.trades || []).map(t => `
+          <div class="trade-item ${t.tradeId === activeTradeId ? 'active' : ''}" onclick="selectTradeId('${t.tradeId}', '${g.auctionId}')">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <strong style="font-size:12px;color:var(--primary);font-family:var(--font-mono);">${escapeHtml(t.tradeTransactionCode)}</strong>
+              <span class="badge badge-warn">${escapeHtml(t.simTransferStatus)}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);">
+              Bán: <strong>${escapeHtml(t.sellerName)}</strong> | Mua: <strong>${escapeHtml(t.buyerName)}</strong>
+            </div>
+            <div style="display:flex;gap:8px;font-size:10px;color:var(--text-dim);flex-wrap:wrap;">
+              <span>Seller chờ: <strong style="color:var(--amber);">${t.pendingSellerProofCount ?? 0} bộ (${t.pendingSellerImageCount ?? 0} ảnh)</strong></span>
+              <span>Buyer chờ: <strong style="color:var(--primary);">${t.pendingBuyerProofCount ?? 0} bộ (${t.pendingBuyerImageCount ?? 0} ảnh)</strong></span>
+            </div>
+          </div>
+        `).join('');
+
+        return `
+          <div class="auction-card ${g.auctionId === activeAuctionId ? 'selected' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+              <div>
+                <strong style="font-size:12px;color:#fff;font-family:var(--font-mono);">${escapeHtml(g.auctionCode || g.auctionId)}</strong>
+                <span class="badge badge-info">${escapeHtml(g.auctionType)}</span>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="inspectSingleAuction('${g.auctionId}')">
+                <i class="fa-solid fa-code"></i> JSON
+              </button>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between;">
+              <span>SIM: <strong style="color:#fff;">${escapeHtml(g.simPhoneNumber)}</strong></span>
+              <span>Giá: <strong style="color:var(--emerald);">${formatVnd(g.winningPrice)}</strong></span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:10px;">
+              <span class="badge badge-warn">Chờ duyệt: ${g.totalPendingProofsCount} bộ (${g.totalPendingImagesCount ?? 0} ảnh)</span>
+              <span class="badge ${g.hasApprovedSeller ? 'badge-ok' : 'badge-warn'}">Seller ${g.hasApprovedSeller ? 'OK' : 'Pending'}</span>
+              <span class="badge ${g.hasApprovedBuyer ? 'badge-ok' : 'badge-warn'}">Buyer ${g.hasApprovedBuyer ? 'OK' : 'Pending'}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${tradesHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     async function inspectSingleAuction(auctionId) {
       try {
-        const { res, payload } = await apiCall(`/api/SimTransfers/admin/auction/${auctionId}/review`);
+        const { payload } = await apiCall(`/api/SimTransfers/admin/auction/${auctionId}/review`);
         openDarkModal(`Chi tiết Auction Review (${auctionId})`, `<pre class="console-log" style="max-height:65vh;">${escapeHtml(JSON.stringify(payload, null, 2))}</pre>`);
       } catch (err) {
         showToast(`Lỗi tải chi tiết Auction: ${err.message}`, 'error');
@@ -1198,14 +1855,17 @@
 
     function renderTradeDetails(d) {
       activeTradeDetails = d;
+      if (d.auctionId) activeAuctionId = d.auctionId;
+
       document.getElementById('activeTradeCode').innerText = d.tradeTransactionCode || d.tradeId;
       const badge = document.getElementById('activeTransferStatusBadge');
       badge.innerText = d.simTransferStatus || '--';
       badge.className = d.simTransferStatus === 'COMPLETED' ? 'badge badge-ok' : 'badge badge-warn';
 
       document.getElementById('metaSimPhone').innerText = d.simPhoneNumber || '--';
+      document.getElementById('metaAuctionId').innerText = d.auctionId || '--';
       document.getElementById('metaEscrowAmount').innerText = formatVnd(d.escrowAmount);
-      document.getElementById('metaNetPayout').innerText = `Phí ${d.platformFeePercent}% (${formatVnd(d.platformFeeAmount)}) → Net ${formatVnd(d.netSellerPayout)}`;
+      document.getElementById('metaNetPayout').innerText = `Phí ${(d.platformFeePercent * 100).toFixed(0)}% (${formatVnd(d.platformFeeAmount)}) → Net ${formatVnd(d.netSellerPayout)}`;
       document.getElementById('metaEscrowStatus').innerText = d.escrowStatus || '--';
       document.getElementById('metaPartyFlags').innerText = `isSeller=${d.isSeller} | isBuyer=${d.isBuyer} | canSubmit=${d.canSubmitProof}`;
 
@@ -1222,44 +1882,67 @@
       liqText.style.color = d.liquidationDocumentUrl ? 'var(--emerald)' : 'var(--text-muted)';
 
       const proofs = d.proofs || [];
-      const sellerProofs = proofs.filter(p => !p.proofType || p.proofType === 'SELLER_HANDOVER');
+      const sellerProofs = proofs.filter(p => p.proofType === 'SELLER_HANDOVER');
       const buyerProofs = proofs.filter(p => p.proofType === 'BUYER_RECEIPT');
 
-      document.getElementById('sellerProofCountBadge').innerText = `${sellerProofs.length} ảnh`;
-      document.getElementById('buyerProofCountBadge').innerText = `${buyerProofs.length} ảnh`;
+      const sellerTotalImgs = sellerProofs.reduce((acc, p) => acc + (p.images?.length || 0), 0);
+      const buyerTotalImgs = buyerProofs.reduce((acc, p) => acc + (p.images?.length || 0), 0);
 
-      renderProofGallery('sellerProofGallery', sellerProofs);
-      renderProofGallery('buyerProofGallery', buyerProofs);
+      document.getElementById('sellerProofCountBadge').innerText = `${sellerProofs.length} bộ / ${sellerTotalImgs} ảnh`;
+      document.getElementById('buyerProofCountBadge').innerText = `${buyerProofs.length} bộ / ${buyerTotalImgs} ảnh`;
 
       updateAdminPartyBadge('adminSellerStateBadge', 'SELLER', sellerProofs);
       updateAdminPartyBadge('adminBuyerStateBadge', 'BUYER', buyerProofs);
 
       const sellerApproved = sellerProofs.some(p => p.proofStatus === 'APPROVED');
+      const hasPendingSeller = d.hasPendingSellerProof ?? sellerProofs.some(p => p.proofStatus === 'PENDING');
+      const hasPendingBuyer = d.hasPendingBuyerProof ?? buyerProofs.some(p => p.proofStatus === 'PENDING');
+
+      const isAdmin = isCurrentUserAdmin();
+      const finished = d.simTransferStatus === 'COMPLETED' || d.simTransferStatus === 'CANCELLED';
+
+      // Khóa/mở form upload Seller
+      const sellerLockNotice = document.getElementById('sellerPendingLockNotice');
+      const sellerUploadBox = document.getElementById('sellerUploadBox');
+      sellerLockNotice.style.display = hasPendingSeller ? 'block' : 'none';
+      sellerUploadBox.style.display = (isAdmin || finished || sellerApproved || hasPendingSeller) ? 'none' : 'flex';
+
+      // Khóa/mở form upload Buyer
+      const buyerLockNotice = document.getElementById('buyerPendingLockNotice');
+      const buyerUploadBox = document.getElementById('buyerUploadBox');
+      const buyerApproved = buyerProofs.some(p => p.proofStatus === 'APPROVED');
+      buyerLockNotice.style.display = hasPendingBuyer ? 'block' : 'none';
+      buyerUploadBox.style.display = (isAdmin || finished || !sellerApproved || buyerApproved || hasPendingBuyer) ? 'none' : 'flex';
+
       const prereqBanner = document.getElementById('buyerPrereqBanner');
       if (prereqBanner) {
         if (sellerApproved) {
           prereqBanner.style.background = 'rgba(16, 185, 129, 0.14)';
           prereqBanner.style.borderColor = 'rgba(16, 185, 129, 0.4)';
           prereqBanner.style.color = '#34d399';
-          prereqBanner.innerHTML = '✅ Hồ sơ sang tên của Bên Bán đã được Admin phê duyệt (<code>APPROVED</code>). Bên Mua hiện đã được phép tải lên bằng chứng nhận SIM!';
+          prereqBanner.innerHTML = '✅ Hồ sơ Bên Bán đã được duyệt (<code>APPROVED</code>). Bên Mua được phép tải lên bộ ảnh nghiệm thu.';
         } else {
           prereqBanner.style.background = 'rgba(245, 158, 11, 0.12)';
           prereqBanner.style.borderColor = 'rgba(245, 158, 11, 0.35)';
           prereqBanner.style.color = '#fbbf24';
-          prereqBanner.innerHTML = '⏳ Quy tắc tuần tự: Phải chờ Admin duyệt bằng chứng của Bên Bán (<code>SELLER_HANDOVER = APPROVED</code>) trước khi Bên Mua được phép nộp ảnh nghiệm thu. (Bấm nộp sớm sẽ test kịch bản chặn HTTP 400).';
+          prereqBanner.innerHTML = '⏳ Quy tắc tuần tự: Chờ Admin duyệt bộ bằng chứng Bên Bán (<code>SELLER_HANDOVER = APPROVED</code>) trước khi Bên Mua nộp &amp; Admin duyệt Bên Mua.';
         }
       }
+
+      renderProofBatches('sellerProofBatches', sellerProofs, 'SELLER', sellerApproved, d);
+      renderProofBatches('buyerProofBatches', buyerProofs, 'BUYER', sellerApproved, d);
     }
 
     function updateAdminPartyBadge(elId, label, proofs) {
       const el = document.getElementById(elId);
-      if (!proofs.length) {
+      const activeProofs = proofs.filter(p => p.proofStatus !== 'WITHDRAWN');
+      if (!activeProofs.length) {
         el.innerText = `${label}: CHƯA NỘP`;
         el.className = 'badge badge-warn';
-      } else if (proofs.some(p => p.proofStatus === 'APPROVED')) {
+      } else if (activeProofs.some(p => p.proofStatus === 'APPROVED')) {
         el.innerText = `${label}: APPROVED`;
         el.className = 'badge badge-ok';
-      } else if (proofs.some(p => p.proofStatus === 'PENDING')) {
+      } else if (activeProofs.some(p => p.proofStatus === 'PENDING')) {
         el.innerText = `${label}: PENDING`;
         el.className = 'badge badge-info';
       } else {
@@ -1268,67 +1951,178 @@
       }
     }
 
-    function renderProofGallery(containerId, proofs) {
-      const el = document.getElementById(containerId);
+    function renderProofBatches(containerId, proofs, party, sellerApproved, tradeDetails) {
+      const container = document.getElementById(containerId);
       if (!proofs.length) {
-        el.innerHTML = '<span style="font-size: 11px; color: var(--text-dim);">Chưa có ảnh nào.</span>';
+        container.innerHTML = '<div style="font-size: 12px; color: var(--text-dim);">Chưa có bộ bằng chứng nào.</div>';
         return;
       }
-      el.innerHTML = proofs.map(p => {
-        const cls = p.proofStatus === 'APPROVED' ? 'badge-ok' : (p.proofStatus === 'REJECTED' ? 'badge-err' : 'badge-warn');
-        const safeUrl = escapeHtml(p.imageUrl);
-        return `
-          <div class="proof-thumb">
-            <img src="${safeUrl}" alt="proof" onclick="openDarkModal('Xem ảnh bằng chứng (${escapeHtml(p.proofType)})', '<img src=&quot;${safeUrl}&quot; style=&quot;max-width:100%;max-height:70vh;display:block;margin:auto;&quot; />')" />
-            <div class="proof-thumb-meta">
-              <span class="badge ${cls}">${escapeHtml(p.proofStatus)}</span>
-              <span style="color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(p.description || '')}">${escapeHtml(p.description || 'Không có ghi chú')}</span>
+
+      const isAdmin = isCurrentUserAdmin();
+      const canOwnerWithdraw = (party === 'SELLER' && tradeDetails.isSeller) || (party === 'BUYER' && tradeDetails.isBuyer);
+      const buyerReviewLocked = party === 'BUYER' && !sellerApproved;
+
+      container.innerHTML = proofs.map((p, idx) => {
+        const statusCls = p.proofStatus === 'APPROVED'
+          ? 'is-approved'
+          : (p.proofStatus === 'REJECTED' ? 'is-rejected' : (p.proofStatus === 'WITHDRAWN' ? 'is-withdrawn' : 'is-pending'));
+        const badgeCls = p.proofStatus === 'APPROVED'
+          ? 'badge-ok'
+          : (p.proofStatus === 'REJECTED' ? 'badge-err' : (p.proofStatus === 'WITHDRAWN' ? 'badge-muted' : 'badge-warn'));
+        const imgs = p.images || [];
+
+        const imgsHtml = imgs.length
+          ? imgs.map((img, i) => `
+              <div class="proof-img-card" onclick="openEvidenceLightbox('${p.id}', ${i})" title="Bấm để phóng to và kiểm tra ảnh chi tiết">
+                <div class="proof-img-wrap">
+                  <img src="${escapeHtml(img.imageUrl)}" alt="Proof ${i + 1}" onerror="this.src='https://placehold.co/400x300/0f172a/38bdf8?text=Anh+Loi'" />
+                  <span class="proof-img-index">${i + 1}/${imgs.length}</span>
+                  <span class="proof-img-zoom-hint"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></span>
+                </div>
+                <div class="proof-img-caption">${escapeHtml(img.fileName || `Ảnh #${i + 1}`)}</div>
+              </div>
+            `).join('')
+          : '<div style="font-size:11px;color:var(--text-dim);">Không có ảnh đính kèm.</div>';
+
+        const rejectHtml = p.rejectionReason
+          ? `<div class="reject-reason-box"><strong><i class="fa-solid fa-ban"></i> Lý do từ chối:</strong> ${escapeHtml(p.rejectionReason)}</div>`
+          : '';
+
+        const withdrawBtnHtml = (p.proofStatus === 'PENDING' && canOwnerWithdraw)
+          ? `<button type="button" class="btn btn-rose btn-sm" onclick="withdrawProofById('${p.id}')"><i class="fa-solid fa-rotate-left"></i> Thu hồi bộ này</button>`
+          : '';
+
+        const adminActionsHtml = (p.proofStatus === 'PENDING' && isAdmin)
+          ? `
+            <div style="display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid var(--border-subtle);">
+              <div class="reason-chips">
+                <button type="button" class="reason-chip" onclick="fillRejectReason('${p.id}', 'Ảnh biên bản bị mờ / chói sáng')">Mờ / chói</button>
+                <button type="button" class="reason-chip" onclick="fillRejectReason('${p.id}', 'Thiếu dấu đỏ điểm giao dịch nhà mạng')">Thiếu dấu đỏ</button>
+                <button type="button" class="reason-chip" onclick="fillRejectReason('${p.id}', 'Không khớp số thuê bao / CCCD')">Sai SĐT / CCCD</button>
+                <button type="button" class="reason-chip" onclick="fillRejectReason('${p.id}', 'Chưa có ảnh SMS 1414 xác nhận chính chủ')">Thiếu SMS 1414</button>
+              </div>
+              <input type="text" id="rejectReason_${p.id}" class="form-control" placeholder="Nhập lý do từ chối cho bộ bằng chứng này (bắt buộc khi Từ chối)..." />
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-emerald" style="flex:1;" ${buyerReviewLocked ? 'disabled title="Phải duyệt Bên Bán trước khi duyệt Bên Mua"' : ''} onclick="submitAdminReviewProof('${p.id}', true)">
+                  <i class="fa-solid fa-circle-check"></i> Duyệt Bộ Này (${imgs.length} ảnh)
+                </button>
+                <button type="button" class="btn btn-rose" style="flex:1;" ${buyerReviewLocked ? 'disabled title="Phải duyệt Bên Bán trước khi từ chối Bên Mua"' : ''} onclick="submitAdminReviewProof('${p.id}', false)">
+                  <i class="fa-solid fa-circle-xmark"></i> Từ Chối Bộ Này
+                </button>
+              </div>
             </div>
+          `
+          : '';
+
+        return `
+          <div class="proof-batch-card ${statusCls}">
+            <div class="proof-batch-head">
+              <div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <strong style="font-size:12px;">Bộ #${proofs.length - idx}</strong>
+                  <span class="badge ${badgeCls}">${escapeHtml(p.proofStatus)}</span>
+                  <span class="badge badge-info">${imgs.length} ảnh</span>
+                </div>
+                <div style="font-size:10px;color:var(--text-dim);margin-top:3px;font-family:var(--font-mono);">
+                  ID: ${escapeHtml(p.id.slice(0, 8))}... • Nộp: ${formatDateTime(p.createdDate)}
+                  ${p.verifiedAt ? ` • Duyệt: ${formatDateTime(p.verifiedAt)}` : ''}
+                  ${p.withdrawnAt ? ` • Thu hồi: ${formatDateTime(p.withdrawnAt)}` : ''}
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                ${imgs.length ? `<button type="button" class="btn btn-secondary btn-sm" onclick="openEvidenceLightbox('${p.id}', 0)"><i class="fa-solid fa-magnifying-glass"></i> Soi Ảnh Lớn</button>` : ''}
+                ${withdrawBtnHtml}
+              </div>
+            </div>
+            ${p.description ? `<div style="font-size:12px;color:#e2e8f0;"><i class="fa-solid fa-quote-left" style="color:var(--text-dim);margin-right:4px;"></i>${escapeHtml(p.description)}</div>` : ''}
+            ${rejectHtml}
+            <div class="proof-images-grid">${imgsHtml}</div>
+            ${adminActionsHtml}
           </div>
         `;
       }).join('');
     }
 
+    function fillRejectReason(proofId, reason) {
+      const input = document.getElementById(`rejectReason_${proofId}`);
+      if (input) input.value = reason;
+    }
+
     function handlePartyFilePick(party, event) {
       const files = Array.from(event.target.files || []);
-      pickedFiles[party] = files;
+      if (!files.length) return;
+      pickedFiles[party] = pickedFiles[party].concat(files);
+      event.target.value = '';
+      partyIdempotencyKeys[party] = generateUuid();
+      refreshIdempotencyLabels();
+      renderStagedFiles(party);
+    }
+
+    function removeStagedFile(party, index) {
+      pickedFiles[party].splice(index, 1);
+      renderStagedFiles(party);
+    }
+
+    function renderStagedFiles(party) {
+      const files = pickedFiles[party];
+      const gridId = party === 'SELLER' ? 'sellerStagedGrid' : 'buyerStagedGrid';
       const hintId = party === 'SELLER' ? 'sellerSelectedHint' : 'buyerSelectedHint';
-      document.getElementById(hintId).innerText = files.length
-        ? `Đã chọn ${files.length} ảnh: ${files.map(f => f.name).join(', ')}`
-        : 'Chưa chọn tệp ảnh nào.';
+      const grid = document.getElementById(gridId);
+      const hint = document.getElementById(hintId);
+
+      if (!files.length) {
+        grid.innerHTML = '';
+        hint.innerText = 'Chưa chọn tệp ảnh nào.';
+        return;
+      }
+
+      hint.innerText = `Đã chọn ${files.length} ảnh sẵn sàng nộp.`;
+      grid.innerHTML = files.map((f, i) => {
+        const previewUrl = URL.createObjectURL(f);
+        return `
+          <div class="staged-item">
+            <img src="${previewUrl}" alt="${escapeHtml(f.name)}" />
+            <button type="button" class="staged-del" onclick="removeStagedFile('${party}', ${i})" title="Bỏ ảnh này">&times;</button>
+            <div class="staged-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
+          </div>
+        `;
+      }).join('');
     }
 
     function createSampleProofFile(party) {
       const sim = activeTradeDetails?.simPhoneNumber || '0988888888';
       const code = activeTradeDetails?.tradeTransactionCode || 'TRD-TEST';
+      const seq = pickedFiles[party].length + 1;
       const canvas = document.createElement('canvas');
-      canvas.width = 760;
-      canvas.height = 420;
+      canvas.width = 820;
+      canvas.height = 460;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.strokeStyle = party === 'SELLER' ? '#d97706' : '#0284c7';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(16, 16, 728, 388);
+      ctx.lineWidth = 5;
+      ctx.strokeRect(18, 18, 784, 424);
       ctx.fillStyle = '#0f172a';
-      ctx.font = 'bold 22px Arial';
-      ctx.fillText(party === 'SELLER' ? 'BIEN BAN SANG TEN NHA MANG (SELLER)' : 'ANH XAC NHAN CHINH CHU 1414 (BUYER)', 42, 70);
-      ctx.font = '18px monospace';
-      ctx.fillText(`So thue bao : ${sim}`, 42, 130);
-      ctx.fillText(`Ma giao dich: ${code}`, 42, 170);
-      ctx.fillText(`Thoi gian   : ${new Date().toISOString()}`, 42, 210);
-      ctx.fillText(`Nguoi tai   : ${currentUser?.userName || party}`, 42, 250);
-      ctx.fillStyle = '#16a34a';
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText('HOP LE DE KIEM DUYET TRUSTSIM QA', 42, 320);
+      ctx.font = 'bold 24px Arial';
+      ctx.fillText(party === 'SELLER' ? `BIEN BAN SANG TEN NHA MANG #${seq} (SELLER)` : `ANH XAC NHAN CHINH CHU 1414 #${seq} (BUYER)`, 42, 74);
+      ctx.font = '19px monospace';
+      ctx.fillText(`So thue bao : ${sim}`, 42, 138);
+      ctx.fillText(`Ma giao dich: ${code}`, 42, 178);
+      ctx.fillText(`To so       : Trang ${seq}`, 42, 218);
+      ctx.fillText(`Thoi gian   : ${new Date().toISOString()}`, 42, 258);
+      ctx.fillText(`Nguoi tai   : ${currentUser?.userName || party}`, 42, 298);
+      ctx.fillStyle = '#15803d';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText('TRUSTSIM QA VERIFIED SAMPLE DOCUMENT', 42, 370);
 
       canvas.toBlob((blob) => {
-        const fileName = `${party.toLowerCase()}_proof_${Date.now()}.png`;
+        const fileName = `${party.toLowerCase()}_sample_${seq}_${Date.now()}.png`;
         const file = new File([blob], fileName, { type: 'image/png' });
-        pickedFiles[party] = [file];
-        const hintId = party === 'SELLER' ? 'sellerSelectedHint' : 'buyerSelectedHint';
-        document.getElementById(hintId).innerText = `Đã tạo ảnh PNG mẫu: ${fileName} (${(file.size / 1024).toFixed(1)} KB)`;
-        showToast(`Đã tạo ảnh mẫu cho ${party}!`, 'success');
+        pickedFiles[party].push(file);
+        partyIdempotencyKeys[party] = generateUuid();
+        refreshIdempotencyLabels();
+        renderStagedFiles(party);
+        showToast(`Đã thêm ảnh mẫu #${seq} cho ${party} (${pickedFiles[party].length} ảnh đang chọn)!`, 'success');
       }, 'image/png');
     }
 
@@ -1338,16 +2132,20 @@
         showToast(`Vui lòng chọn hoặc tạo ảnh mẫu cho ${party} trước khi OCR!`, 'error');
         return;
       }
+      await callVisionOcrBlob(files[0], files[0].name);
+    }
+
+    async function callVisionOcrBlob(blobOrFile, displayName) {
       const formData = new FormData();
-      formData.append('file', files[0], files[0].name);
+      formData.append('file', blobOrFile, displayName || 'evidence.png');
       try {
-        showToast(`Đang chạy Gemini Vision OCR trên ${files[0].name}...`, 'info');
+        showToast(`Đang chạy Gemini Vision OCR trên ${displayName}...`, 'info');
         const { res, payload } = await apiCall('/api/Vision/ocr/detect-text', {
           method: 'POST',
           body: formData
         });
         if (res.ok && (payload?.success ?? payload?.isSuccess) && payload?.data) {
-          openDarkModal(`Kết quả Gemini OCR: ${escapeHtml(files[0].name)}`, `<pre class="console-log" style="max-height:60vh;">${escapeHtml(payload.data.fullText || '')}\n\n--- RAW ---\n${escapeHtml(JSON.stringify(payload.data, null, 2))}</pre>`);
+          openDarkModal(`Kết quả Gemini OCR: ${escapeHtml(displayName)}`, `<pre class="console-log" style="max-height:60vh;">${escapeHtml(payload.data.fullText || '')}\n\n--- RAW ---\n${escapeHtml(JSON.stringify(payload.data, null, 2))}</pre>`);
           showToast('OCR ảnh bằng chứng thành công!', 'success');
         } else {
           showToast(`OCR thất bại (HTTP ${res.status}): ${payload?.message || ''}`, 'error');
@@ -1358,63 +2156,117 @@
     }
 
     async function submitPartyProofs(proofType) {
-      if (!activeTradeId) {
-        showToast('Vui lòng chọn một TradeTransaction trước!', 'error');
+      if (!activeTradeId && !activeAuctionId) {
+        showToast('Vui lòng chọn Phiên Đấu Giá / SIM trước!', 'error');
         return;
       }
       const party = proofType === 'BUYER_RECEIPT' ? 'BUYER' : 'SELLER';
+      if (isSubmitting[party]) return;
+
       const files = pickedFiles[party];
       if (!files || !files.length) {
         showToast(`Vui lòng chọn ít nhất 1 tệp ảnh cho ${proofType}!`, 'error');
         return;
       }
+
       const desc = document.getElementById(party === 'SELLER' ? 'sellerDescInput' : 'buyerDescInput').value.trim();
+      const idemKey = partyIdempotencyKeys[party];
       const formData = new FormData();
       files.forEach(f => formData.append('Files', f, f.name));
       formData.append('ProofType', proofType);
+      formData.append('IdempotencyKey', idemKey);
       if (desc) formData.append('Description', desc);
 
+      const endpoint = activeAuctionId
+        ? `/api/SimTransfers/by-auction/${activeAuctionId}/proofs`
+        : `/api/SimTransfers/${activeTradeId}/proofs`;
+
+      const btn = document.getElementById(party === 'SELLER' ? 'btnSubmitSellerProof' : 'btnSubmitBuyerProof');
+      const originalBtnHtml = btn.innerHTML;
+      isSubmitting[party] = true;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang tải ${files.length} ảnh...`;
+
       try {
-        const { res, payload } = await apiCall(`/api/SimTransfers/${activeTradeId}/proofs`, {
+        const { res, payload } = await apiCall(endpoint, {
           method: 'POST',
+          headers: { 'X-Idempotency-Key': idemKey },
           body: formData
         });
         if (res.ok && (payload?.success ?? payload?.isSuccess)) {
-          showToast(`Upload ${proofType} thành công!`, 'success');
+          showToast(payload?.message || `Upload ${proofType} thành công!`, 'success');
+          pickedFiles[party] = [];
+          renderStagedFiles(party);
+          partyIdempotencyKeys[party] = generateUuid();
+          refreshIdempotencyLabels();
           if (payload.data) renderTradeDetails(payload.data);
           else await reloadActiveTrade();
         } else {
-          showToast(`Upload thất bại (HTTP ${res.status}): ${payload?.message || 'Kiểm tra đúng role Seller/Buyer!'}`, 'error');
+          showToast(`Upload thất bại (HTTP ${res.status}): ${payload?.message || ''}`, 'error');
         }
       } catch (err) {
         showToast(`Lỗi upload: ${err.message}`, 'error');
+      } finally {
+        isSubmitting[party] = false;
+        btn.disabled = false;
+        btn.innerHTML = originalBtnHtml;
       }
     }
 
-    async function submitAdminReview(targetParty, isApproved) {
-      if (!activeTradeId) {
-        showToast('Vui lòng chọn một TradeTransaction trước!', 'error');
+    async function withdrawPendingByParty(party) {
+      const proofs = activeTradeDetails?.proofs || [];
+      const targetType = party === 'BUYER' ? 'BUYER_RECEIPT' : 'SELLER_HANDOVER';
+      const pendingProof = proofs.find(p => p.proofType === targetType && p.proofStatus === 'PENDING');
+      if (!pendingProof) {
+        showToast('Không tìm thấy bộ bằng chứng đang PENDING để thu hồi.', 'error');
         return;
       }
-      const rejectionReason = document.getElementById('adminRejectReason').value.trim();
+      await withdrawProofById(pendingProof.id);
+    }
+
+    async function withdrawProofById(transferProofId) {
+      if (!confirm('Bạn chắc chắn muốn thu hồi (hủy) bộ bằng chứng đang chờ duyệt này để tải lên bộ mới?')) {
+        return;
+      }
+      try {
+        const { res, payload } = await apiCall(`/api/SimTransfers/proofs/${transferProofId}/withdraw`, {
+          method: 'POST'
+        });
+        if (res.ok && (payload?.success ?? payload?.isSuccess)) {
+          showToast(payload?.message || 'Đã thu hồi bộ bằng chứng thành công!', 'success');
+          if (payload.data) renderTradeDetails(payload.data);
+          else await reloadActiveTrade();
+          if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
+        } else {
+          showToast(`Thu hồi thất bại (HTTP ${res.status}): ${payload?.message || ''}`, 'error');
+        }
+      } catch (err) {
+        showToast(`Lỗi thu hồi: ${err.message}`, 'error');
+      }
+    }
+
+    async function submitAdminReviewProof(transferProofId, isApproved, customReason = null) {
+      const reasonInput = document.getElementById(`rejectReason_${transferProofId}`);
+      const rejectionReason = (customReason !== null ? customReason : (reasonInput?.value || '')).trim();
+
       if (!isApproved && !rejectionReason) {
         showToast('Vui lòng nhập lý do từ chối trước khi bấm Từ Chối!', 'error');
-        document.getElementById('adminRejectReason').focus();
+        if (reasonInput) reasonInput.focus();
         return;
       }
 
       try {
-        const { res, payload } = await apiCall(`/api/SimTransfers/admin/${activeTradeId}/review`, {
+        const { res, payload } = await apiCall(`/api/SimTransfers/admin/proofs/${transferProofId}/review`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            targetParty,
             isApproved,
             rejectionReason: isApproved ? null : rejectionReason
           })
         });
         if (res.ok && (payload?.success ?? payload?.isSuccess)) {
-          showToast(payload?.message || `Đã ${isApproved ? 'duyệt' : 'từ chối'} ${targetParty}!`, 'success');
+          showToast(payload?.message || `Đã ${isApproved ? 'duyệt' : 'từ chối'} bộ bằng chứng!`, 'success');
+          closeEvidenceLightbox();
           if (payload.data) renderTradeDetails(payload.data);
           else await reloadActiveTrade();
           await Promise.all([refreshWalletAndSims(), loadAuctionGroupedQueue()]);
@@ -1423,6 +2275,168 @@
         }
       } catch (err) {
         showToast(`Lỗi Admin Review: ${err.message}`, 'error');
+      }
+    }
+
+    /* Evidence Lightbox Functions */
+    function openEvidenceLightbox(proofId, imageIndex = 0) {
+      const proof = (activeTradeDetails?.proofs || []).find(p => p.id === proofId);
+      if (!proof || !proof.images || !proof.images.length) {
+        showToast('Bộ bằng chứng này không có ảnh để hiển thị.', 'error');
+        return;
+      }
+
+      lightboxState.proof = proof;
+      lightboxState.images = proof.images;
+      lightboxState.index = Math.max(0, Math.min(imageIndex, proof.images.length - 1));
+      lightboxState.zoom = 1;
+      lightboxState.rotate = 0;
+
+      document.getElementById('lbOcrOutput').style.display = 'none';
+      document.getElementById('lbOcrOutput').innerText = '';
+      renderLightbox();
+      document.getElementById('evidenceLightbox').classList.add('active');
+    }
+
+    function closeEvidenceLightbox() {
+      document.getElementById('evidenceLightbox').classList.remove('active');
+    }
+
+    function renderLightbox() {
+      const p = lightboxState.proof;
+      const imgs = lightboxState.images;
+      const img = imgs[lightboxState.index];
+      if (!p || !img) return;
+
+      document.getElementById('lbTitle').innerText = `Kiểm Tra Ảnh Bằng Chứng (${activeTradeDetails?.simPhoneNumber || ''})`;
+      const partyBadge = document.getElementById('lbPartyBadge');
+      partyBadge.innerText = p.proofType;
+      partyBadge.className = p.proofType === 'SELLER_HANDOVER' ? 'badge badge-warn' : 'badge badge-info';
+
+      const statusBadge = document.getElementById('lbStatusBadge');
+      statusBadge.innerText = p.proofStatus;
+      statusBadge.className = p.proofStatus === 'APPROVED'
+        ? 'badge badge-ok'
+        : (p.proofStatus === 'REJECTED' ? 'badge-err badge' : (p.proofStatus === 'WITHDRAWN' ? 'badge badge-muted' : 'badge badge-warn'));
+
+      document.getElementById('lbCounter').innerText = `${lightboxState.index + 1} / ${imgs.length}`;
+      const mainImg = document.getElementById('lbMainImg');
+      mainImg.src = img.imageUrl;
+      applyLightboxTransform();
+
+      document.getElementById('lbOpenFullLink').href = img.imageUrl;
+      document.getElementById('lbTradeMeta').innerText = `${activeTradeDetails?.simPhoneNumber || '--'} • ${activeTradeDetails?.tradeTransactionCode || '--'}`;
+      document.getElementById('lbProofId').innerText = p.id;
+      const sizeKb = img.fileSizeBytes ? `${(img.fileSizeBytes / 1024).toFixed(1)} KB` : '--';
+      document.getElementById('lbFileMeta').innerText = `${img.fileName || 'image'} (${sizeKb})`;
+      document.getElementById('lbCreatedAt').innerText = formatDateTime(p.createdDate);
+      document.getElementById('lbDesc').innerText = p.description || 'Không có ghi chú.';
+
+      const rejectRow = document.getElementById('lbRejectMetaRow');
+      if (p.rejectionReason) {
+        rejectRow.style.display = 'flex';
+        document.getElementById('lbRejectReasonDisplay').innerText = p.rejectionReason;
+      } else {
+        rejectRow.style.display = 'none';
+      }
+
+      const reviewBox = document.getElementById('lbAdminReviewBox');
+      if (isCurrentUserAdmin() && p.proofStatus === 'PENDING') {
+        reviewBox.style.display = 'flex';
+        document.getElementById('lbRejectReasonInput').value = '';
+      } else {
+        reviewBox.style.display = 'none';
+      }
+
+      const strip = document.getElementById('lbThumbStrip');
+      strip.innerHTML = imgs.map((item, i) => `
+        <div class="lightbox-thumb-item ${i === lightboxState.index ? 'active' : ''}" onclick="lbSelectIndex(${i})">
+          <img src="${escapeHtml(item.imageUrl)}" alt="Thumb ${i + 1}" />
+        </div>
+      `).join('');
+    }
+
+    function applyLightboxTransform() {
+      const mainImg = document.getElementById('lbMainImg');
+      mainImg.style.transform = `scale(${lightboxState.zoom}) rotate(${lightboxState.rotate}deg)`;
+      document.getElementById('lbZoomLabel').innerText = `${Math.round(lightboxState.zoom * 100)}%`;
+    }
+
+    function lbZoom(delta) {
+      lightboxState.zoom = Math.max(0.5, Math.min(3.5, lightboxState.zoom + delta));
+      applyLightboxTransform();
+    }
+
+    function lbRotate(deg) {
+      lightboxState.rotate = (lightboxState.rotate + deg) % 360;
+      applyLightboxTransform();
+    }
+
+    function lbResetTransform() {
+      lightboxState.zoom = 1;
+      lightboxState.rotate = 0;
+      applyLightboxTransform();
+    }
+
+    function lbPrev() {
+      if (!lightboxState.images.length) return;
+      lightboxState.index = (lightboxState.index - 1 + lightboxState.images.length) % lightboxState.images.length;
+      lbResetTransform();
+      renderLightbox();
+    }
+
+    function lbNext() {
+      if (!lightboxState.images.length) return;
+      lightboxState.index = (lightboxState.index + 1) % lightboxState.images.length;
+      lbResetTransform();
+      renderLightbox();
+    }
+
+    function lbSelectIndex(i) {
+      lightboxState.index = i;
+      lbResetTransform();
+      renderLightbox();
+    }
+
+    function setLbRejectReason(reason) {
+      document.getElementById('lbRejectReasonInput').value = reason;
+    }
+
+    async function reviewProofFromLightbox(isApproved) {
+      if (!lightboxState.proof) return;
+      const reason = document.getElementById('lbRejectReasonInput').value.trim();
+      if (!isApproved && !reason) {
+        showToast('Vui lòng nhập lý do từ chối trong Lightbox!', 'error');
+        document.getElementById('lbRejectReasonInput').focus();
+        return;
+      }
+      await submitAdminReviewProof(lightboxState.proof.id, isApproved, reason);
+    }
+
+    async function runOcrOnLightboxImage() {
+      const img = lightboxState.images[lightboxState.index];
+      if (!img) return;
+      const outEl = document.getElementById('lbOcrOutput');
+      outEl.style.display = 'block';
+      outEl.innerText = 'Đang tải ảnh và gọi Gemini OCR...';
+      try {
+        const resImg = await fetch(img.imageUrl);
+        if (!resImg.ok) throw new Error(`HTTP ${resImg.status}`);
+        const blob = await resImg.blob();
+        const formData = new FormData();
+        formData.append('file', blob, img.fileName || 'evidence.png');
+        const { res, payload } = await apiCall('/api/Vision/ocr/detect-text', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok && (payload?.success ?? payload?.isSuccess) && payload?.data) {
+          outEl.innerText = payload.data.fullText || '(Không nhận diện được chữ)';
+          showToast('OCR ảnh thành công!', 'success');
+        } else {
+          outEl.innerText = `Lỗi OCR: ${payload?.message || res.status}`;
+        }
+      } catch (err) {
+        outEl.innerText = `Không thể fetch trực tiếp URL ảnh để OCR (${err.message}). Hãy kiểm tra CORS trên MinIO/CDN hoặc tải ảnh về OCR tại Vision Studio.`;
       }
     }
 
@@ -1527,7 +2541,13 @@
       const color = type === 'success' ? 'var(--emerald)' : (type === 'error' ? 'var(--rose)' : 'var(--primary)');
       div.innerHTML = `<i class="fa-solid ${icon}" style="color:${color};"></i><span>${escapeHtml(msg)}</span>`;
       stack.appendChild(div);
-      setTimeout(() => div.remove(), 4000);
+      setTimeout(() => div.remove(), 4200);
+    }
+
+    function formatDateTime(str) {
+      if (!str) return '--';
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? str : d.toLocaleString('vi-VN');
     }
 
     function formatVnd(n) {

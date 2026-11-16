@@ -95,19 +95,41 @@ public class PdfSigningService : IPdfSigningService
             tsaTime = DateTime.UtcNow;
         }
 
-        // 4. Ký số PAdES Detached Signature (CADES)
-        using var readerStream = new MemoryStream(sourcePdfBytes);
-        using var outputStream = new MemoryStream();
-        var reader = new PdfReader(readerStream);
-        var signer = new PdfSigner(reader, outputStream, new StampingProperties().UseAppendMode());
-
-        signer.SetReason(signatureReason);
-        signer.SetLocation(signatureLocation);
-
+        // 4. Ký số PAdES Detached Signature (CADES) với cơ chế tự động Fallback nếu TSA lỗi
         IExternalSignature pks = new PrivateKeySignature(ipk, DigestAlgorithms.SHA256);
-        signer.SignDetached(pks, bcChain, null, null, tsaClient, 0, PdfSigner.CryptoStandard.CADES);
+        byte[] signedBytes;
 
-        var signedBytes = outputStream.ToArray();
+        try
+        {
+            using var readerStream = new MemoryStream(sourcePdfBytes);
+            using var outputStream = new MemoryStream();
+            var reader = new PdfReader(readerStream);
+            var signer = new PdfSigner(reader, outputStream, new StampingProperties().UseAppendMode());
+
+            signer.SetReason(signatureReason);
+            signer.SetLocation(signatureLocation);
+
+            signer.SignDetached(pks, bcChain, null, null, tsaClient, 0, PdfSigner.CryptoStandard.CADES);
+            signedBytes = outputStream.ToArray();
+        }
+        catch (Exception ex) when (tsaClient != null)
+        {
+            _logger.LogWarning(ex, "[PdfSigner] ⚠️ Ký số PAdES kèm máy chủ TSA thất bại ({Msg}). Tự động fallback ký không TSA (Local Server Time).", ex.Message);
+            tsaTime = DateTime.UtcNow;
+            usedTsaAuthority = "LOCAL_SERVER_TIME_FALLBACK";
+
+            using var readerStream = new MemoryStream(sourcePdfBytes);
+            using var outputStream = new MemoryStream();
+            var reader = new PdfReader(readerStream);
+            var signer = new PdfSigner(reader, outputStream, new StampingProperties().UseAppendMode());
+
+            signer.SetReason(signatureReason);
+            signer.SetLocation(signatureLocation);
+
+            signer.SignDetached(pks, bcChain, null, null, null, 0, PdfSigner.CryptoStandard.CADES);
+            signedBytes = outputStream.ToArray();
+        }
+
         var sha256Hex = Convert.ToHexString(SHA256.HashData(signedBytes)).ToLower();
         var certSerial = certChain[0].Certificate.SerialNumber.ToString(16);
 

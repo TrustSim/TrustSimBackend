@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
 
-namespace TrustSimBackend.Infrastructure.BackgroundServices;
+namespace TrustSimBackend.Infrastructure.Workers.Storage;
 
 /// <summary>
 /// Tiến trình chạy ngầm định kỳ quét và tự động xóa giải phóng các hình ảnh trong Chat đã vượt quá thời hạn lưu trữ

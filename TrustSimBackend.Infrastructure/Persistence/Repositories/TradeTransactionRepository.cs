@@ -43,44 +43,85 @@ public class TradeTransactionRepository : ITradeTransactionRepository
         await _dbContext.TransferProofs.AddAsync(transferProof, cancellationToken);
     }
 
-    public async Task<TradeTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task AddTransferProofImageAsync(TransferProofImage image, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.TradeTransactions
+        await _dbContext.TransferProofImages.AddAsync(image, cancellationToken);
+    }
+
+    public async Task<TransferProof?> GetTransferProofByIdAsync(Guid transferProofId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.TransferProofs
+            .Include(tp => tp.Images)
+            .Include(tp => tp.Auction)
+            .Include(tp => tp.SimTransfer)
+            .FirstOrDefaultAsync(tp => tp.Id == transferProofId, cancellationToken);
+    }
+
+    public async Task<TransferProof?> GetTransferProofByIdempotencyKeyAsync(
+        Guid auctionId,
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.TransferProofs
+            .Include(tp => tp.Images)
+            .FirstOrDefaultAsync(
+                tp => tp.AuctionId == auctionId && tp.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+    }
+
+    public async Task<bool> HasPendingTransferProofAsync(
+        Guid auctionId,
+        TransferProofType proofType,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.TransferProofs
+            .AnyAsync(
+                tp => tp.AuctionId == auctionId
+                      && tp.ProofType == proofType
+                      && tp.ProofStatus == ProofStatus.PENDING,
+                cancellationToken);
+    }
+
+    private IQueryable<TradeTransaction> BuildDetailQuery()
+    {
+        return _dbContext.TradeTransactions
             .Include(t => t.Buyer)
                 .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.Buyer)
+                .ThenInclude(u => u!.Wallet)
             .Include(t => t.Seller)
                 .ThenInclude(u => u!.UserProfile)
+            .Include(t => t.Seller)
+                .ThenInclude(u => u!.Wallet)
             .Include(t => t.SimNumber)
                 .ThenInclude(s => s!.PhonePrefix)
                     .ThenInclude(p => p!.SimCarrier)
             .Include(t => t.Escrow)
             .Include(t => t.Auction)
                 .ThenInclude(a => a!.AuctionRule)
+            .Include(t => t.Auction)
+                .ThenInclude(a => a!.TransferProofs)
+                    .ThenInclude(tp => tp.Images)
             .Include(t => t.TransferContract)
                 .ThenInclude(c => c!.DigitalSignatures)
             .Include(t => t.SimTransfer)
                 .ThenInclude(st => st!.TransferProofs)
-            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+                    .ThenInclude(tp => tp.Images);
+    }
+
+    public async Task<TradeTransaction?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await BuildDetailQuery().FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
 
     public async Task<TradeTransaction?> GetByCodeAsync(string tradeCode, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.TradeTransactions
-            .Include(t => t.Buyer)
-                .ThenInclude(u => u!.UserProfile)
-            .Include(t => t.Seller)
-                .ThenInclude(u => u!.UserProfile)
-            .Include(t => t.SimNumber)
-                .ThenInclude(s => s!.PhonePrefix)
-                    .ThenInclude(p => p!.SimCarrier)
-            .Include(t => t.Escrow)
-            .Include(t => t.Auction)
-                .ThenInclude(a => a!.AuctionRule)
-            .Include(t => t.TransferContract)
-                .ThenInclude(c => c!.DigitalSignatures)
-            .Include(t => t.SimTransfer)
-                .ThenInclude(st => st!.TransferProofs)
-            .FirstOrDefaultAsync(t => t.TradeTransactionCode == tradeCode, cancellationToken);
+        return await BuildDetailQuery().FirstOrDefaultAsync(t => t.TradeTransactionCode == tradeCode, cancellationToken);
+    }
+
+    public async Task<TradeTransaction?> GetByAuctionIdAsync(Guid auctionId, CancellationToken cancellationToken = default)
+    {
+        return await BuildDetailQuery().FirstOrDefaultAsync(t => t.AuctionId == auctionId, cancellationToken);
     }
 
     public async Task<(IReadOnlyList<TradeTransaction> Items, int TotalCount)> GetPagedAsync(
@@ -97,6 +138,7 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .Include(t => t.TransferContract)
             .Include(t => t.SimTransfer)
                 .ThenInclude(st => st!.TransferProofs)
+                    .ThenInclude(tp => tp.Images)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Keyword))
@@ -154,6 +196,7 @@ public class TradeTransactionRepository : ITradeTransactionRepository
             .Include(t => t.TransferContract)
             .Include(t => t.SimTransfer)
                 .ThenInclude(st => st!.TransferProofs)
+                    .ThenInclude(tp => tp.Images)
             .AsQueryable();
 
         if (string.Equals(filter.Role, "buyer", StringComparison.OrdinalIgnoreCase))
@@ -216,15 +259,19 @@ public class TradeTransactionRepository : ITradeTransactionRepository
                     .ThenInclude(p => p!.SimCarrier)
             .Include(t => t.Escrow)
             .Include(t => t.Auction)
+                .ThenInclude(a => a!.TransferProofs)
+                    .ThenInclude(tp => tp.Images)
             .Include(t => t.TransferContract)
             .Include(t => t.SimTransfer)
                 .ThenInclude(st => st!.TransferProofs)
+                    .ThenInclude(tp => tp.Images)
             .Where(t => t.SimTransfer != null &&
                 t.SimTransfer.SimTransferStatus != SimTransferStatus.COMPLETED &&
                 t.SimTransfer.SimTransferStatus != SimTransferStatus.CANCELLED &&
                 (t.SimTransfer.SimTransferStatus == SimTransferStatus.SELLER_PROOF_SUBMITTED ||
                  t.SimTransfer.SimTransferStatus == SimTransferStatus.BUYER_PROOF_SUBMITTED ||
-                 t.SimTransfer.TransferProofs.Any(p => p.ProofStatus == ProofStatus.PENDING)))
+                 t.SimTransfer.TransferProofs.Any(p => p.ProofStatus == ProofStatus.PENDING) ||
+                 (t.Auction != null && t.Auction.TransferProofs.Any(p => p.ProofStatus == ProofStatus.PENDING))))
             .OrderByDescending(t => t.CreatedDate)
             .ToListAsync(cancellationToken);
     }

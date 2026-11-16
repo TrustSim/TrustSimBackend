@@ -12,21 +12,48 @@
 -- ARGV[5]: bidId
 -- ARGV[6]: auctionId
 
--- 1. KIỂM TRA TRẠNG THÁI PHIÊN
+-- 1. KIỂM TRA TRẠNG THÁI PHIÊN & TIME-GATED JIT ACTIVATION
 local status = redis.call('HGET', KEYS[1], 'status')
-if not status or status ~= 'ACTIVE' then
+if not status then
+    return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_CACHE_MISS', message = 'Đang đồng bộ trạng thái phiên đấu giá...' })
+end
+
+local startAtMs = tonumber(redis.call('HGET', KEYS[1], 'startAtMs')) or 0
+local endAtMs = tonumber(redis.call('HGET', KEYS[1], 'endAtMs')) or 0
+local nowMs = tonumber(ARGV[4])
+local justActivated = 0
+
+if status == 'SCHEDULE' then
+    if nowMs < startAtMs then
+        return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_NOT_ACTIVE', message = 'Phiên đấu giá chưa đến giờ bắt đầu.' })
+    end
+    if nowMs >= endAtMs then
+        return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_ENDED', message = 'Đã hết thời gian đặt giá của phiên.' })
+    end
+    local participantCount = tonumber(redis.call('HGET', KEYS[1], 'participantCount')) or 0
+    if participantCount <= 0 then
+        return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_NOT_ACTIVE', message = 'Phiên đấu giá chưa có người đăng ký tham gia.' })
+    end
+
+    redis.call('HSET', KEYS[1], 'status', 'ACTIVE')
+    status = 'ACTIVE'
+    justActivated = 1
+end
+
+if status ~= 'ACTIVE' then
     return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_NOT_ACTIVE', message = 'Phiên đấu giá chưa mở hoặc đã kết thúc.' })
 end
 
-local endAtMs = tonumber(redis.call('HGET', KEYS[1], 'endAtMs')) or 0
-local nowMs = tonumber(ARGV[4])
 if nowMs >= endAtMs then
     return cjson.encode({ success = false, errorCode = 'ERR_AUCTION_ENDED', message = 'Đã hết thời gian đặt giá của phiên.' })
 end
 
 -- 2. KIỂM TRA QUYỀN HẠN NGƯỜI THAM GIA
 local pStatus = redis.call('HGET', KEYS[3], 'status')
-if not pStatus or pStatus == 'BANNED' then
+if not pStatus then
+    return cjson.encode({ success = false, errorCode = 'ERR_PARTICIPANT_CACHE_MISS', message = 'Đang đồng bộ thông tin người tham gia...' })
+end
+if pStatus == 'BANNED' then
     return cjson.encode({ success = false, errorCode = 'ERR_PARTICIPANT_BANNED', message = 'Bạn không có quyền tham gia trả giá trong phiên này.' })
 end
 
@@ -119,5 +146,6 @@ return cjson.encode({
     newCurrentPrice = bidAmount,
     newEndAtMs = endAtMs,
     wasExtended = (wasExtended == 1),
-    lockVersion = newLockVersion
+    lockVersion = newLockVersion,
+    justActivated = (justActivated == 1)
 })

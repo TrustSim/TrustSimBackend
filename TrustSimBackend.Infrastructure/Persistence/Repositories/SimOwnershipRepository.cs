@@ -48,6 +48,15 @@ public class SimOwnershipRepository : ISimOwnershipRepository
                                    && o.OwnershipStatus == OwnershipStatus.ACTIVE, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SimOwnership>> GetActiveOwnershipsBySimNumberIdAsync(Guid simNumberId, CancellationToken cancellationToken = default)
+    {
+        return await _context.SimOwnerships
+            .Include(o => o.SimNumber)
+            .Where(o => o.SimNumberId == simNumberId 
+                     && o.OwnershipStatus == OwnershipStatus.ACTIVE)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<SimOwnership?> GetLatestOwnershipByUserAndSimNumberIdAsync(Guid userId, Guid simNumberId, CancellationToken cancellationToken = default)
     {
         return await _context.SimOwnerships

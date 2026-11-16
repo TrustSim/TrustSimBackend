@@ -30,11 +30,22 @@ public class AuctionRepository : IAuctionRepository
                     .ThenInclude(p => p!.SimCarrier)
             .Include(a => a.Author)
                 .ThenInclude(u => u!.UserProfile)
+            .Include(a => a.Author)
+                .ThenInclude(u => u!.Wallet)
             .Include(a => a.AuctionRule)
             .Include(a => a.Participants)
                 .ThenInclude(p => p.Deposits)
+            .Include(a => a.Participants)
+                .ThenInclude(p => p.UserAccount)
+                    .ThenInclude(u => u!.Wallet)
             .Include(a => a.Bids)
             .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, cancellationToken);
+    }
+
+    public async Task<Auction?> GetFreshByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        _context.ChangeTracker.Clear();
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<Auction?> GetDetailByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -50,9 +61,14 @@ public class AuctionRepository : IAuctionRepository
                     .ThenInclude(m => m.SimCategory)
             .Include(a => a.Author)
                 .ThenInclude(u => u!.UserProfile)
+            .Include(a => a.Author)
+                .ThenInclude(u => u!.Wallet)
             .Include(a => a.AuctionRule)
             .Include(a => a.Participants)
                 .ThenInclude(p => p.Deposits)
+            .Include(a => a.Participants)
+                .ThenInclude(p => p.UserAccount)
+                    .ThenInclude(u => u!.Wallet)
             .Include(a => a.Bids)
             .FirstOrDefaultAsync(a => a.Id == id && !a.IsDeleted, cancellationToken);
     }

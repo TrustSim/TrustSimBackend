@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TrustSimBackend.Application.Common.Exceptions;
@@ -7,6 +9,7 @@ using TrustSimBackend.Application.Common.Models;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
+using TrustSimBackend.Application.Features.Trade.Helpers;
 using TrustSimBackend.Domain.Entities.Trade;
 using TrustSimBackend.Domain.Enums;
 using TrustSimBackend.Domain.Repositories;
@@ -14,10 +17,15 @@ using TrustSimBackend.Domain.Repositories;
 namespace TrustSimBackend.Application.Features.Trade.Commands;
 
 /// <summary>
-/// Handler xử lý nộp nhiều ảnh bằng chứng chuyển nhượng SIM (Bên Bán hoặc Bên Mua).
+/// Handler xử lý nộp bộ bằng chứng chuyển nhượng SIM (1 TransferProof chứa nhiều TransferProofImage),
+/// tích hợp Idempotency Key chống gửi trùng và chặn nộp mới khi đang có bộ PENDING.
 /// </summary>
-public class SubmitMultipleTransferProofsCommandHandler : IRequestHandler<SubmitMultipleTransferProofsCommand, SimTransferDetailsDto>
+public class SubmitMultipleTransferProofsCommandHandler :
+    IRequestHandler<SubmitMultipleTransferProofsCommand, SimTransferDetailsDto>,
+    IRequestHandler<SubmitMultipleTransferProofsByAuctionCommand, SimTransferDetailsDto>
 {
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> IdempotencyLocks = new();
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICloudStorageService _cloudStorageService;
     private readonly INotificationService _notificationService;
@@ -43,35 +51,147 @@ public class SubmitMultipleTransferProofsCommandHandler : IRequestHandler<Submit
 
     public async Task<SimTransferDetailsDto> Handle(SubmitMultipleTransferProofsCommand request, CancellationToken cancellationToken)
     {
-        if (request.Files == null || request.Files.Count == 0)
-        {
-            throw new BadRequestException("Vui lòng tải lên ít nhất một hình ảnh bằng chứng.");
-        }
-
+        var validFiles = FilterValidFiles(request.Files);
         var trade = await _unitOfWork.TradeTransactions.GetByIdAsync(request.TradeId, cancellationToken);
         if (trade == null)
         {
             throw new NotFoundException($"Không tìm thấy giao dịch chuyển nhượng có ID '{request.TradeId}'.");
         }
 
-        var isSeller = request.ProofType == TransferProofType.SELLER_HANDOVER;
+        return await ProcessProofsWithIdempotencyAsync(
+            trade,
+            request.UserId,
+            validFiles,
+            request.ProofType,
+            request.Description,
+            request.IdempotencyKey,
+            cancellationToken);
+    }
 
-        if (isSeller)
+    public async Task<SimTransferDetailsDto> Handle(SubmitMultipleTransferProofsByAuctionCommand request, CancellationToken cancellationToken)
+    {
+        var validFiles = FilterValidFiles(request.Files);
+        var trade = await _unitOfWork.TradeTransactions.GetByAuctionIdAsync(request.AuctionId, cancellationToken);
+        if (trade == null)
         {
-            if (trade.SellerId != request.UserId)
+            throw new NotFoundException($"Không tìm thấy giao dịch chuyển nhượng cho phiên đấu giá '{request.AuctionId}'.");
+        }
+
+        return await ProcessProofsWithIdempotencyAsync(
+            trade,
+            request.UserId,
+            validFiles,
+            request.ProofType,
+            request.Description,
+            request.IdempotencyKey,
+            cancellationToken);
+    }
+
+    private static List<IFormFile> FilterValidFiles(List<IFormFile>? files)
+    {
+        var validFiles = files?.Where(f => f != null && f.Length > 0).ToList() ?? new List<IFormFile>();
+        if (validFiles.Count == 0)
+        {
+            throw new BadRequestException("Vui lòng tải lên ít nhất một hình ảnh bằng chứng.");
+        }
+
+        return validFiles;
+    }
+
+    private async Task<SimTransferDetailsDto> ProcessProofsWithIdempotencyAsync(
+        TradeTransaction trade,
+        Guid userId,
+        List<IFormFile> files,
+        TransferProofType proofType,
+        string? description,
+        string? idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        ValidateSubmitterPermission(trade, userId, proofType);
+
+        var cleanKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
+        if (cleanKey == null)
+        {
+            return await CreateAndSaveProofAsync(trade, userId, files, proofType, description, null, cancellationToken);
+        }
+
+        var lockKey = $"{trade.AuctionId:N}:{cleanKey}";
+        var keyLock = IdempotencyLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        await keyLock.WaitAsync(cancellationToken);
+        try
+        {
+            var existingProof = await _unitOfWork.TradeTransactions.GetTransferProofByIdempotencyKeyAsync(
+                trade.AuctionId,
+                cleanKey,
+                cancellationToken);
+
+            if (existingProof != null)
+            {
+                _logger.LogInformation(
+                    "[SimTransfer] Bỏ qua request trùng lặp theo IdempotencyKey '{Key}' cho Auction {AuctionId}",
+                    cleanKey, trade.AuctionId);
+
+                var latestTrade = await _unitOfWork.TradeTransactions.GetByAuctionIdAsync(trade.AuctionId, cancellationToken) ?? trade;
+                return SimTransferMappingHelper.BuildSimTransferDetailsDto(
+                    latestTrade,
+                    userId,
+                    isAdmin: false,
+                    message: "Yêu cầu nộp bằng chứng đã được ghi nhận trước đó (Idempotent).");
+            }
+
+            return await CreateAndSaveProofAsync(trade, userId, files, proofType, description, cleanKey, cancellationToken);
+        }
+        catch (Exception)
+        {
+            var existingProof = await _unitOfWork.TradeTransactions.GetTransferProofByIdempotencyKeyAsync(
+                trade.AuctionId,
+                cleanKey,
+                cancellationToken);
+
+            if (existingProof == null)
+            {
+                throw;
+            }
+
+            var latestTrade = await _unitOfWork.TradeTransactions.GetByAuctionIdAsync(trade.AuctionId, cancellationToken) ?? trade;
+            return SimTransferMappingHelper.BuildSimTransferDetailsDto(
+                latestTrade,
+                userId,
+                isAdmin: false,
+                message: "Yêu cầu nộp bằng chứng đã được ghi nhận trước đó (Idempotent).");
+        }
+        finally
+        {
+            keyLock.Release();
+        }
+    }
+
+    private static void ValidateSubmitterPermission(TradeTransaction trade, Guid userId, TransferProofType proofType)
+    {
+        if (proofType == TransferProofType.SELLER_HANDOVER)
+        {
+            if (trade.SellerId != userId)
             {
                 throw new ForbiddenAccessException("Chỉ có Người Bán mới có quyền nộp biên bản sang tên SIM.");
             }
         }
-        else
+        else if (trade.BuyerId != userId)
         {
-            if (trade.BuyerId != request.UserId)
-            {
-                throw new ForbiddenAccessException("Chỉ có Người Mua mới có quyền nộp bằng chứng nghiệm thu SIM.");
-            }
+            throw new ForbiddenAccessException("Chỉ có Người Mua mới có quyền nộp bằng chứng nghiệm thu SIM.");
         }
+    }
 
-        // Đảm bảo SimTransfer tồn tại
+    private async Task<SimTransferDetailsDto> CreateAndSaveProofAsync(
+        TradeTransaction trade,
+        Guid userId,
+        List<IFormFile> files,
+        TransferProofType proofType,
+        string? description,
+        string? idempotencyKey,
+        CancellationToken cancellationToken)
+    {
+        var isSeller = proofType == TransferProofType.SELLER_HANDOVER;
+
         if (trade.SimTransfer == null)
         {
             var now = DateTime.UtcNow;
@@ -97,8 +217,12 @@ public class SubmitMultipleTransferProofsCommandHandler : IRequestHandler<Submit
             throw new BadRequestException("Giao dịch chuyển nhượng SIM này đã bị hủy bỏ.");
         }
 
-        var hasApprovedSellerProof = trade.SimTransfer.TransferProofs
+        var existingProofs = SimTransferMappingHelper.GetMergedProofs(trade);
+
+        var hasApprovedSellerProof = existingProofs
             .Any(p => p.ProofType == TransferProofType.SELLER_HANDOVER && p.ProofStatus == ProofStatus.APPROVED);
+        var hasApprovedBuyerProof = existingProofs
+            .Any(p => p.ProofType == TransferProofType.BUYER_RECEIPT && p.ProofStatus == ProofStatus.APPROVED);
 
         if (isSeller)
         {
@@ -113,35 +237,61 @@ public class SubmitMultipleTransferProofsCommandHandler : IRequestHandler<Submit
             {
                 throw new BadRequestException("Bằng chứng chuyển nhượng của Người Bán phải được Ban Quản Trị sàn phê duyệt thành công trước khi Người Mua nộp bằng chứng nhận SIM.");
             }
+
+            if (hasApprovedBuyerProof)
+            {
+                throw new BadRequestException("Bằng chứng nghiệm thu của Người Mua đã được Ban Quản Trị phê duyệt, không thể nộp lại.");
+            }
         }
 
-        // Tải lên từng file và thêm TransferProof
-        foreach (var file in request.Files)
+        var hasPendingSameType = existingProofs.Any(p => p.ProofType == proofType && p.ProofStatus == ProofStatus.PENDING)
+            || await _unitOfWork.TradeTransactions.HasPendingTransferProofAsync(trade.AuctionId, proofType, cancellationToken);
+
+        if (hasPendingSameType)
         {
-            if (file.Length == 0) continue;
+            throw new BadRequestException("Hiện đang có bộ bằng chứng chờ duyệt. Vui lòng thu hồi bộ bằng chứng đang chờ trước khi tải lên bằng chứng mới.");
+        }
 
+        var proof = new TransferProof
+        {
+            Id = Guid.NewGuid(),
+            AuctionId = trade.AuctionId,
+            SimTransferId = trade.SimTransfer.Id,
+            SubmittedByUserId = userId,
+            Description = description?.Trim(),
+            ProofStatus = ProofStatus.PENDING,
+            ProofType = proofType,
+            VerifiedAt = null,
+            IdempotencyKey = idempotencyKey
+        };
+
+        var sortOrder = 0;
+        foreach (var file in files)
+        {
             var uploadedUrl = await _cloudStorageService.UploadImageAsync(file, "sim-transfer", cancellationToken);
-
-            var proof = new TransferProof
+            var image = new TransferProofImage
             {
                 Id = Guid.NewGuid(),
-                SimTransferId = trade.SimTransfer.Id,
+                TransferProofId = proof.Id,
                 ImageUrl = uploadedUrl,
-                Description = request.Description?.Trim(),
-                ProofStatus = ProofStatus.PENDING,
-                ProofType = request.ProofType,
-                VerifiedAt = DateTime.UtcNow
+                FileName = file.FileName,
+                ContentType = file.ContentType,
+                FileSizeBytes = file.Length,
+                SortOrder = sortOrder++
             };
 
-            await _unitOfWork.TradeTransactions.AddTransferProofAsync(proof, cancellationToken);
-            trade.SimTransfer.AddTransferProof(proof);
+            await _unitOfWork.TradeTransactions.AddTransferProofImageAsync(image, cancellationToken);
+            proof.AddImage(image);
         }
+
+        await _unitOfWork.TradeTransactions.AddTransferProofAsync(proof, cancellationToken);
+        trade.SimTransfer.AddTransferProof(proof);
+        trade.Auction?.AddTransferProof(proof);
 
         if (isSeller)
         {
             trade.SimTransfer.SimTransferStatus = SimTransferStatus.SELLER_PROOF_SUBMITTED;
 
-            // Kích hoạt mốc thời hạn Nghiệm thu
             var liqHours = _deadlineSettings.LiquidationSigningDeadlineHours > 0
                 ? _deadlineSettings.LiquidationSigningDeadlineHours
                 : 72;
@@ -157,14 +307,14 @@ public class SubmitMultipleTransferProofsCommandHandler : IRequestHandler<Submit
             }, cancellationToken);
 
             _logger.LogInformation(
-                "[SimTransfer] Người bán {SellerId} đã nộp {Count} ảnh biên bản sang tên cho SIM {SimNumber} (Giao dịch: {TradeCode})",
-                trade.SellerId, request.Files.Count, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
+                "[SimTransfer] Người bán {SellerId} đã nộp bộ bằng chứng ({Count} ảnh) cho SIM {SimNumber} (Giao dịch: {TradeCode})",
+                trade.SellerId, files.Count, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
 
             await _notificationService.SendNotificationAsync(
                 trade.BuyerId,
                 NotificationType.TRADE_TRANSFERRING_SIM,
                 "Người bán đã nộp biên bản sang tên SIM",
-                $"Người bán đã nộp {request.Files.Count} ảnh biên bản sang tên cho SIM {trade.SimNumber?.PhoneNumber}. Vui lòng chờ Ban Quản Trị sàn kiểm tra và duyệt hồ sơ.",
+                $"Người bán đã nộp {files.Count} ảnh biên bản sang tên cho SIM {trade.SimNumber?.PhoneNumber}. Vui lòng chờ Ban Quản Trị sàn kiểm tra và duyệt hồ sơ.",
                 $"/trade/{trade.Id}",
                 cancellationToken: cancellationToken);
         }
@@ -173,62 +323,24 @@ public class SubmitMultipleTransferProofsCommandHandler : IRequestHandler<Submit
             trade.SimTransfer.SimTransferStatus = SimTransferStatus.BUYER_PROOF_SUBMITTED;
 
             _logger.LogInformation(
-                "[SimTransfer] Người mua {BuyerId} đã nộp {Count} ảnh nghiệm thu SIM {SimNumber} (Giao dịch: {TradeCode})",
-                trade.BuyerId, request.Files.Count, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
+                "[SimTransfer] Người mua {BuyerId} đã nộp bộ bằng chứng ({Count} ảnh) nghiệm thu SIM {SimNumber} (Giao dịch: {TradeCode})",
+                trade.BuyerId, files.Count, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
 
             await _notificationService.SendNotificationAsync(
                 trade.SellerId,
                 NotificationType.TRADE_TRANSFERRING_SIM,
                 "Người mua đã nộp ảnh nghiệm thu SIM",
-                $"Người mua đã nộp {request.Files.Count} ảnh kiểm tra sóng / nghiệm thu cho SIM {trade.SimNumber?.PhoneNumber}. Đang chờ Ban Quản Trị sàn duyệt hoàn tất và giải ngân.",
+                $"Người mua đã nộp {files.Count} ảnh kiểm tra sóng / nghiệm thu cho SIM {trade.SimNumber?.PhoneNumber}. Đang chờ Ban Quản Trị sàn duyệt hoàn tất và giải ngân.",
                 $"/trade/{trade.Id}",
                 cancellationToken: cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var escrowAmount = trade.Escrow?.EscrowAmount ?? 0m;
-        var platformFeePercent = 0.05m;
-        var platformFeeAmount = Math.Round(escrowAmount * platformFeePercent, 2);
-        var netSellerPayout = escrowAmount - platformFeeAmount;
-
-        var proofs = trade.SimTransfer.TransferProofs
-            .OrderByDescending(p => p.CreatedDate)
-            .Select(p => new TransferProofDto(
-                p.Id,
-                p.ImageUrl,
-                p.Description,
-                p.ProofStatus.ToString(),
-                p.VerifiedAt,
-                p.CreatedDate,
-                p.ProofType.ToString()
-            )).ToList();
-
         var message = isSeller
-            ? $"Đã tải lên {request.Files.Count} ảnh biên bản sang tên thành công. Chờ Admin sàn duyệt hồ sơ."
-            : $"Đã tải lên {request.Files.Count} ảnh kiểm tra nghiệm thu thành công. Chờ Admin sàn duyệt và giải ngân.";
+            ? $"Đã tải lên bộ bằng chứng gồm {files.Count} ảnh biên bản sang tên thành công. Chờ Admin sàn duyệt hồ sơ."
+            : $"Đã tải lên bộ bằng chứng gồm {files.Count} ảnh kiểm tra nghiệm thu thành công. Chờ Admin sàn duyệt và giải ngân.";
 
-        return new SimTransferDetailsDto(
-            TradeId: trade.Id,
-            TradeTransactionCode: trade.TradeTransactionCode,
-            SimTransferId: trade.SimTransfer.Id,
-            SimTransferStatus: trade.SimTransfer.SimTransferStatus.ToString(),
-            StartAt: trade.SimTransfer.StartAt,
-            Deadline: trade.SimTransfer.Deadline,
-            CancelledReason: trade.SimTransfer.CancelledReason,
-            IsSeller: trade.SellerId == request.UserId,
-            IsBuyer: trade.BuyerId == request.UserId,
-            CanSubmitProof: true,
-            CanConfirmTransfer: false,
-            SimPhoneNumber: trade.SimNumber?.PhoneNumber ?? "Chưa xác định",
-            Proofs: proofs,
-            EscrowAmount: escrowAmount,
-            EscrowStatus: (trade.Escrow?.EscrowStatus ?? EscrowStatus.HELD).ToString(),
-            PlatformFeePercent: platformFeePercent,
-            PlatformFeeAmount: platformFeeAmount,
-            NetSellerPayout: netSellerPayout,
-            CompletedAt: null,
-            Message: message
-        );
+        return SimTransferMappingHelper.BuildSimTransferDetailsDto(trade, userId, isAdmin: false, message);
     }
 }
