@@ -598,15 +598,27 @@ public class SimTransferReviewAndProofTests
 
         _mockNotification.Verify(n => n.SendNotificationAsync(
             sellerId,
-            NotificationType.TRADE_TRANSFERRING_SIM,
+            NotificationType.TRANSFER_PROOF_REJECTED,
             It.IsAny<string>(),
             It.Is<string>(c => c.Contains("Biên bản mờ không rõ chữ, thiếu con dấu nhà mạng")),
+            $"/trade/{tradeId}",
+            "TradeTransaction",
+            tradeId,
+            It.IsAny<object?>(),
+            true,
+            It.IsAny<CancellationToken>()), Times.Once);
+
+        _mockNotification.Verify(n => n.SendNotificationAsync(
+            buyerId,
+            It.IsAny<NotificationType>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
             It.IsAny<Guid?>(),
             It.IsAny<object?>(),
             It.IsAny<bool>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>()), Times.Never);
 
         _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         result.SimTransferStatus.Should().Be(SimTransferStatus.PENDING_SELLER_ACTION.ToString());
@@ -669,6 +681,30 @@ public class SimTransferReviewAndProofTests
         proof.ProofStatus.Should().Be(ProofStatus.REJECTED);
         proof.RejectionReason.Should().Be("Ảnh kiểm tra sóng không hiển thị đúng số thuê bao");
         proof.VerifiedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+
+        _mockNotification.Verify(n => n.SendNotificationAsync(
+            buyerId,
+            NotificationType.TRANSFER_PROOF_REJECTED,
+            It.IsAny<string>(),
+            It.Is<string>(c => c.Contains("Ảnh kiểm tra sóng không hiển thị đúng số thuê bao")),
+            $"/trade/{tradeId}",
+            "TradeTransaction",
+            tradeId,
+            It.IsAny<object?>(),
+            true,
+            It.IsAny<CancellationToken>()), Times.Once);
+
+        _mockNotification.Verify(n => n.SendNotificationAsync(
+            sellerId,
+            It.IsAny<NotificationType>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<string?>(),
+            It.IsAny<Guid?>(),
+            It.IsAny<object?>(),
+            It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()), Times.Never);
 
         _mockUow.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         result.SimTransferStatus.Should().Be(SimTransferStatus.PENDING_BUYER_ACTION.ToString());

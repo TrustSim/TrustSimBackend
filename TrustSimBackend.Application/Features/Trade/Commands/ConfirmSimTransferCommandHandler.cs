@@ -374,27 +374,50 @@ public class ConfirmSimTransferCommandHandler : IRequestHandler<ConfirmSimTransf
 
         // 4. Bắn thông báo hoàn tất cho cả 2 bên (Action URL trỏ trực tiếp tới Biên Bản Thanh Lý PDF trên Supabase CDN)
         var liqPdfUrl = trade.TransferContract?.LiquidationDocumentUrl;
-        await _notificationService.SendNotificationAsync(
-            userId: trade.SellerId,
-            type: NotificationType.WALLET_TOPUP_SUCCESS,
-            title: "Giao dịch bán SIM thành công - Tiền đã về ví!",
-            content: $"Người mua đã xác nhận nhận SIM {trade.SimNumber?.PhoneNumber}. Bạn nhận được {netSellerPayout:N0} VNĐ vào ví (sau khi trừ phí sàn). Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
-            actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
-            referenceType: "TradeTransaction",
-            referenceId: trade.Id,
-            sendEmail: true,
-            cancellationToken: cancellationToken);
+        var completionMetadata = new
+        {
+            tradeId = trade.Id,
+            tradeCode = trade.TradeTransactionCode,
+            auctionId = trade.AuctionId,
+            simNumber = trade.SimNumber?.PhoneNumber,
+            escrowAmount,
+            platformFeeAmount,
+            netSellerPayout,
+            liquidationDocumentUrl = liqPdfUrl,
+            isAutoLiquidated = false,
+            stage = "COMPLETED_BUYER_CONFIRM"
+        };
 
-        await _notificationService.SendNotificationAsync(
-            userId: trade.BuyerId,
-            type: NotificationType.SYSTEM_ALERT,
-            title: "Chúc mừng bạn đã sở hữu SIM chính chủ!",
-            content: $"Giao dịch chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã hoàn tất. Bạn đã trở thành chủ sở hữu chính thức. Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
-            actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
-            referenceType: "TradeTransaction",
-            referenceId: trade.Id,
-            sendEmail: true,
-            cancellationToken: cancellationToken);
+        try
+        {
+            await _notificationService.SendNotificationAsync(
+                userId: trade.SellerId,
+                type: NotificationType.ESCROW_RELEASED_SELLER_PAYOUT,
+                title: "Giao dịch bán SIM thành công - Tiền đã về ví!",
+                content: $"Người mua đã xác nhận nhận SIM {trade.SimNumber?.PhoneNumber}. Bạn nhận được {netSellerPayout:N0} VNĐ vào ví (sau khi trừ phí sàn). Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
+                actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: completionMetadata,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+
+            await _notificationService.SendNotificationAsync(
+                userId: trade.BuyerId,
+                type: NotificationType.TRADE_COMPLETED_LIQUIDATED,
+                title: "Chúc mừng bạn đã sở hữu SIM chính chủ!",
+                content: $"Giao dịch chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã hoàn tất. Bạn đã trở thành chủ sở hữu chính thức. Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
+                actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: completionMetadata,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "[ConfirmSimTransfer] Lỗi khi gửi thông báo hoàn tất Trade {TradeCode}", trade.TradeTransactionCode);
+        }
 
         return SimTransferMappingHelper.BuildSimTransferDetailsDto(
             trade,

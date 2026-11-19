@@ -226,8 +226,10 @@ public static class DependencyInjection
         services.AddSingleton<IRedisAuctionCacheService, RedisAuctionCacheService>();
         services.AddHostedService<AuctionBidPersistenceWorker>();
 
-        // Multi-Channel Notification Dispatcher
+        // Multi-Channel Notification Dispatcher & Trade Deadline Reminders
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<ITradeDeadlineReminderService, TradeDeadlineReminderService>();
+        services.AddHostedService<TradeDeadlineReminderWorker>();
 
         // Digital Contract, PAdES Signing, VNPT SmartCA & Cross-Device PDF Font Validator Services
         services.AddScoped<IPdfContractService, PdfContractService>();

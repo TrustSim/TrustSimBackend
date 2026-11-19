@@ -242,23 +242,39 @@ public sealed class TradeDeadlineJobHandler : IAuctionDelayJobHandler
 
         if (_notificationService != null)
         {
+            var timeoutMetadata = new
+            {
+                tradeId = trade.Id,
+                tradeCode = trade.TradeTransactionCode,
+                auctionId = trade.AuctionId,
+                simNumber = trade.SimNumber?.PhoneNumber,
+                refundedEscrowAmount = trade.Escrow?.EscrowAmount ?? 0m,
+                sellerDepositAmount = sellerDeposit,
+                reason = trade.CancelledReason,
+                stage = "CANCELLED_TRANSFER_TIMEOUT"
+            };
+
             await _notificationService.SendNotificationAsync(
                 userId: trade.BuyerId,
-                type: NotificationType.SYSTEM_ALERT,
+                type: NotificationType.TRADE_CANCELLED_TIMEOUT,
                 title: "⚠️ Giao dịch chuyển nhượng SIM đã bị hủy do Người bán quá hạn",
                 content: $"Người bán đã quá thời hạn bàn giao SIM {trade.SimNumber?.PhoneNumber}. Hệ thống đã hoàn trả 100% tiền Escrow và bồi thường 50% tiền cọc của Người bán vào ví của bạn.",
+                actionUrl: $"/trade/{trade.Id}",
                 referenceType: "TradeTransaction",
                 referenceId: trade.Id,
+                metadata: timeoutMetadata,
                 sendEmail: true,
                 cancellationToken: cancellationToken);
 
             await _notificationService.SendNotificationAsync(
                 userId: trade.SellerId,
-                type: NotificationType.SYSTEM_ALERT,
+                type: NotificationType.TRADE_CANCELLED_TIMEOUT,
                 title: "🚨 Vi phạm thời hạn bàn giao SIM",
                 content: $"Bạn đã quá hạn thực hiện thủ tục sang tên SIM {trade.SimNumber?.PhoneNumber}. Giao dịch đã bị hủy và bạn bị xử lý chế tài tịch thu tiền cọc theo Quy chế Sàn TrustSim.",
+                actionUrl: $"/trade/{trade.Id}",
                 referenceType: "TradeTransaction",
                 referenceId: trade.Id,
+                metadata: timeoutMetadata,
                 sendEmail: true,
                 cancellationToken: cancellationToken);
         }
@@ -457,25 +473,42 @@ public sealed class TradeDeadlineJobHandler : IAuctionDelayJobHandler
 
         if (_notificationService != null)
         {
+            var liqPdfUrl = trade.TransferContract?.LiquidationDocumentUrl;
+            var autoLiqMetadata = new
+            {
+                tradeId = trade.Id,
+                tradeCode = trade.TradeTransactionCode,
+                auctionId = trade.AuctionId,
+                simNumber = trade.SimNumber?.PhoneNumber,
+                escrowAmount,
+                platformFeeAmount,
+                netSellerPayout,
+                liquidationDocumentUrl = liqPdfUrl,
+                isAutoLiquidated = true,
+                stage = "COMPLETED_AUTO_LIQUIDATION"
+            };
+
             await _notificationService.SendNotificationAsync(
                 userId: trade.SellerId,
-                type: NotificationType.WALLET_TOPUP_SUCCESS,
+                type: NotificationType.ESCROW_RELEASED_SELLER_PAYOUT,
                 title: "Giao dịch bán SIM tự động hoàn tất - Tiền đã về ví!",
-                content: $"Người mua đã quá thời hạn phản hồi. Hệ thống tự động nghiệm thu và giải ngân {netSellerPayout:N0} VNĐ về ví khả dụng của bạn cho SIM {trade.SimNumber?.PhoneNumber}.",
-                actionUrl: $"/trade/{trade.Id}",
+                content: $"Người mua đã quá thời hạn phản hồi. Hệ thống tự động nghiệm thu và giải ngân {netSellerPayout:N0} VNĐ về ví khả dụng của bạn cho SIM {trade.SimNumber?.PhoneNumber}. Biên bản thanh lý đã được niêm phong PAdES X.509.",
+                actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
                 referenceType: "TradeTransaction",
                 referenceId: trade.Id,
+                metadata: autoLiqMetadata,
                 sendEmail: true,
                 cancellationToken: cancellationToken);
 
             await _notificationService.SendNotificationAsync(
                 userId: trade.BuyerId,
-                type: NotificationType.SYSTEM_ALERT,
+                type: NotificationType.TRADE_COMPLETED_LIQUIDATED,
                 title: "Giao dịch chuyển nhượng SIM đã tự động hoàn tất",
-                content: $"Hệ thống đã tự động nghiệm thu giao dịch SIM {trade.SimNumber?.PhoneNumber} do hết thời hạn phản hồi. Bạn đã là chủ sở hữu chính thức của SIM này.",
-                actionUrl: $"/trade/{trade.Id}",
+                content: $"Hệ thống đã tự động nghiệm thu giao dịch SIM {trade.SimNumber?.PhoneNumber} do hết thời hạn phản hồi. Bạn đã là chủ sở hữu chính thức và Biên bản thanh lý đã được niêm phong PAdES X.509.",
+                actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
                 referenceType: "TradeTransaction",
                 referenceId: trade.Id,
+                metadata: autoLiqMetadata,
                 sendEmail: true,
                 cancellationToken: cancellationToken);
         }

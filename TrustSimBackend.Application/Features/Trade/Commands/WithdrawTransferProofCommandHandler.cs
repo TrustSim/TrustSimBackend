@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
 using TrustSimBackend.Application.Common.Exceptions;
+using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Features.Auction.Services;
 using TrustSimBackend.Application.Features.Trade.DTOs.Requests;
 using TrustSimBackend.Application.Features.Trade.DTOs.Responses;
@@ -17,16 +18,19 @@ public class WithdrawTransferProofCommandHandler : IRequestHandler<WithdrawTrans
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuctionDelayQueueService _delayQueue;
+    private readonly INotificationService? _notificationService;
     private readonly ILogger<WithdrawTransferProofCommandHandler> _logger;
 
     public WithdrawTransferProofCommandHandler(
         IUnitOfWork unitOfWork,
         IAuctionDelayQueueService delayQueue,
-        ILogger<WithdrawTransferProofCommandHandler> logger)
+        ILogger<WithdrawTransferProofCommandHandler> logger,
+        INotificationService? notificationService = null)
     {
         _unitOfWork = unitOfWork;
         _delayQueue = delayQueue;
         _logger = logger;
+        _notificationService = notificationService;
     }
 
     public async Task<SimTransferDetailsDto> Handle(WithdrawTransferProofCommand request, CancellationToken cancellationToken)
@@ -92,6 +96,62 @@ public class WithdrawTransferProofCommandHandler : IRequestHandler<WithdrawTrans
         _logger.LogInformation(
             "[SimTransfer] Người dùng {UserId} đã thu hồi bộ bằng chứng {ProofId} ({ProofType}) của giao dịch {TradeCode}",
             request.UserId, proof.Id, proof.ProofType, trade.TradeTransactionCode);
+
+        if (_notificationService != null)
+        {
+            try
+            {
+                var isSeller = proof.ProofType == TransferProofType.SELLER_HANDOVER;
+                var counterpartyId = isSeller ? trade.BuyerId : trade.SellerId;
+                var phone = trade.SimNumber?.PhoneNumber;
+                var metadata = new
+                {
+                    tradeId = trade.Id,
+                    tradeCode = trade.TradeTransactionCode,
+                    auctionId = trade.AuctionId,
+                    simNumber = phone,
+                    proofId = proof.Id,
+                    proofType = proof.ProofType.ToString(),
+                    stage = isSeller ? "SELLER_PROOF_WITHDRAWN" : "BUYER_PROOF_WITHDRAWN"
+                };
+
+                var partyTitle = isSeller
+                    ? "Người bán đã thu hồi biên bản sang tên SIM"
+                    : "Người mua đã thu hồi ảnh nghiệm thu SIM";
+                var partyContent = isSeller
+                    ? $"Người bán đã thu hồi bộ bằng chứng sang tên đang chờ duyệt cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}) để cập nhật lại hồ sơ."
+                    : $"Người mua đã thu hồi bộ ảnh nghiệm thu đang chờ duyệt cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}) để tải lại ảnh mới.";
+
+                await _notificationService.SendNotificationAsync(
+                    counterpartyId,
+                    NotificationType.TRANSFER_PROOF_WITHDRAWN,
+                    partyTitle,
+                    partyContent,
+                    actionUrl: $"/trade/{trade.Id}",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    metadata: metadata,
+                    sendEmail: false,
+                    cancellationToken: cancellationToken);
+
+                await _notificationService.SendNotificationToRolesAsync(
+                    new[] { UserRole.ADMIN, UserRole.CONSULTANT },
+                    NotificationType.TRANSFER_PROOF_WITHDRAWN,
+                    "Bộ bằng chứng chờ duyệt đã được thu hồi",
+                    $"{(isSeller ? "Người bán" : "Người mua")} đã thu hồi bộ bằng chứng chờ duyệt của SIM {phone} (Mã GD: {trade.TradeTransactionCode}).",
+                    actionUrl: $"/transfer-review?tradeId={trade.Id}",
+                    referenceType: "TradeTransaction",
+                    referenceId: trade.Id,
+                    metadata: metadata,
+                    sendEmail: false,
+                    excludeUserId: request.UserId,
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "[WithdrawProof] Lỗi khi gửi thông báo thu hồi bằng chứng cho Trade {TradeCode}", trade.TradeTransactionCode);
+            }
+        }
 
         return SimTransferMappingHelper.BuildSimTransferDetailsDto(
             trade,
