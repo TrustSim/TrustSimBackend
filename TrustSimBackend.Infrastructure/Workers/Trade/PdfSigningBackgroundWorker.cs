@@ -184,6 +184,18 @@ public class PdfSigningBackgroundWorker : BackgroundService
         await unitOfWork.SaveChangesAsync(ct);
         _logger.LogInformation("[PdfSigningWorker] ✅ Niêm phong PAdES thành công: {Url} (Hash: {Hash})", fileUrl, signResult.Sha256Hash);
 
+        var sealedMetadata = new
+        {
+            tradeId = trade.Id,
+            tradeCode = trade.TradeTransactionCode,
+            auctionId = trade.AuctionId,
+            simNumber = trade.SimNumber?.PhoneNumber,
+            documentUrl = fileUrl,
+            transferDeadline = trade.TransferDeadline,
+            isAutoEnforced,
+            stage = "CONTRACT_SEALED"
+        };
+
         await notificationService.SendNotificationAsync(
             trade.BuyerId,
             NotificationType.CONTRACT_FULLY_SIGNED,
@@ -192,17 +204,23 @@ public class PdfSigningBackgroundWorker : BackgroundService
             actionUrl: fileUrl,
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
+            metadata: sealedMetadata,
             sendEmail: true,
             cancellationToken: ct);
+
+        var transferDeadlineHint = trade.TransferDeadline.HasValue
+            ? $" trước {trade.TransferDeadline.Value.AddHours(7):HH:mm dd/MM/yyyy} (UTC+7)"
+            : string.Empty;
 
         await notificationService.SendNotificationAsync(
             trade.SellerId,
             NotificationType.CONTRACT_FULLY_SIGNED,
             "Hợp đồng đã được ký số niêm phong",
-            $"Hợp đồng chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã được niêm phong PAdES X.509. Vui lòng tiến hành sang tên chính chủ cho người mua.",
+            $"Hợp đồng chuyển nhượng SIM {trade.SimNumber?.PhoneNumber} đã được niêm phong PAdES X.509. Vui lòng tiến hành sang tên chính chủ cho người mua và nộp bằng chứng{transferDeadlineHint}.",
             actionUrl: fileUrl,
             referenceType: "TradeTransaction",
             referenceId: trade.Id,
+            metadata: sealedMetadata,
             sendEmail: true,
             cancellationToken: ct);
     }

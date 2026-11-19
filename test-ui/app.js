@@ -505,7 +505,10 @@ function registerSignalREvents(connection) {
   });
 
   // 10. ReceivePersonalNotification: (notification)
-  connection.on('ReceivePersonalNotification', (notification) => {
+  connection.on('ReceivePersonalNotification', (rawNotification) => {
+    const notification = window.TrustSimNotifications
+      ? window.TrustSimNotifications.normalizeNotification(rawNotification)
+      : rawNotification;
     addLog('SYSTEM', `📬 [THÔNG BÁO CÁ NHÂN]: ${notification.title} - ${notification.content}`);
     showToastNotification(notification);
     debouncedRefreshAll();
@@ -739,7 +742,7 @@ function startPendingCountdownLoop() {
 
   function update() {
     const elements = document.querySelectorAll('.pending-deadline-countdown');
-    const now = Date.now();
+    const now = getServerNowMs();
 
     elements.forEach(el => {
       const deadlineStr = el.dataset.deadline;
@@ -2063,9 +2066,10 @@ async function submitCreateAuction(event) {
 
   const auctionType = document.getElementById('modalAuctionType').value;
   const presetMin = Number(document.getElementById('modalStartPreset').value);
-  const startAt = new Date(Date.now() + presetMin * 60 * 1000).toISOString();
+  const baseNowMs = getServerNowMs();
+  const startAt = new Date(baseNowMs + presetMin * 60 * 1000).toISOString();
   const durationMin = Number(document.getElementById('modalDurationMinutes').value);
-  const endAt = new Date(Date.now() + (presetMin + durationMin) * 60 * 1000).toISOString();
+  const endAt = new Date(baseNowMs + (presetMin + durationMin) * 60 * 1000).toISOString();
   const graceMinutes = Number(document.getElementById('modalGracePeriodMinutes')?.value || 1440);
   const extThreshold = Number(document.getElementById('modalExtensionThreshold')?.value || 30);
   const extDuration = Number(document.getElementById('modalExtensionDuration')?.value || 30);
@@ -2106,7 +2110,7 @@ async function submitCreateAuction(event) {
     reservePrice: reservePrice,
     startAt: startAt,
     endAt: endAt,
-    registrationStartAt: new Date(Date.now() - 60000).toISOString(),
+    registrationStartAt: new Date(baseNowMs - 60000).toISOString(),
     registrationEndAt: startAt,
     depositAmount: parseNumberInput(document.getElementById('modalDepositAmount').value),
     sellerDepositAmount: sellerDeposit,
@@ -2222,7 +2226,10 @@ async function loadMyNotifications(showToastOnUnread = false) {
 
     const data = await res.json();
     if (data.success && data.data) {
-      userNotifications = data.data.items || [];
+      const rawItems = data.data.items || [];
+      userNotifications = window.TrustSimNotifications
+        ? rawItems.map(window.TrustSimNotifications.normalizeNotification).filter(Boolean)
+        : rawItems;
       const unreadCount = userNotifications.filter(n => !n.isRead).length;
       updateNotificationBadge(unreadCount);
 
@@ -2251,30 +2258,29 @@ function updateNotificationBadge(unreadCount) {
   }
 }
 
-function showToastNotification(notif) {
+function showToastNotification(rawNotif) {
   const container = document.getElementById('toastContainer');
   if (!container) return;
 
+  const ts = window.TrustSimNotifications;
+  const notif = ts ? ts.normalizeNotification(rawNotif) : rawNotif;
+  if (!notif) return;
+
+  const meta = ts ? ts.getTypeMeta(notif.notificationType) : { icon: '📢', label: 'Thông báo' };
+  const esc = ts ? ts.escapeHtml : (s) => String(s ?? '');
   const toast = document.createElement('div');
   toast.className = 'toast-item';
 
-  const type = notif.notificationType || 'INFO';
-  let icon = '📢';
-  if (type === 'AUCTION_WON' || type === 'AUCTION_CONFIRMED') icon = '🎉';
-  else if (type === 'AUCTION_FAILED' || type === 'AUCTION_FORFEITED') icon = '💥';
-  else if (type === 'RUNNER_UP_OFFER' || type === 'SELLER_APPROVAL_REQUIRED') icon = '🤝';
-  else if (type === 'AUCTION_DEPOSIT_REFUNDED' || type === 'WALLET_TOPUP') icon = '💰';
-  else if (type === 'PAYMENT_DEADLINE_WARNING') icon = '⚠️';
-
   toast.innerHTML = `
-    <span class="toast-icon">${icon}</span>
-    <div class="toast-content" onclick="handleNotificationClick('${notif.id}', '${notif.actionUrl || ''}', '${notif.referenceId || ''}')" style="cursor: pointer;">
-      <div class="toast-title">${notif.title || 'Thông báo mới'}</div>
-      <div class="toast-desc">${notif.content || ''}</div>
+    <span class="toast-icon">${meta.icon}</span>
+    <div class="toast-content" data-notif-id="${esc(notif.id)}" style="cursor: pointer;">
+      <div class="toast-title">${esc(notif.title || 'Thông báo mới')}</div>
+      <div class="toast-desc">${esc(notif.content || '')}</div>
     </div>
     <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
   `;
 
+  toast.querySelector('.toast-content')?.addEventListener('click', () => handleNotificationClick(notif.id, notif));
   container.appendChild(toast);
 
   // Auto remove toast after 6 seconds
@@ -2312,49 +2318,78 @@ function renderNotificationsList() {
     return;
   }
 
-  container.innerHTML = userNotifications.map(n => {
+  const ts = window.TrustSimNotifications;
+  const esc = ts ? ts.escapeHtml : (s) => String(s ?? '');
+
+  container.innerHTML = userNotifications.map(raw => {
+    const n = ts ? ts.normalizeNotification(raw) : raw;
     const isUnread = !n.isRead;
     const timeStr = n.createdDate ? new Date(n.createdDate).toLocaleString('vi-VN') : 'Vừa xong';
-    
-    let icon = '📢';
-    const type = n.notificationType || 'INFO';
-    if (type === 'AUCTION_WON' || type === 'AUCTION_CONFIRMED') icon = '🎉';
-    else if (type === 'AUCTION_FAILED' || type === 'AUCTION_FORFEITED') icon = '💥';
-    else if (type === 'RUNNER_UP_OFFER' || type === 'SELLER_APPROVAL_REQUIRED') icon = '🤝';
-    else if (type === 'AUCTION_DEPOSIT_REFUNDED' || type === 'WALLET_TOPUP') icon = '💰';
-    else if (type === 'PAYMENT_DEADLINE_WARNING') icon = '⚠️';
+    const typeMeta = ts ? ts.getTypeMeta(n.notificationType) : { icon: '📢', label: 'Thông báo', color: '#7dd3fc', bg: 'rgba(56,189,248,0.14)', border: 'rgba(56,189,248,0.35)' };
+    const extra = ts ? ts.parseMetadata(n) : {};
+    const target = ts ? ts.resolveNavigationTarget(n) : { kind: 'none' };
+
+    const rejectHtml = extra.rejectionReason
+      ? `<div style="margin-top:6px;padding:6px 8px;border-radius:6px;background:rgba(244,63,94,0.14);border:1px solid rgba(244,63,94,0.35);color:#fecdd3;font-size:11.5px;"><strong>Lý do từ chối:</strong> ${esc(extra.rejectionReason)}</div>`
+      : '';
+
+    const actionTag = target.kind === 'pdf'
+      ? '<span style="color:#34d399;font-weight:700;">📄 Mở tài liệu PDF</span>'
+      : (target.kind === 'trade'
+        ? '<span style="color:#38bdf8;font-weight:700;">🔎 Mở giao dịch</span>'
+        : (target.kind === 'auction' ? '<span style="color:#fbbf24;font-weight:700;">🏛️ Xem phiên đấu giá</span>' : ''));
 
     return `
-      <div class="notif-card-item ${isUnread ? 'unread' : ''}" onclick="handleNotificationClick('${n.id}', '${n.actionUrl || ''}', '${n.referenceId || ''}')">
-        <span class="notif-icon-box">${icon}</span>
+      <div class="notif-card-item ${isUnread ? 'unread' : ''}" data-notif-id="${esc(n.id)}">
+        <span class="notif-icon-box">${typeMeta.icon}</span>
         <div class="notif-body-box">
-          <div class="notif-item-title">${n.title || 'Thông báo'}</div>
-          <div class="notif-item-content">${n.content || ''}</div>
+          <div style="margin-bottom:4px;">
+            <span style="display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;color:${typeMeta.color};background:${typeMeta.bg};border:1px solid ${typeMeta.border};">${esc(typeMeta.label)}</span>
+          </div>
+          <div class="notif-item-title">${esc(n.title || 'Thông báo')}</div>
+          <div class="notif-item-content">${esc(n.content || '')}</div>
+          ${rejectHtml}
           <div class="notif-meta-row">
-            <span>🕒 ${timeStr}</span>
-            ${isUnread ? '<span class="notif-unread-dot" title="Chưa đọc"></span>' : '<span style="color: var(--text-muted);">Đã đọc</span>'}
+            <span>🕒 ${esc(timeStr)}</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              ${actionTag}
+              ${isUnread ? '<span class="notif-unread-dot" title="Chưa đọc"></span>' : '<span style="color: var(--text-muted);">Đã đọc</span>'}
+            </div>
           </div>
         </div>
       </div>
     `;
   }).join('');
+
+  container.querySelectorAll('.notif-card-item[data-notif-id]').forEach(el => {
+    el.addEventListener('click', () => handleNotificationClick(el.dataset.notifId));
+  });
 }
 
-async function handleNotificationClick(notifId, actionUrl, referenceId) {
-  // Mark as read in backend
+async function handleNotificationClick(notifId, fallbackNotif = null) {
   await markNotificationAsRead(notifId);
 
-  // If action relates to an auction, auto-select it
-  if (referenceId && referenceId !== 'null' && referenceId !== 'undefined') {
+  const notif = userNotifications.find(x => x.id === notifId) || fallbackNotif;
+  if (!notif) return;
+
+  const ts = window.TrustSimNotifications;
+  const target = ts ? ts.resolveNavigationTarget(notif) : null;
+
+  if (target?.kind === 'pdf' && target.url) {
+    window.open(target.url, '_blank');
+    return;
+  }
+
+  if (target?.kind === 'trade' && target.tradeId) {
     closeNotificationModal();
-    await selectAuction(referenceId);
-  } else if (actionUrl && actionUrl.includes('/auctions/')) {
-    const parts = actionUrl.split('/');
-    const aucId = parts[parts.length - 1];
-    if (aucId) {
-      closeNotificationModal();
-      await selectAuction(aucId);
-    }
+    const userQuery = state.currentUser?.userName ? `&user=${encodeURIComponent(state.currentUser.userName)}` : '';
+    window.open(`${target.preferredPage}?tradeId=${encodeURIComponent(target.tradeId)}${userQuery}`, '_blank');
+    return;
+  }
+
+  if (target?.kind === 'auction' && target.auctionId) {
+    closeNotificationModal();
+    await selectAuction(target.auctionId);
   }
 }
 

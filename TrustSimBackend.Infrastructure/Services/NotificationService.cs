@@ -8,6 +8,7 @@ using TrustSimBackend.Application.Features.Auction.Hubs;
 using TrustSimBackend.Application.Features.System.DTOs.Responses;
 using TrustSimBackend.Domain.Entities.System;
 using TrustSimBackend.Domain.Enums;
+using TrustSimBackend.Domain.Filters;
 using TrustSimBackend.Domain.Repositories;
 
 namespace TrustSimBackend.Infrastructure.Services;
@@ -17,6 +18,12 @@ namespace TrustSimBackend.Infrastructure.Services;
 /// </summary>
 public class NotificationService : INotificationService
 {
+    private const int MaxTitleLength = 200;
+    private const int MaxContentLength = 1000;
+    private const int MaxActionUrlLength = 500;
+    private const int MaxReferenceTypeLength = 50;
+    private const int MaxMetadataJsonLength = 4000;
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
     private readonly IAuctionRealtimeNotifier _realtimeNotifier;
@@ -54,85 +61,30 @@ public class NotificationService : INotificationService
     {
         var resolvedUrl = actionUrl;
 
-        // Tự động kiểm tra và ưu tiên trỏ thẳng tới file PDF lưu trên Supabase Storage CDN cho các thông báo giao dịch/hợp đồng
-        // QUY TẮC: CHỈ Người mua (Người thắng cuộc) và Người bán mới được quyền nhận link tài liệu PDF
+        // Tự động kiểm tra quyền và chỉ tự gắn link PDF CDN cho các thông báo phát hành văn bản (VB1/VB2/VB3),
+        // giữ nguyên ActionUrl thao tác UI cho các thông báo nghiệp vụ (từ chối/nộp bằng chứng, nhắc hạn, hủy...).
         if (referenceType == "TradeTransaction" && referenceId.HasValue)
         {
-            try
-            {
-                using var scope = _serviceScopeFactory.CreateScope();
-                var tradeUow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                var trade = await tradeUow.TradeTransactions.GetByIdAsync(referenceId.Value, cancellationToken);
-
-                if (trade != null)
-                {
-                    // Kiểm tra người nhận có phải là Người mua hoặc Người bán hay không
-                    var isAuthorizedParticipant = trade.BuyerId == userId || trade.SellerId == userId;
-                    if (!isAuthorizedParticipant)
-                    {
-                        // Tuyệt đối không cung cấp link tài liệu giao dịch/PDF cho người ngoài
-                        resolvedUrl = null;
-                    }
-                    else
-                    {
-                        var isAlreadySupabase = !string.IsNullOrWhiteSpace(resolvedUrl) && 
-                            (resolvedUrl.Contains(".supabase.co", StringComparison.OrdinalIgnoreCase) || 
-                             resolvedUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
-
-                        if (!isAlreadySupabase)
-                        {
-                            // 1. Ưu tiên cao nhất: Biên bản nghiệm thu và thanh lý đã niêm phong
-                            if (!string.IsNullOrWhiteSpace(trade.TransferContract?.LiquidationDocumentUrl))
-                            {
-                                resolvedUrl = trade.TransferContract.LiquidationDocumentUrl;
-                            }
-                            // 2. Ưu tiên 2: Hợp đồng chuyển nhượng 3 bên đã niêm phong PAdES X.509
-                            else if (!string.IsNullOrWhiteSpace(trade.TransferContract?.DocumentUrl))
-                            {
-                                resolvedUrl = trade.TransferContract.DocumentUrl;
-                            }
-                            // 3. Ưu tiên 3: Phiếu chốt giá trúng đấu giá đã lưu trên CDN
-                            else if (!string.IsNullOrWhiteSpace(trade.TransferContract?.WinningNoticeUrl))
-                            {
-                                resolvedUrl = trade.TransferContract.WinningNoticeUrl;
-                            }
-                            // 4. Nếu chưa có Phiếu chốt giá trúng -> Gọi IPdfContractService tự động sinh PDF và upload Supabase CDN ngay lập tức
-                            else
-                            {
-                                var pdfService = scope.ServiceProvider.GetService<IPdfContractService>();
-                                if (pdfService != null)
-                                {
-                                    var noticeUrl = await pdfService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
-                                    if (!string.IsNullOrWhiteSpace(noticeUrl))
-                                    {
-                                        resolvedUrl = noticeUrl;
-                                        _logger.LogInformation("[NotificationService] ✅ Đã tự động tạo và gán link Supabase PDF ({Url}) cho thông báo {TradeCode}", noticeUrl, trade.TradeTransactionCode);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[NotificationService] Lỗi khi kiểm tra/tạo file PDF Supabase cho Trade {TradeId}", referenceId.Value);
-            }
+            resolvedUrl = await ResolveTradeActionUrlAsync(userId, type, referenceId.Value, resolvedUrl, cancellationToken);
         }
 
-        var metadataJson = metadata != null ? JsonSerializer.Serialize(metadata) : null;
+        var safeTitle = TruncateWithEllipsis(title, MaxTitleLength) ?? string.Empty;
+        var safeContent = TruncateWithEllipsis(content, MaxContentLength) ?? string.Empty;
+        var safeActionUrl = TruncateWithEllipsis(resolvedUrl, MaxActionUrlLength);
+        var safeReferenceType = TruncateWithEllipsis(referenceType, MaxReferenceTypeLength);
+        var metadataJson = SerializeMetadataWithinLimit(metadata, MaxMetadataJsonLength);
 
         var notification = new Notification
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            Title = title,
-            Content = content,
+            Title = safeTitle,
+            Content = safeContent,
             NotificationType = type,
-            ReferenceType = referenceType,
+            ReferenceType = safeReferenceType,
             ReferenceId = referenceId,
             MetadataJson = metadataJson,
-            ActionUrl = resolvedUrl,
+            ActionUrl = safeActionUrl,
             IsRead = false,
             CreatedDate = DateTime.UtcNow
         };
@@ -176,43 +128,6 @@ public class NotificationService : INotificationService
                 if (user != null && !string.IsNullOrWhiteSpace(user.Email))
                 {
                     var emailActionUrl = resolvedUrl;
-
-                    // Đối với thông báo liên quan đến TradeTransaction: Chỉ gửi link tệp PDF trên Supabase Storage CDN cho Người mua (người thắng) và Người bán
-                    if (referenceType == "TradeTransaction" && referenceId.HasValue)
-                    {
-                        try
-                        {
-                            using var pdfScope = _serviceScopeFactory.CreateScope();
-                            var tradeUow = pdfScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-                            var trade = await tradeUow.TradeTransactions.GetByIdAsync(referenceId.Value, cancellationToken);
-
-                            // Phân quyền: CHỈ Người mua hoặc Người bán mới nhận được link PDF tài liệu qua email
-                            if (trade != null && (trade.BuyerId == userId || trade.SellerId == userId))
-                            {
-                                if (string.IsNullOrWhiteSpace(emailActionUrl) || !emailActionUrl.Contains(".supabase.co", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    var pdfService = pdfScope.ServiceProvider.GetService<IPdfContractService>();
-                                    if (pdfService != null)
-                                    {
-                                        var freshNoticeUrl = await pdfService.EnsureWinningNoticeUploadedAsync(referenceId.Value, cancellationToken);
-                                        if (!string.IsNullOrWhiteSpace(freshNoticeUrl))
-                                        {
-                                            emailActionUrl = freshNoticeUrl;
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // Không phải Người mua hoặc Người bán -> Xóa triệt để URL hành động trong email
-                                emailActionUrl = null;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "[NotificationService] Không thể fallback link Supabase PDF cho email Trade {TradeId}", referenceId.Value);
-                        }
-                    }
 
                     if (!string.IsNullOrWhiteSpace(emailActionUrl) && emailActionUrl.StartsWith("/"))
                     {
@@ -276,6 +191,238 @@ public class NotificationService : INotificationService
         }
 
         return notification;
+    }
+
+    public async Task<int> SendNotificationToRolesAsync(
+        IReadOnlyCollection<UserRole> roles,
+        NotificationType type,
+        string title,
+        string content,
+        string? actionUrl = null,
+        string? referenceType = null,
+        Guid? referenceId = null,
+        object? metadata = null,
+        bool sendEmail = false,
+        Guid? excludeUserId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (roles == null || roles.Count == 0)
+        {
+            return 0;
+        }
+
+        var recipientIds = new HashSet<Guid>();
+        foreach (var role in roles.Distinct())
+        {
+            var filter = new AdminUsersQueryFilter
+            {
+                Role = role,
+                IsActive = true,
+                PageIndex = 1,
+                PageSize = 500
+            };
+
+            var (users, _) = await _unitOfWork.Users.GetPagedAsync(filter, cancellationToken);
+            foreach (var user in users)
+            {
+                if (excludeUserId.HasValue && user.Id == excludeUserId.Value)
+                {
+                    continue;
+                }
+
+                recipientIds.Add(user.Id);
+            }
+        }
+
+        var sentCount = 0;
+        foreach (var recipientId in recipientIds)
+        {
+            try
+            {
+                await SendNotificationAsync(
+                    recipientId,
+                    type,
+                    title,
+                    content,
+                    actionUrl,
+                    referenceType,
+                    referenceId,
+                    metadata,
+                    sendEmail,
+                    cancellationToken);
+                sentCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[NotificationService] Lỗi khi gửi thông báo theo vai trò tới user {UserId}", recipientId);
+            }
+        }
+
+        return sentCount;
+    }
+
+    private async Task<string?> ResolveTradeActionUrlAsync(
+        Guid userId,
+        NotificationType type,
+        Guid tradeId,
+        string? requestedActionUrl,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var tradeUow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var trade = await tradeUow.TradeTransactions.GetByIdAsync(tradeId, cancellationToken);
+            if (trade == null)
+            {
+                return requestedActionUrl;
+            }
+
+            var isParticipant = trade.BuyerId == userId || trade.SellerId == userId;
+            if (!isParticipant)
+            {
+                var recipient = await tradeUow.Users.GetByIdAsync(userId, cancellationToken);
+                var isStaff = recipient?.Role is UserRole.ADMIN or UserRole.CONSULTANT;
+                return isStaff ? requestedActionUrl : null;
+            }
+
+            if (!IsDocumentCentricNotificationType(type) && !string.IsNullOrWhiteSpace(requestedActionUrl))
+            {
+                return requestedActionUrl;
+            }
+
+            var isAlreadyPdfOrSupabase = !string.IsNullOrWhiteSpace(requestedActionUrl) &&
+                (requestedActionUrl.Contains(".supabase.co", StringComparison.OrdinalIgnoreCase) ||
+                 requestedActionUrl.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase));
+
+            if (isAlreadyPdfOrSupabase)
+            {
+                return requestedActionUrl;
+            }
+
+            var contract = trade.TransferContract;
+            if (type is NotificationType.TRADE_COMPLETED_LIQUIDATED or NotificationType.ESCROW_RELEASED_SELLER_PAYOUT)
+            {
+                return !string.IsNullOrWhiteSpace(contract?.LiquidationDocumentUrl)
+                    ? contract.LiquidationDocumentUrl
+                    : requestedActionUrl;
+            }
+
+            if (type == NotificationType.CONTRACT_FULLY_SIGNED)
+            {
+                return !string.IsNullOrWhiteSpace(contract?.DocumentUrl)
+                    ? contract.DocumentUrl
+                    : requestedActionUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(contract?.LiquidationDocumentUrl))
+            {
+                return contract.LiquidationDocumentUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(contract?.DocumentUrl))
+            {
+                return contract.DocumentUrl;
+            }
+
+            if (!string.IsNullOrWhiteSpace(contract?.WinningNoticeUrl))
+            {
+                return contract.WinningNoticeUrl;
+            }
+
+            var pdfService = scope.ServiceProvider.GetService<IPdfContractService>();
+            if (pdfService != null)
+            {
+                var noticeUrl = await pdfService.EnsureWinningNoticeUploadedAsync(trade.Id, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(noticeUrl))
+                {
+                    _logger.LogInformation("[NotificationService] ✅ Đã tự động tạo và gán link Supabase PDF ({Url}) cho thông báo {TradeCode}", noticeUrl, trade.TradeTransactionCode);
+                    return noticeUrl;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[NotificationService] Lỗi khi kiểm tra/tạo link cho Trade {TradeId}", tradeId);
+        }
+
+        return requestedActionUrl;
+    }
+
+    private static bool IsDocumentCentricNotificationType(NotificationType type) => type is
+        NotificationType.AUCTION_WON or
+        NotificationType.CONTRACT_SIGNING_REQUIRED or
+        NotificationType.CONTRACT_FULLY_SIGNED or
+        NotificationType.TRADE_COMPLETED_LIQUIDATED or
+        NotificationType.ESCROW_RELEASED_SELLER_PAYOUT;
+
+    private static string? TruncateWithEllipsis(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return maxLength <= 3
+            ? value[..maxLength]
+            : string.Concat(value.AsSpan(0, maxLength - 3), "...");
+    }
+
+    private static string? SerializeMetadataWithinLimit(object? metadata, int maxLength)
+    {
+        if (metadata == null)
+        {
+            return null;
+        }
+
+        var json = JsonSerializer.Serialize(metadata);
+        if (json.Length <= maxLength)
+        {
+            return json;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                var compacted = new Dictionary<string, object?>(StringComparer.Ordinal);
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    compacted[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
+                        ? TruncateWithEllipsis(prop.Value.GetString(), 400)
+                        : prop.Value.Clone();
+                }
+
+                var compactedJson = JsonSerializer.Serialize(compacted);
+                if (compactedJson.Length <= maxLength)
+                {
+                    return compactedJson;
+                }
+
+                var essentialKeys = new HashSet<string>(StringComparer.Ordinal)
+                {
+                    "tradeId", "tradeCode", "auctionId", "ticketId", "simNumber",
+                    "proofId", "proofType", "reminderKey", "stage"
+                };
+                var minimal = compacted
+                    .Where(kv => essentialKeys.Contains(kv.Key))
+                    .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+                minimal["truncated"] = true;
+
+                var minimalJson = JsonSerializer.Serialize(minimal);
+                if (minimalJson.Length <= maxLength)
+                {
+                    return minimalJson;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall back to safe minimal JSON marker below
+        }
+
+        return "{\"truncated\":true}";
     }
 
     public async Task SendAuctionRoomNotificationAsync(

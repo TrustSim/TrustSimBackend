@@ -41,4 +41,24 @@ public class TradeDeadlineSettings
     /// Thời gian ân hạn trước khi kích hoạt cơ chế cưỡng chế tự động nếu bên bán chậm trễ (giờ, mặc định 24h).
     /// </summary>
     public int AutoEnforceGracePeriodHours { get; set; } = 24;
+
+    /// <summary>
+    /// Chu kỳ quét nhắc hạn định kỳ cho các giao dịch hậu ký hợp đồng (phút, mặc định 15 phút).
+    /// </summary>
+    public int ReminderCheckIntervalMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Các mốc giờ trước TransferDeadline để gửi thông báo nhắc hạn cho Người bán.
+    /// </summary>
+    public List<int> TransferReminderHoursBefore { get; set; } = new() { 24, 6 };
+
+    /// <summary>
+    /// Các mốc giờ trước LiquidationDeadline để gửi thông báo nhắc hạn nghiệm thu cho Người mua.
+    /// </summary>
+    public List<int> LiquidationReminderHoursBefore { get; set; } = new() { 12, 2 };
+
+    /// <summary>
+    /// Số giờ chờ duyệt tối đa trước khi gửi nhắc hạn cho Admin/Consultant.
+    /// </summary>
+    public int AdminPendingReviewReminderHours { get; set; } = 12;
 }

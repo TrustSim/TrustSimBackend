@@ -13,6 +13,8 @@
     rel="stylesheet">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+  <script src="notification_widget.js"></script>
 
   <style>
     :root {
@@ -112,6 +114,8 @@
       display: flex;
       gap: 10px;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .nav-btn {
@@ -1226,6 +1230,7 @@
         </select>
       </div>
 
+      <span id="contractSignalRBadge" style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;background:rgba(100,116,139,0.18);border:1px solid rgba(148,163,184,0.3);color:#94a3b8;">● SignalR</span>
       <a href="index.html" class="nav-btn"><i class="fa-solid fa-bolt"></i> Đấu Giá Arena</a>
       <a href="transfer_review_studio.html" class="nav-btn" style="border-color: rgba(16, 185, 129, 0.4); color: #34d399;"><i class="fa-solid fa-user-shield"></i> Duyệt Chuyển Nhượng</a>
       <a href="vision_ocr_studio.html" class="nav-btn"><i class="fa-solid fa-eye"></i> OCR Studio</a>
@@ -2101,6 +2106,8 @@
     let currentToken = '';
     let currentUserId = '';
     let currentUserFullName = '';
+    let currentUserRole = '';
+    let contractNotifClient = null;
     let userTradesMap = {};
     let currentTradeId = '';
     let currentContractData = null;
@@ -2207,6 +2214,60 @@
       await loadContractDetails(id);
     }
 
+    function updateContractSignalRBadge(connected, msg) {
+      const badge = document.getElementById('contractSignalRBadge');
+      if (!badge) return;
+      badge.textContent = msg ? `● ${msg}` : (connected ? '● SignalR: Connected' : '● SignalR: Disconnected');
+      if (connected) {
+        badge.style.background = 'rgba(16, 185, 129, 0.16)';
+        badge.style.borderColor = 'rgba(16, 185, 129, 0.45)';
+        badge.style.color = '#34d399';
+      } else {
+        badge.style.background = 'rgba(244, 63, 94, 0.14)';
+        badge.style.borderColor = 'rgba(244, 63, 94, 0.35)';
+        badge.style.color = '#fda4af';
+      }
+    }
+
+    function ensureContractNotifClient() {
+      if (contractNotifClient) return contractNotifClient;
+      contractNotifClient = TrustSimNotifications.createClient({
+        mountSelector: 'header .nav-links',
+        insertPosition: 'afterbegin',
+        getBackendUrl: () => backendUrl,
+        getToken: () => currentToken,
+        getUserId: () => currentUserId,
+        getUserName: () => currentUsername,
+        getUserRole: () => currentUserRole || demoUsers[currentUsername]?.role || '',
+        onSignalRStatusChange: updateContractSignalRBadge,
+        onToast: (msg, tone) => showToast(msg, tone || 'info'),
+        onRealtimeNotification: async (notif) => {
+          const target = TrustSimNotifications.resolveNavigationTarget(notif);
+          await loadUserTrades();
+          if (currentTradeId && (!target.tradeId || target.tradeId.toLowerCase() === currentTradeId.toLowerCase())) {
+            await loadContractDetails(currentTradeId);
+          }
+        },
+        onNavigateTrade: async (tradeId, _auctionId, notif, target) => {
+          if (!tradeId) return;
+          currentTradeId = tradeId;
+          const manualInput = document.getElementById('manualTradeIdInput');
+          if (manualInput) manualInput.value = tradeId;
+          const tradeSelect = document.getElementById('userTradesSelect');
+          if (tradeSelect) tradeSelect.value = tradeId;
+          await loadContractDetails(tradeId);
+          if (target?.preferredPage === 'transfer_review_studio.html') {
+            switchTab('tabHandover');
+          } else if (notif?.notificationType === 'CONTRACT_FULLY_SIGNED') {
+            switchTab('tabPdf');
+          } else {
+            switchTab('tabPreview');
+          }
+        }
+      });
+      return contractNotifClient;
+    }
+
     // Login API
     async function loginCurrentUser() {
       const cfg = demoUsers[currentUsername] || demoUsers['bidder_dai_gia'];
@@ -2229,6 +2290,7 @@
           currentUserFullName = data.data.fullName || data.data.user?.fullName || '';
           const userEmail = data.data.email || data.data.user?.email || cfg.email;
           const userRole = data.data.role || data.data.user?.role || cfg.role;
+          currentUserRole = userRole;
 
           document.getElementById('currentAvatar').innerText = currentUsername.charAt(0).toUpperCase();
           document.getElementById('currentUsernameText').innerText = currentUsername;
@@ -2237,6 +2299,7 @@
 
           showToast(`Đã đăng nhập: ${currentUsername}`, 'success');
           await loadSmartCaStatus();
+          await ensureContractNotifClient().syncSession(true);
         } else {
           showToast(`Đăng nhập thất bại: ${data.message || 'Lỗi server'}`, 'error');
         }

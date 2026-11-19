@@ -1431,6 +1431,7 @@
   <!-- Toast Stack -->
   <div class="toast-stack" id="toastStack"></div>
 
+  <script src="notification_widget.js"></script>
   <script>
     const DEMO_PASS = 'Password123@';
     let backendUrl = 'http://localhost:5130';
@@ -1441,7 +1442,7 @@
     let activeTradeDetails = null;
     let cachedQueueGroups = [];
     let currentQueueFilter = 'ALL';
-    let signalrConn = null;
+    let transferNotifClient = null;
     let isSubmitting = { SELLER: false, BUYER: false };
 
     const pickedFiles = { SELLER: [], BUYER: [] };
@@ -1491,55 +1492,40 @@
       }
     }
 
-    async function initSignalRConnection() {
-      if (typeof signalR === 'undefined') return;
-      if (signalrConn) {
-        try { await signalrConn.stop(); } catch (e) {}
-        signalrConn = null;
-      }
-
-      updateSignalRBadge(false, 'SignalR: Connecting...');
-      try {
-        signalrConn = new signalR.HubConnectionBuilder()
-          .withUrl(`${backendUrl}/hubs/auction`, { accessTokenFactory: () => currentToken })
-          .withAutomaticReconnect([0, 2000, 5000, 10000])
-          .configureLogging(signalR.LogLevel.Warning)
-          .build();
-
-        signalrConn.on('ReceivePersonalNotification', async (notification) => {
-          const title = notification.title || notification.Title || 'Thông báo mới';
-          const content = notification.content || notification.Content || '';
-          showToast(`🔔 [Realtime] ${title}: ${content}`, 'info');
+    function ensureNotifClient() {
+      if (transferNotifClient) return transferNotifClient;
+      transferNotifClient = TrustSimNotifications.createClient({
+        mountSelector: 'header .header-right',
+        insertPosition: 'afterbegin',
+        getBackendUrl: () => backendUrl,
+        getToken: () => currentToken,
+        getUserId: () => currentUser?.userId || '',
+        getUserName: () => currentUser?.userName || '',
+        getUserRole: () => currentUser?.role || '',
+        onSignalRStatusChange: (connected, msg) => updateSignalRBadge(connected, msg),
+        onToast: (msg, tone) => {
+          const toastType = tone === 'error' ? 'error' : (tone === 'success' ? 'success' : 'info');
+          showToast(msg, toastType);
+        },
+        onRealtimeNotification: async () => {
           await refreshWalletAndSims();
           await loadMyTrades();
           if (activeTradeId) await reloadActiveTrade();
           if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
-        });
-
-        signalrConn.on('ReceiveAuctionStatusChanged', async (auctionId) => {
+        },
+        onAuctionStatusChanged: async (auctionId) => {
           if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
           if (activeAuctionId && activeAuctionId.toLowerCase() === (auctionId || '').toLowerCase() && activeTradeId) {
             await reloadActiveTrade();
           }
-        });
-
-        signalrConn.onreconnecting(() => updateSignalRBadge(false, 'SignalR: Reconnecting...'));
-        signalrConn.onreconnected(async () => {
-          updateSignalRBadge(true, 'SignalR: Connected');
-          if (currentUser?.userId) {
-            try { await signalrConn.invoke('JoinRoom', `user_${currentUser.userId.toLowerCase()}`); } catch (e) {}
+        },
+        onNavigateTrade: async (tradeId, auctionId) => {
+          if (tradeId) {
+            await selectTradeId(tradeId, auctionId || '');
           }
-        });
-        signalrConn.onclose(() => updateSignalRBadge(false, 'SignalR: Disconnected'));
-
-        await signalrConn.start();
-        updateSignalRBadge(true, 'SignalR: Connected');
-        if (currentUser?.userId) {
-          try { await signalrConn.invoke('JoinRoom', `user_${currentUser.userId.toLowerCase()}`); } catch (e) {}
         }
-      } catch (err) {
-        updateSignalRBadge(false, 'SignalR: Error');
-      }
+      });
+      return transferNotifClient;
     }
 
     function isCurrentUserAdmin() {
@@ -1630,7 +1616,7 @@
         await Promise.all([refreshWalletAndSims(), loadMyTrades()]);
         if (activeTradeId) await reloadActiveTrade();
         if (isCurrentUserAdmin()) await loadAuctionGroupedQueue();
-        await initSignalRConnection();
+        await ensureNotifClient().syncSession(true);
       } catch (err) {
         showToast(`Lỗi kết nối khi đăng nhập: ${err.message}`, 'error');
       }

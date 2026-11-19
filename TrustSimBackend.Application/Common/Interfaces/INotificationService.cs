@@ -25,6 +25,22 @@ public interface INotificationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gửi thông báo đến toàn bộ tài khoản đang hoạt động thuộc các vai trò chỉ định (ví dụ: ADMIN, CONSULTANT).
+    /// </summary>
+    Task<int> SendNotificationToRolesAsync(
+        IReadOnlyCollection<UserRole> roles,
+        NotificationType type,
+        string title,
+        string content,
+        string? actionUrl = null,
+        string? referenceType = null,
+        Guid? referenceId = null,
+        object? metadata = null,
+        bool sendEmail = false,
+        Guid? excludeUserId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Phát thông báo nội bộ tới những người tham gia và theo dõi cùng 1 phòng đấu giá (Room: auction_{auctionId}).
     /// Không gửi toàn hệ thống, bảo đảm tính riêng tư và đúng ngữ cảnh phòng đấu giá.
     /// </summary>

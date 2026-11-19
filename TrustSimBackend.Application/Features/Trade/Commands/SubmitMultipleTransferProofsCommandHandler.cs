@@ -309,14 +309,6 @@ public class SubmitMultipleTransferProofsCommandHandler :
             _logger.LogInformation(
                 "[SimTransfer] Người bán {SellerId} đã nộp bộ bằng chứng ({Count} ảnh) cho SIM {SimNumber} (Giao dịch: {TradeCode})",
                 trade.SellerId, files.Count, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
-
-            await _notificationService.SendNotificationAsync(
-                trade.BuyerId,
-                NotificationType.TRADE_TRANSFERRING_SIM,
-                "Người bán đã nộp biên bản sang tên SIM",
-                $"Người bán đã nộp {files.Count} ảnh biên bản sang tên cho SIM {trade.SimNumber?.PhoneNumber}. Vui lòng chờ Ban Quản Trị sàn kiểm tra và duyệt hồ sơ.",
-                $"/trade/{trade.Id}",
-                cancellationToken: cancellationToken);
         }
         else
         {
@@ -325,22 +317,101 @@ public class SubmitMultipleTransferProofsCommandHandler :
             _logger.LogInformation(
                 "[SimTransfer] Người mua {BuyerId} đã nộp bộ bằng chứng ({Count} ảnh) nghiệm thu SIM {SimNumber} (Giao dịch: {TradeCode})",
                 trade.BuyerId, files.Count, trade.SimNumber?.PhoneNumber, trade.TradeTransactionCode);
-
-            await _notificationService.SendNotificationAsync(
-                trade.SellerId,
-                NotificationType.TRADE_TRANSFERRING_SIM,
-                "Người mua đã nộp ảnh nghiệm thu SIM",
-                $"Người mua đã nộp {files.Count} ảnh kiểm tra sóng / nghiệm thu cho SIM {trade.SimNumber?.PhoneNumber}. Đang chờ Ban Quản Trị sàn duyệt hoàn tất và giải ngân.",
-                $"/trade/{trade.Id}",
-                cancellationToken: cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await SendProofSubmittedNotificationsAsync(trade, proof, userId, files.Count, isSeller, cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "[SimTransfer] Lỗi khi gửi thông báo nộp bằng chứng cho Trade {TradeCode}", trade.TradeTransactionCode);
+        }
 
         var message = isSeller
             ? $"Đã tải lên bộ bằng chứng gồm {files.Count} ảnh biên bản sang tên thành công. Chờ Admin sàn duyệt hồ sơ."
             : $"Đã tải lên bộ bằng chứng gồm {files.Count} ảnh kiểm tra nghiệm thu thành công. Chờ Admin sàn duyệt và giải ngân.";
 
         return SimTransferMappingHelper.BuildSimTransferDetailsDto(trade, userId, isAdmin: false, message);
+    }
+
+    private async Task SendProofSubmittedNotificationsAsync(
+        TradeTransaction trade,
+        TransferProof proof,
+        Guid submitterId,
+        int imageCount,
+        bool isSeller,
+        CancellationToken cancellationToken)
+    {
+        var phone = trade.SimNumber?.PhoneNumber;
+        var metadata = new
+        {
+            tradeId = trade.Id,
+            tradeCode = trade.TradeTransactionCode,
+            auctionId = trade.AuctionId,
+            simNumber = phone,
+            proofId = proof.Id,
+            proofType = proof.ProofType.ToString(),
+            imageCount,
+            liquidationDeadline = trade.LiquidationDeadline,
+            stage = isSeller ? "SELLER_PROOF_SUBMITTED" : "BUYER_PROOF_SUBMITTED"
+        };
+
+        if (isSeller)
+        {
+            await _notificationService.SendNotificationAsync(
+                trade.BuyerId,
+                NotificationType.TRANSFER_PROOF_SUBMITTED,
+                "Người bán đã nộp biên bản sang tên SIM",
+                $"Người bán đã nộp {imageCount} ảnh biên bản sang tên cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}). Vui lòng chờ Ban Quản Trị sàn kiểm tra và duyệt hồ sơ.",
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: false,
+                cancellationToken: cancellationToken);
+
+            await _notificationService.SendNotificationToRolesAsync(
+                new[] { UserRole.ADMIN, UserRole.CONSULTANT },
+                NotificationType.TRANSFER_PROOF_SUBMITTED,
+                "Hồ sơ sang tên SIM mới cần kiểm duyệt",
+                $"Người bán đã nộp {imageCount} ảnh biên bản sang tên cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}). Vui lòng kiểm tra và duyệt hồ sơ.",
+                actionUrl: $"/transfer-review?tradeId={trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: false,
+                excludeUserId: submitterId,
+                cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await _notificationService.SendNotificationAsync(
+                trade.SellerId,
+                NotificationType.TRANSFER_PROOF_SUBMITTED,
+                "Người mua đã nộp ảnh nghiệm thu SIM",
+                $"Người mua đã nộp {imageCount} ảnh kiểm tra sóng / nghiệm thu cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}). Đang chờ Ban Quản Trị sàn duyệt hoàn tất và giải ngân.",
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: false,
+                cancellationToken: cancellationToken);
+
+            await _notificationService.SendNotificationToRolesAsync(
+                new[] { UserRole.ADMIN, UserRole.CONSULTANT },
+                NotificationType.TRANSFER_PROOF_SUBMITTED,
+                "Ảnh nghiệm thu SIM mới cần duyệt & giải ngân",
+                $"Người mua đã nộp {imageCount} ảnh nghiệm thu cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}). Vui lòng kiểm duyệt để niêm phong VB 3 và giải ngân Escrow.",
+                actionUrl: $"/transfer-review?tradeId={trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: false,
+                excludeUserId: submitterId,
+                cancellationToken: cancellationToken);
+        }
     }
 }

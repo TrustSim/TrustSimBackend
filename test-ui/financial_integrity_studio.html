@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Microsoft SignalR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script src="notification_widget.js"></script>
 
     <style>
         :root {
@@ -1852,8 +1853,12 @@
                 });
 
                 // Personal User Notification (Room: user_{userId})
-                signalrConnection.on('ReceivePersonalNotification', (notification) => {
-                    showToast(`📬 Thông báo cá nhân: ${notification.title}`, 'info', 6000);
+                signalrConnection.on('ReceivePersonalNotification', (rawNotif) => {
+                    const ts = window.TrustSimNotifications;
+                    const notif = ts ? ts.normalizeNotification(rawNotif) : rawNotif;
+                    const meta = ts ? ts.getTypeMeta(notif?.notificationType) : { icon: '📬', label: 'Thông báo', tone: 'info' };
+                    const esc = ts ? ts.escapeHtml : (s) => String(s ?? '');
+                    showToast(`${meta.icon} [${esc(meta.label)}] ${esc(notif?.title || 'Thông báo mới')}${notif?.content ? `: ${esc(notif.content)}` : ''}`, meta.tone || 'info', 6000);
                     updateUnreadNotificationCount();
                     if (document.getElementById('notificationsModal').classList.contains('active')) {
                         loadMyNotificationsList();
@@ -1971,6 +1976,30 @@
             }
         }
 
+        let financialNotifCache = [];
+
+        async function openFinancialNotification(notifId, mode) {
+            const notif = financialNotifCache.find(x => x.id === notifId);
+            if (!notif) return;
+            if (!notif.isRead) {
+                await markNotificationRead(notifId);
+            }
+            const ts = window.TrustSimNotifications;
+            const target = ts ? ts.resolveNavigationTarget(notif) : { kind: 'none' };
+            if (mode === 'pdf' && target.url) {
+                window.open(target.url, '_blank');
+                return;
+            }
+            if (target.tradeId) {
+                const userParam = currentUser?.userName ? `&user=${encodeURIComponent(currentUser.userName)}` : '';
+                window.open(`${target.preferredPage}?tradeId=${encodeURIComponent(target.tradeId)}${userParam}`, '_blank');
+                return;
+            }
+            if (target.url) {
+                window.open(target.url, '_blank');
+            }
+        }
+
         async function loadMyNotificationsList() {
             if (!authToken) {
                 document.getElementById('notificationsListBody').innerHTML = `
@@ -1986,35 +2015,63 @@
                 const res = await apiFetch('/api/Notifications?pageIndex=1&pageSize=20');
                 const data = await res.json();
                 const container = document.getElementById('notificationsListBody');
+                const ts = window.TrustSimNotifications;
+                const esc = ts ? ts.escapeHtml : (s) => String(s ?? '');
 
                 if (res.ok && (data.success || data.isSuccess) && data.data?.items?.length > 0) {
-                    container.innerHTML = data.data.items.map(n => {
+                    const normalizedItems = ts
+                        ? data.data.items.map(ts.normalizeNotification).filter(Boolean)
+                        : data.data.items;
+                    financialNotifCache = normalizedItems;
+
+                    container.innerHTML = normalizedItems.map(n => {
                         const isUnread = !n.isRead;
-                        const isSellerApproval = n.notificationType === 'AUCTION_SELLER_CONFIRMATION_REQUIRED' || n.notificationType === 3;
-                        
+                        const isSellerApproval = n.notificationType === 'AUCTION_SELLER_CONFIRMATION_REQUIRED';
+                        const typeMeta = ts ? ts.getTypeMeta(n.notificationType) : { icon: '📢', label: 'Thông báo', color: '#7dd3fc', bg: 'rgba(56,189,248,0.14)', border: 'rgba(56,189,248,0.35)' };
+                        const extra = ts ? ts.parseMetadata(n) : {};
+                        const target = ts ? ts.resolveNavigationTarget(n) : { kind: 'none' };
+
+                        const rejectHtml = extra.rejectionReason
+                            ? `<div style="margin:6px 0 8px;padding:7px 10px;border-radius:6px;background:rgba(244,63,94,0.14);border:1px solid rgba(244,63,94,0.4);color:#fecdd3;font-size:0.78rem;"><strong>Lý do từ chối:</strong> ${esc(extra.rejectionReason)}</div>`
+                            : '';
+
                         return `
                         <div style="background: ${isUnread ? 'rgba(59, 130, 246, 0.08)' : 'rgba(0, 0, 0, 0.25)'}; border: 1px solid ${isUnread ? 'rgba(59, 130, 246, 0.3)' : 'var(--border-color)'}; border-radius: var(--radius-md); padding: 14px; margin-bottom: 10px; transition: all 0.2s ease;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-                                <div style="font-weight: 700; font-size: 0.9rem; color: ${isUnread ? '#60a5fa' : 'var(--text-main)'};">
-                                    ${n.title}
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 6px;">
+                                <div>
+                                    <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-bottom:5px;color:${typeMeta.color};background:${typeMeta.bg};border:1px solid ${typeMeta.border};">${typeMeta.icon} ${esc(typeMeta.label)}</span>
+                                    <div style="font-weight: 700; font-size: 0.9rem; color: ${isUnread ? '#60a5fa' : 'var(--text-main)'};">
+                                        ${esc(n.title)}
+                                    </div>
                                 </div>
-                                <span style="font-size: 0.72rem; color: var(--text-dim);">${formatDate(n.createdDate)}</span>
+                                <span style="font-size: 0.72rem; color: var(--text-dim); white-space: nowrap;">${formatDate(n.createdDate)}</span>
                             </div>
                             <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">
-                                ${n.content}
+                                ${esc(n.content)}
                             </div>
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                            ${rejectHtml}
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                                 <span class="badge ${isUnread ? 'badge-blue' : 'badge-green'}" style="font-size: 0.7rem;">
                                     ${isUnread ? 'Chưa đọc' : 'Đã đọc'}
                                 </span>
-                                <div style="display: flex; gap: 8px;">
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                    ${target.kind === 'pdf' && target.url ? `
+                                        <button class="btn btn-outline btn-sm" onclick="openFinancialNotification('${esc(n.id)}', 'pdf')">
+                                            <i class="fa-solid fa-file-pdf"></i> Mở PDF
+                                        </button>
+                                    ` : ''}
+                                    ${target.tradeId ? `
+                                        <button class="btn btn-primary btn-sm" onclick="openFinancialNotification('${esc(n.id)}', 'trade')">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở giao dịch
+                                        </button>
+                                    ` : ''}
                                     ${isSellerApproval ? `
-                                        <button class="btn btn-amber btn-sm" onclick="openSellerDecisionModal('${n.referenceId}')">
+                                        <button class="btn btn-amber btn-sm" onclick="openSellerDecisionModal('${esc(n.referenceId)}')">
                                             <i class="fa-solid fa-handshake"></i> Phê duyệt Bán SIM
                                         </button>
                                     ` : ''}
                                     ${isUnread ? `
-                                        <button class="btn btn-outline btn-sm" onclick="markNotificationRead('${n.id}')">
+                                        <button class="btn btn-outline btn-sm" onclick="markNotificationRead('${esc(n.id)}')">
                                             <i class="fa-solid fa-check"></i> Đã đọc
                                         </button>
                                     ` : ''}

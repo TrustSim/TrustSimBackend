@@ -121,22 +121,6 @@ public class ReviewSimTransferProofCommandHandler : IRequestHandler<ReviewSimTra
                 _logger.LogInformation(
                     "[Admin Review] Admin {AdminId} đã DUYỆT bộ bằng chứng {ProofId} của Bên Bán cho giao dịch {TradeCode}",
                     request.AdminUserId, trackedProof.Id, trade.TradeTransactionCode);
-
-                await _notificationService.SendNotificationAsync(
-                    trade.BuyerId,
-                    NotificationType.TRADE_TRANSFERRING_SIM,
-                    "Biên bản sang tên SIM đã được duyệt!",
-                    $"Hồ sơ sang tên của Bên Bán cho SIM {trade.SimNumber?.PhoneNumber} đã được Ban Quản Trị duyệt hợp lệ. Vui lòng kiểm tra sóng và tải ảnh nghiệm thu lên hệ thống.",
-                    $"/trade/{trade.Id}",
-                    cancellationToken: cancellationToken);
-
-                await _notificationService.SendNotificationAsync(
-                    trade.SellerId,
-                    NotificationType.TRADE_TRANSFERRING_SIM,
-                    "Biên bản sang tên SIM đã được phê duyệt",
-                    $"Biên bản sang tên cho SIM {trade.SimNumber?.PhoneNumber} đã được Ban Quản Trị duyệt thành công. Hệ thống đang yêu cầu Bên Mua nghiệm thu SIM.",
-                    $"/trade/{trade.Id}",
-                    cancellationToken: cancellationToken);
             }
             else
             {
@@ -163,14 +147,6 @@ public class ReviewSimTransferProofCommandHandler : IRequestHandler<ReviewSimTra
                 _logger.LogWarning(
                     "[Admin Review] Admin {AdminId} đã TỪ CHỐI bộ bằng chứng {ProofId} của Bên Bán cho {TradeCode}. Lý do: {Reason}",
                     request.AdminUserId, trackedProof.Id, trade.TradeTransactionCode, reasonText);
-
-                await _notificationService.SendNotificationAsync(
-                    trade.SellerId,
-                    NotificationType.TRADE_TRANSFERRING_SIM,
-                    "Biên bản sang tên SIM bị từ chối",
-                    $"Hồ sơ sang tên cho SIM {trade.SimNumber?.PhoneNumber} bị từ chối với lý do: {reasonText}. Vui lòng nộp lại biên bản chính xác.",
-                    $"/trade/{trade.Id}",
-                    cancellationToken: cancellationToken);
             }
             else
             {
@@ -179,14 +155,6 @@ public class ReviewSimTransferProofCommandHandler : IRequestHandler<ReviewSimTra
                 _logger.LogWarning(
                     "[Admin Review] Admin {AdminId} đã TỪ CHỐI bộ bằng chứng {ProofId} của Bên Mua cho {TradeCode}. Lý do: {Reason}",
                     request.AdminUserId, trackedProof.Id, trade.TradeTransactionCode, reasonText);
-
-                await _notificationService.SendNotificationAsync(
-                    trade.BuyerId,
-                    NotificationType.TRADE_TRANSFERRING_SIM,
-                    "Ảnh nghiệm thu SIM bị từ chối",
-                    $"Ảnh nghiệm thu SIM {trade.SimNumber?.PhoneNumber} bị từ chối với lý do: {reasonText}. Vui lòng tải lại ảnh kiểm tra sóng / app nhà mạng.",
-                    $"/trade/{trade.Id}",
-                    cancellationToken: cancellationToken);
             }
         }
 
@@ -196,12 +164,25 @@ public class ReviewSimTransferProofCommandHandler : IRequestHandler<ReviewSimTra
         var isBuyerApproved = allProofs.Any(p => p.ProofType == TransferProofType.BUYER_RECEIPT && p.ProofStatus == ProofStatus.APPROVED)
             || (trackedProof.ProofType == TransferProofType.BUYER_RECEIPT && trackedProof.ProofStatus == ProofStatus.APPROVED);
 
-        if (request.IsApproved && isSellerApproved && isBuyerApproved)
+        var willCompleteTrade = request.IsApproved && isSellerApproved && isBuyerApproved;
+        if (willCompleteTrade)
         {
             await CompleteTransferAndReleaseEscrowAsync(trade, now, cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (!willCompleteTrade)
+        {
+            try
+            {
+                await SendProofReviewDecisionNotificationAsync(trade, trackedProof, isTargetSeller, request.IsApproved, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "[Admin Review] Lỗi khi gửi thông báo kết quả duyệt bằng chứng Trade {TradeCode}", trade.TradeTransactionCode);
+            }
+        }
 
         var statusMessage = trade.SimTransfer.SimTransferStatus == SimTransferStatus.COMPLETED
             ? "Đã duyệt hoàn tất cả 2 bên. Văn bản số 3 đã được niêm phong, SIM đã sang tên chính chủ và tiền đã giải ngân."
@@ -482,26 +463,137 @@ public class ReviewSimTransferProofCommandHandler : IRequestHandler<ReviewSimTra
         await _delayQueue.CancelJobAsync(trade.AuctionId, AuctionDelayJobTypes.LIQUIDATION_DEADLINE, cancellationToken);
 
         var liqPdfUrl = trade.TransferContract?.LiquidationDocumentUrl;
-        await _notificationService.SendNotificationAsync(
-            userId: trade.SellerId,
-            type: NotificationType.WALLET_TOPUP_SUCCESS,
-            title: "Giao dịch bán SIM thành công - Tiền đã về ví!",
-            content: $"Ban Quản Trị đã duyệt hồ sơ nghiệm thu SIM {trade.SimNumber?.PhoneNumber}. Bạn nhận được {netSellerPayout:N0} VNĐ vào ví (sau khi trừ phí sàn). Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
-            actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
-            referenceType: "TradeTransaction",
-            referenceId: trade.Id,
-            sendEmail: true,
-            cancellationToken: cancellationToken);
+        var completionMetadata = new
+        {
+            tradeId = trade.Id,
+            tradeCode = trade.TradeTransactionCode,
+            auctionId = trade.AuctionId,
+            simNumber = trade.SimNumber?.PhoneNumber,
+            escrowAmount,
+            platformFeeAmount,
+            netSellerPayout,
+            liquidationDocumentUrl = liqPdfUrl,
+            isAutoLiquidated = false,
+            stage = "COMPLETED_ADMIN_REVIEW"
+        };
 
-        await _notificationService.SendNotificationAsync(
-            userId: trade.BuyerId,
-            type: NotificationType.SYSTEM_ALERT,
-            title: "Chúc mừng bạn đã sở hữu SIM chính chủ!",
-            content: $"Ban Quản Trị đã duyệt hoàn tất chuyển nhượng SIM {trade.SimNumber?.PhoneNumber}. Bạn đã trở thành chủ sở hữu chính thức. Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
-            actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
-            referenceType: "TradeTransaction",
-            referenceId: trade.Id,
-            sendEmail: true,
-            cancellationToken: cancellationToken);
+        try
+        {
+            await _notificationService.SendNotificationAsync(
+                userId: trade.SellerId,
+                type: NotificationType.ESCROW_RELEASED_SELLER_PAYOUT,
+                title: "Giao dịch bán SIM thành công - Tiền đã về ví!",
+                content: $"Ban Quản Trị đã duyệt hồ sơ nghiệm thu SIM {trade.SimNumber?.PhoneNumber}. Bạn nhận được {netSellerPayout:N0} VNĐ vào ví (sau khi trừ phí sàn). Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
+                actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: completionMetadata,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+
+            await _notificationService.SendNotificationAsync(
+                userId: trade.BuyerId,
+                type: NotificationType.TRADE_COMPLETED_LIQUIDATED,
+                title: "Chúc mừng bạn đã sở hữu SIM chính chủ!",
+                content: $"Ban Quản Trị đã duyệt hoàn tất chuyển nhượng SIM {trade.SimNumber?.PhoneNumber}. Bạn đã trở thành chủ sở hữu chính thức. Biên bản nghiệm thu và thanh lý đã được niêm phong chữ ký số PAdES X.509.",
+                actionUrl: liqPdfUrl ?? $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: completionMetadata,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "[Admin Review] Lỗi khi gửi thông báo hoàn tất thanh lý Trade {TradeCode}", trade.TradeTransactionCode);
+        }
+    }
+
+    private async Task SendProofReviewDecisionNotificationAsync(
+        TradeTransaction trade,
+        TransferProof proof,
+        bool isTargetSeller,
+        bool isApproved,
+        CancellationToken cancellationToken)
+    {
+        var phone = trade.SimNumber?.PhoneNumber;
+        if (isApproved && isTargetSeller)
+        {
+            var metadata = new
+            {
+                tradeId = trade.Id,
+                tradeCode = trade.TradeTransactionCode,
+                auctionId = trade.AuctionId,
+                simNumber = phone,
+                proofId = proof.Id,
+                proofType = proof.ProofType.ToString(),
+                liquidationDeadline = trade.LiquidationDeadline,
+                stage = "SELLER_PROOF_APPROVED"
+            };
+
+            await _notificationService.SendNotificationAsync(
+                trade.BuyerId,
+                NotificationType.TRANSFER_PROOF_APPROVED,
+                "Biên bản sang tên SIM đã được duyệt - Mời nghiệm thu!",
+                $"Hồ sơ sang tên của Bên Bán cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}) đã được Ban Quản Trị duyệt hợp lệ. Vui lòng lắp SIM kiểm tra sóng và tải ảnh nghiệm thu lên hệ thống.",
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+
+            await _notificationService.SendNotificationAsync(
+                trade.SellerId,
+                NotificationType.TRANSFER_PROOF_APPROVED,
+                "Biên bản sang tên SIM đã được phê duyệt",
+                $"Biên bản sang tên cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}) đã được Ban Quản Trị duyệt thành công. Hệ thống đang yêu cầu Bên Mua nghiệm thu SIM.",
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: false,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (!isApproved)
+        {
+            // Quy tắc: Chỉ thông báo cho người có bộ bằng chứng bị từ chối kèm lý do chi tiết và email nhắc nộp lại.
+            var recipientId = isTargetSeller ? trade.SellerId : trade.BuyerId;
+            var reasonText = proof.RejectionReason ?? "Hồ sơ không hợp lệ";
+            var deadline = isTargetSeller ? trade.TransferDeadline : trade.LiquidationDeadline;
+            var metadata = new
+            {
+                tradeId = trade.Id,
+                tradeCode = trade.TradeTransactionCode,
+                auctionId = trade.AuctionId,
+                simNumber = phone,
+                proofId = proof.Id,
+                proofType = proof.ProofType.ToString(),
+                rejectionReason = reasonText,
+                deadline,
+                stage = isTargetSeller ? "SELLER_PROOF_REJECTED" : "BUYER_PROOF_REJECTED"
+            };
+
+            var title = isTargetSeller
+                ? "Biên bản sang tên SIM bị từ chối"
+                : "Ảnh nghiệm thu SIM bị từ chối";
+            var content = isTargetSeller
+                ? $"Hồ sơ sang tên cho SIM {phone} (Mã GD: {trade.TradeTransactionCode}) bị Ban Quản Trị từ chối với lý do: {reasonText}. Vui lòng nộp lại bộ bằng chứng chính xác trước hạn."
+                : $"Ảnh nghiệm thu SIM {phone} (Mã GD: {trade.TradeTransactionCode}) bị Ban Quản Trị từ chối với lý do: {reasonText}. Vui lòng tải lại ảnh kiểm tra sóng / app nhà mạng.";
+
+            await _notificationService.SendNotificationAsync(
+                recipientId,
+                NotificationType.TRANSFER_PROOF_REJECTED,
+                title,
+                content,
+                actionUrl: $"/trade/{trade.Id}",
+                referenceType: "TradeTransaction",
+                referenceId: trade.Id,
+                metadata: metadata,
+                sendEmail: true,
+                cancellationToken: cancellationToken);
+        }
     }
 }
