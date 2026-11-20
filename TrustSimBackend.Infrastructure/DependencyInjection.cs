@@ -147,6 +147,7 @@ public static class DependencyInjection
         services.AddScoped<IDocumentChunkRepository, DocumentChunkRepository>();
         services.AddScoped<ISimValuationRepository, SimValuationRepository>();
         services.AddScoped<IAiConsultationSessionRepository, AiConsultationSessionRepository>();
+        services.AddScoped<IAiTelemetryRepository, AiTelemetryRepository>();
 
         // Financial Double-Entry Ledger Repositories
         services.AddScoped<ILedgerJournalRepository, LedgerJournalRepository>();
@@ -314,7 +315,7 @@ public static class DependencyInjection
 
                 var chatModel = !string.IsNullOrWhiteSpace(geminiOptions.ChatModel)
                     ? geminiOptions.ChatModel
-                    : "gemini-3.1-flash-lite";
+                    : "gemini-3-flash-preview";
 
 #pragma warning disable SKEXP0010
                 builder.AddOpenAIChatCompletion(
@@ -343,6 +344,12 @@ public static class DependencyInjection
         {
             client.Timeout = TimeSpan.FromSeconds(30);
         });
+        services.AddSingleton<IAiCacheService, RedisAndMemoryAiCacheService>();
+        services.AddSingleton<IAiAuthorizationService, AiAuthorizationService>();
+        services.AddSingleton<IAiGuardrailService, AiGuardrailService>();
+        services.AddSingleton<IAiRouterService, AiRouterService>();
+        services.AddSingleton<IMcpToolServer, McpToolServer>();
+        services.AddSingleton<IAiTelemetryAndEvalService, AiTelemetryAndEvalService>();
         services.AddScoped<ISemanticKernelAgentService, SemanticKernelAgentService>();
         services.AddScoped<IRagRetrievalService, RagRetrievalService>();
         services.AddScoped<IDocumentIngestionService, DocumentIngestionService>();

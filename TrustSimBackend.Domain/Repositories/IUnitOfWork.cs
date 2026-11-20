@@ -31,6 +31,7 @@ public interface IUnitOfWork
     IDocumentChunkRepository DocumentChunks { get; }
     ISimValuationRepository SimValuations { get; }
     IAiConsultationSessionRepository AiConsultationSessions { get; }
+    IAiTelemetryRepository AiTelemetries { get; }
     ILedgerJournalRepository LedgerJournals { get; }
     ILedgerEntryRepository LedgerEntries { get; }
     IPaymentIntentRepository PaymentIntents { get; }

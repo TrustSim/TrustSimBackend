@@ -7,5 +7,7 @@ namespace TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 
 public record GetConsultationMessagesQuery(
     Guid SessionId,
-    ConsultationMessageQueryFilter Filter
+    ConsultationMessageQueryFilter Filter,
+    Guid? CurrentUserId = null,
+    string? CurrentUserRole = null
 ) : IRequest<PagedResult<ConsultationMessageDto>>;

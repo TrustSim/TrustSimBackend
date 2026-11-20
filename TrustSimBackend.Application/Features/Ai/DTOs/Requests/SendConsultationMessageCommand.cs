@@ -5,5 +5,7 @@ namespace TrustSimBackend.Application.Features.Ai.DTOs.Requests;
 
 public record SendConsultationMessageCommand(
     ChatConsultationRequest Request,
-    Guid? CurrentUserId
+    Guid? CurrentUserId,
+    string? CurrentUserRole = null,
+    string? ClientIp = null
 ) : IRequest<ChatConsultationResponseDto>;

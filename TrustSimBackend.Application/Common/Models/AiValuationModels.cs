@@ -77,6 +77,7 @@ public class AiValuationLlmResponse
     public string ValuationReasoning { get; set; } = string.Empty;
     public string FengShuiSummary { get; set; } = string.Empty;
     public string EngineSource { get; set; } = "SEMANTIC_KERNEL_GEMINI";
+    public string? ModelUsed { get; set; }
     public long ExecutionTimeMs { get; set; }
 }
 
@@ -125,8 +126,16 @@ public class AiConsultationLlmResponse
     public List<ConsultationSimSuggestion> SuggestedSims { get; set; } = new();
     public List<string> ReferencedDocuments { get; set; } = new();
     public List<Guid> ReferencedChunkIds { get; set; } = new();
+    public int PromptTokens { get; set; }
+    public int CompletionTokens { get; set; }
     public int TokensUsed { get; set; }
     public string EngineSource { get; set; } = "NVIDIA_CLOUD_LLM"; // "NVIDIA_CLOUD_LLM" | "LOCAL_FALLBACK_ENGINE"
+    public string? ModelUsed { get; set; }
+    public string Intent { get; set; } = "GeneralConsultation";
+    public bool CacheHit { get; set; }
+    public string CacheLayer { get; set; } = "MISS";
+    public bool GuardrailBlocked { get; set; }
+    public string? GuardrailReason { get; set; }
     public long ExecutionTimeMs { get; set; }
 }
 
@@ -165,8 +174,23 @@ public class ChatConsultationStreamEvent
     [JsonPropertyName("engineSource")]
     public string? EngineSource { get; set; }
 
+    [JsonPropertyName("modelUsed")]
+    public string? ModelUsed { get; set; }
+
     [JsonPropertyName("executionTimeMs")]
     public long? ExecutionTimeMs { get; set; }
+
+    [JsonPropertyName("intent")]
+    public string? Intent { get; set; }
+
+    [JsonPropertyName("cacheHit")]
+    public bool? CacheHit { get; set; }
+
+    [JsonPropertyName("guardrailBlocked")]
+    public bool? GuardrailBlocked { get; set; }
+
+    [JsonPropertyName("tokensUsed")]
+    public int? TokensUsed { get; set; }
 
     [JsonPropertyName("errorMessage")]
     public string? ErrorMessage { get; set; }

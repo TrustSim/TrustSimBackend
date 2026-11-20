@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Pgvector;
 using TrustSimBackend.Application.Common.Interfaces;
 using TrustSimBackend.Application.Common.Models;
@@ -11,15 +12,21 @@ public class RagRetrievalService : IRagRetrievalService
     private readonly IGeminiEmbeddingService _embeddingService;
     private readonly IDocumentChunkRepository _chunkRepository;
     private readonly ILogger<RagRetrievalService> _logger;
+    private readonly IAiCacheService? _aiCache;
+    private readonly GeminiSettings _settings;
 
     public RagRetrievalService(
         IGeminiEmbeddingService embeddingService,
         IDocumentChunkRepository chunkRepository,
-        ILogger<RagRetrievalService> logger)
+        ILogger<RagRetrievalService> logger,
+        IAiCacheService? aiCache = null,
+        IOptions<GeminiSettings>? settings = null)
     {
         _embeddingService = embeddingService;
         _chunkRepository = chunkRepository;
         _logger = logger;
+        _aiCache = aiCache;
+        _settings = settings?.Value ?? new GeminiSettings();
     }
 
     public async Task<IReadOnlyList<DocumentChunkSearchResult>> RetrieveRelevantChunksAsync(
@@ -35,8 +42,7 @@ public class RagRetrievalService : IRagRetrievalService
 
         try
         {
-            _logger.LogInformation("Sinh vector truy vấn cho RAG: '{Query}'", query);
-            var queryEmbedding = await _embeddingService.GetEmbeddingAsync(query, cancellationToken);
+            var queryEmbedding = await GetOrComputeEmbeddingAsync(query, cancellationToken);
             if (!queryEmbedding.HasValue)
             {
                 return Array.Empty<DocumentChunkSearchResult>();
@@ -63,5 +69,34 @@ public class RagRetrievalService : IRagRetrievalService
             _logger.LogError(ex, "Lỗi trong quá trình RAG Semantic Search: {Message}", ex.Message);
             return Array.Empty<DocumentChunkSearchResult>();
         }
+    }
+
+    private async Task<ReadOnlyMemory<float>?> GetOrComputeEmbeddingAsync(string query, CancellationToken cancellationToken)
+    {
+        var dim = _settings.EmbeddingDimension > 0 ? _settings.EmbeddingDimension : 768;
+        var model = string.IsNullOrWhiteSpace(_settings.EmbeddingModel) ? "text-embedding-004" : _settings.EmbeddingModel;
+
+        if (_aiCache != null)
+        {
+            var cacheKey = _aiCache.BuildHashKey("emb", model, dim.ToString(), query);
+            var (found, cachedVector, cacheLayer) = await _aiCache.GetAsync<float[]>(cacheKey, cancellationToken);
+            if (found && cachedVector is { Length: > 0 })
+            {
+                _logger.LogDebug("[RAG Cache HIT - {Layer}] Tái sử dụng vector nhúng cho truy vấn '{Query}'", cacheLayer, query);
+                return new ReadOnlyMemory<float>(cachedVector);
+            }
+
+            _logger.LogInformation("Sinh vector truy vấn cho RAG: '{Query}'", query);
+            var computed = await _embeddingService.GetEmbeddingAsync(query, cancellationToken);
+            if (computed.HasValue)
+            {
+                var ttlMinutes = _settings.EmbeddingCacheTtlMinutes > 0 ? _settings.EmbeddingCacheTtlMinutes : 120;
+                await _aiCache.SetAsync(cacheKey, computed.Value.ToArray(), TimeSpan.FromMinutes(ttlMinutes), cancellationToken);
+            }
+            return computed;
+        }
+
+        _logger.LogInformation("Sinh vector truy vấn cho RAG: '{Query}'", query);
+        return await _embeddingService.GetEmbeddingAsync(query, cancellationToken);
     }
 }
