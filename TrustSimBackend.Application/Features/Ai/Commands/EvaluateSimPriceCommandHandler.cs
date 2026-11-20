@@ -97,7 +97,9 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
             ValuationReasoning = llmResult.ValuationReasoning,
             FengShuiAnalysis = llmResult.FengShuiSummary,
             ReferencedChunkIds = referencedChunkIdsJson,
-            AiModelName = string.IsNullOrEmpty(llmResult.EngineSource) ? "gemini-3.1-flash-lite" : llmResult.EngineSource,
+            AiModelName = !string.IsNullOrWhiteSpace(llmResult.ModelUsed)
+                ? llmResult.ModelUsed
+                : (string.IsNullOrEmpty(llmResult.EngineSource) ? "SEMANTIC_KERNEL_GEMINI" : llmResult.EngineSource),
             AppliedToSim = false
         };
 
@@ -131,7 +133,9 @@ public class EvaluateSimPriceCommandHandler : IRequestHandler<EvaluateSimPriceCo
             FengShuiAnalysis = valuation.FengShuiAnalysis,
             AlternativeRhythmsComparison = features.AlternativeRhythmsComparison,
             ReferencedDocuments = ragChunks.Select(c => c.DocumentName).Distinct().ToList(),
-            AiModelName = string.IsNullOrEmpty(llmResult.EngineSource) ? "gemini-3.1-flash-lite" : llmResult.EngineSource,
+            AiModelName = !string.IsNullOrWhiteSpace(llmResult.ModelUsed)
+                ? llmResult.ModelUsed
+                : (string.IsNullOrEmpty(llmResult.EngineSource) ? "SEMANTIC_KERNEL_GEMINI" : llmResult.EngineSource),
             EngineSource = llmResult.EngineSource,
             ExecutionTimeMs = llmResult.ExecutionTimeMs,
             AppliedToSim = valuation.AppliedToSim,

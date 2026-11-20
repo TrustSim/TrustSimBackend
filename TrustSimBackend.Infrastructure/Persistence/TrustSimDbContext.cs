@@ -87,6 +87,8 @@ public class TrustSimDbContext : IdentityDbContext<UserAccount, IdentityRole<Gui
     public DbSet<SimValuation> SimValuations => Set<SimValuation>();
     public DbSet<AiConsultationSession> AiConsultationSessions => Set<AiConsultationSession>();
     public DbSet<AiConsultationMessage> AiConsultationMessages => Set<AiConsultationMessage>();
+    public DbSet<AiTelemetryLog> AiTelemetryLogs => Set<AiTelemetryLog>();
+    public DbSet<AiEvaluationResult> AiEvaluationResults => Set<AiEvaluationResult>();
     #endregion
 
     #region Chat DbSets

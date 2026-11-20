@@ -420,9 +420,13 @@ public class GoogleVisionService : IGoogleVisionService
             candidates.Add(DefaultVisionModel);
         }
 
-        foreach (var fallback in FallbackVisionModels)
+        if (_settings.VisionFallbackModels is { Count: > 0 })
         {
-            candidates.Add(fallback);
+            candidates.AddRange(_settings.VisionFallbackModels);
+        }
+        else
+        {
+            candidates.AddRange(FallbackVisionModels);
         }
 
         if (!string.IsNullOrWhiteSpace(_settings.ChatModel))
@@ -430,7 +434,11 @@ public class GoogleVisionService : IGoogleVisionService
             candidates.Add(_settings.ChatModel.Trim());
         }
 
-        return candidates.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return candidates
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .Select(m => m.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private GoogleVisionOcrResult ParseGeminiResponse(string rawResponseJson)

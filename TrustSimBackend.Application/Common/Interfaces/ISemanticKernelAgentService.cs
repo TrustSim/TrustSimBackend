@@ -27,7 +27,9 @@ public interface ISemanticKernelAgentService
         string? fengShuiElement = null,
         decimal? budgetMin = null,
         decimal? budgetMax = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        AiUserContext? userContext = null,
+        Guid? sessionId = null);
 
     /// <summary>
     /// Streaming SSE Token theo thời gian thực kết hợp bắt các sự kiện kích hoạt công cụ (tool_start, tool_end).
@@ -40,5 +42,7 @@ public interface ISemanticKernelAgentService
         string? fengShuiElement = null,
         decimal? budgetMin = null,
         decimal? budgetMax = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        AiUserContext? userContext = null,
+        Guid? sessionId = null);
 }
